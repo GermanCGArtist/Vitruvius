@@ -152,9 +152,11 @@ public final class SceneWindow {
             drawRow(s, tree, r, i, order, first);
             if (!tree.isFiltering() && !r.hasChildren() && (r.kind() == Kind.PROJECT || r.kind() == Kind.FOLDER) && tree.isOpen(r.node())) {
                 float ind = (r.depth() + 1) * 14 * Ui.s() + 18 * Ui.s();
-                ImGui.setCursorPosX(ImGui.getCursorPosX() + ind);
+                // indent/unindent, not +/- on the cursor: a text item resets the cursor X to the line start, so
+                // subtracting afterwards pushed every following row further left (the rename box landed over the icon).
+                ImGui.indent(ind);
                 Ui.smallDim("Empty. Right-click > Add, or drag objects here.");
-                ImGui.setCursorPosX(ImGui.getCursorPosX() - ind);
+                ImGui.unindent(ind);
             }
             first = false;
         }
