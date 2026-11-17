@@ -71,6 +71,7 @@ public final class SceneWindow {
     private static UUID deferredSelect;
     private static List<String> projectChoices = List.of();
     private static List<String> schematicChoices = List.of();
+    private static List<String> schematicDirs = List.of();
     private static SchemFolder schematicTree = new SchemFolder();
     private static List<Path> lasmChoices = List.of();
     private static List<ProjectNode> linkChoices = List.of();
@@ -200,7 +201,8 @@ public final class SceneWindow {
             addParent = s.addSchematicParent;
             s.addSchematicParent = null;
             schematicChoices = listSchematics(s);
-            schematicTree = SchemFolder.of(schematicChoices);
+            schematicDirs = listSchematicDirs(s);
+            schematicTree = SchemFolder.of(schematicChoices, schematicDirs);
             PICK_FILTER.set("");
             ImGui.openPopup("Add schematic##modal");
         }
@@ -986,8 +988,12 @@ public final class SceneWindow {
         final List<String> files = new ArrayList<>();
         int total;
 
-        static SchemFolder of(List<String> paths) {
+        static SchemFolder of(List<String> paths, List<String> allDirs) {
             SchemFolder root = new SchemFolder();
+            for (String dir : allDirs) {   // every folder on disk, also empty ones, like Litematica's own Load Schematic screen
+                SchemFolder d = root;
+                for (String part : dir.split("/")) d = d.dirs.computeIfAbsent(part, k -> new SchemFolder());
+            }
             for (String p : paths) {
                 String[] parts = p.split("/");
                 SchemFolder d = root;
@@ -1027,10 +1033,25 @@ public final class SceneWindow {
         return added;
     }
 
+    /** Every folder below the schematics folder (not Projects, not hidden), relative, so the picker mirrors the disk. */
+    private static List<String> listSchematicDirs(EditorSession s) {
+        List<String> out = new ArrayList<>();
+        Path root = s.schematicsDir();
+        try (Stream<Path> st = Files.walk(root, 16)) {
+            st.filter(Files::isDirectory).forEach(p -> {
+                String rel = root.relativize(p).toString().replace(java.io.File.separatorChar, '/');
+                if (!rel.isEmpty() && !rel.equals("Projects") && !rel.startsWith("Projects/") && !rel.startsWith(".") && !rel.contains("/.")) out.add(rel);
+            });
+        } catch (IOException ignored) {
+            // unreadable folder: the picker then shows only folders that hold schematics
+        }
+        return out;
+    }
+
     private static List<String> listSchematics(EditorSession s) {
         List<String> out = new ArrayList<>();
         Path root = s.schematicsDir();
-        try (Stream<Path> st = Files.walk(root, 4)) {
+        try (Stream<Path> st = Files.walk(root, 16)) {
             st.filter(p -> p.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".litematic")).forEach(p -> {
                 String rel = root.relativize(p).toString().replace(java.io.File.separatorChar, '/');
                 if (!rel.startsWith("Projects/") && !rel.contains("/.")) out.add(rel);
