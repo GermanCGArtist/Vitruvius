@@ -1,0 +1,9 @@
+.gradle/
+build/
+run/
+tmp/
+logs/
+.idea/
+libs/
+install.bat
+tools/

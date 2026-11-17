@@ -1,0 +1,16 @@
+{
+  "required": false,
+  "minVersion": "0.8",
+  "package": "dev.schemarray.editor.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "client": [
+    "CameraMixin",
+    "EntityRenderDispatcherMixin",
+    "GuiCrosshairMixin",
+    "LevelRendererOutlineMixin",
+    "MouseHandlerGrabMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

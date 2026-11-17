@@ -1,0 +1,1708 @@
+<meta charset="utf-8">
+<title>Litematica Array Editor v2</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Mockup v2 of the Litematica Array 2.0 editor. The game viewport fills the frame; ImGui-style windows float over it.
+   Single dark look on purpose: it mocks an in-game UI. Drawn at ~0.87x of the DESIGN.md px values (13px body text vs 15px). */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Barlow+Condensed:wght@600&display=swap");
+:root {
+  --bg: #131518; --vp: #0e1013; --panel: #191c20; --panel2: #1e2126; --line: #2a2e35; --line2: #22262b;
+  --fg: #e2e5e9; --dim: #858c96; --dimsel: #a8afb8; --gutter: #4f565f; --slot: #1c1f24;
+  --accent: #5ec4b6; --on-accent: #06221e; --sel: #21403b;
+  --ok: #8ad27e; --warn: #f2b35e; --err: #f07470; --bool: #b48cf0; --link: #7fc8f0; --area: #f2b35e;
+  --t-folder: #c9b27a; --t-object: #9fb4c9;
+  --ax-x: #f0605e; --ax-y: #8ad27e; --ax-z: #5b9cf0;
+  --btn: #23272d; --chip: #262a31; --track: #2a2f36;
+  --f-ui: "Inter", system-ui, "Segoe UI", sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+  --f-num: "Barlow Condensed", "Inter", sans-serif;
+  color-scheme: dark;
+}
+html, body { height: 100%; margin: 0; }
+body {
+  background: var(--bg); color: var(--fg); font: 13px/1.4 var(--f-ui);
+  box-sizing: border-box; padding-block: 16px; overflow-x: hidden;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+*, *::before, *::after { box-sizing: border-box; }
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+button:disabled { cursor: default; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+#app { position: relative; height: 100%; min-height: 560px; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--vp); user-select: none; }
+#stage { position: absolute; inset: 0; }
+#vp { position: absolute; inset: 0; display: block; cursor: default; width: 100%; height: 100%; }
+#vp.cross { cursor: crosshair; } #vp.hand { cursor: pointer; } #vp.ew { cursor: ew-resize; } #vp.ns { cursor: ns-resize; } #vp.all { cursor: move; } #vp.none { cursor: none; }
+
+.i { width: 15px; height: 15px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+kbd { font: 500 10.5px var(--f-mono); padding: 1px 5px; border-radius: 4px; background: var(--chip); border: 1px solid var(--line); color: var(--dim); white-space: nowrap; }
+
+/* toolbar */
+#toolbar { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 4px; padding: 4px; background: color-mix(in srgb, var(--panel) 94%, transparent); border: 1px solid var(--line); border-radius: 8px; z-index: 30; max-width: calc(100% - 20px); }
+.mode { display: flex; align-items: center; gap: 6px; padding: 0 8px; height: 28px; border-radius: 5px; background: var(--sel); color: var(--accent); font-weight: 600; font-size: 11.5px; letter-spacing: .05em; text-transform: uppercase; white-space: nowrap; border: 0; }
+.tb { display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 8px; border: 0; border-radius: 5px; background: transparent; color: var(--dim); white-space: nowrap; flex: none; }
+.tb:hover:not(:disabled) { background: var(--btn); color: var(--fg); }
+.tb.on { background: var(--btn); color: var(--accent); box-shadow: inset 0 0 0 1px #5ec4b655; }
+.tb:disabled { color: var(--gutter); }
+.tb .lbl { font-size: 12px; }
+.tb.add { color: var(--fg); background: var(--btn); }
+.sep { width: 1px; height: 18px; background: var(--line); margin: 0 3px; flex: none; }
+.tb.push { color: var(--fg); background: var(--btn); }
+.pill { border-radius: 9px; padding: 0 6px; font: 600 11px var(--f-mono); }
+.tb.push .pill { background: var(--warn); color: #2a1a02; }
+.tb.push.clean .pill { background: var(--chip); color: var(--dim); }
+select.tsel { height: 28px; border: 0; border-radius: 5px; background: var(--btn); color: var(--fg); padding: 0 6px; font-size: 12px; }
+#tb-more { display: none; }
+@media (max-width: 1180px) { #toolbar .lbl { display: none; } }
+@media (max-width: 1000px) { #toolbar kbd { display: none; } }
+@media (max-width: 760px) { .tb-opt { display: none !important; } #tb-more { display: flex; } }
+@media (max-width: 480px) { .tb-opt2 { display: none !important; } #toolbar { gap: 2px; } #toolbar .tb { padding: 0 6px; } }
+
+/* HUD */
+#hud { position: absolute; top: 56px; left: 50%; transform: translateX(-50%); z-index: 25; display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 14px; border-radius: 15px; background: #14161ad1; border: 1px solid #ffffff1a; font: 500 12.5px var(--f-mono); white-space: nowrap; pointer-events: none; max-width: calc(100% - 20px); overflow: hidden; }
+#hud b { color: var(--accent); font-weight: 500; }
+#hud .d { color: var(--dim); }
+.ax-x { color: var(--ax-x); } .ax-y { color: var(--ax-y); } .ax-z { color: var(--ax-z); }
+.chips { display: inline-flex; gap: 3px; }
+.chip-ax { width: 18px; height: 18px; border-radius: 4px; display: inline-grid; place-items: center; background: var(--chip); color: var(--dim); font: 600 10.5px var(--f-mono); pointer-events: auto; cursor: pointer; border: 0; padding: 0; }
+.chip-ax.on.x { background: #f0605e40; color: var(--ax-x); } .chip-ax.on.y { background: #8ad27e40; color: var(--ax-y); } .chip-ax.on.z { background: #5b9cf040; color: var(--ax-z); }
+#hud .cur { background: var(--fg); width: 2px; height: 14px; display: inline-block; animation: blink 1s steps(2) infinite; }
+.spd { display: inline-block; width: 60px; height: 5px; border-radius: 3px; background: #ffffff24; position: relative; overflow: hidden; }
+.spd i { position: absolute; inset: 0 auto 0 0; background: var(--accent); border-radius: 3px; }
+@keyframes blink { 50% { opacity: 0; } }
+
+/* windows */
+.win { position: absolute; z-index: 20; display: flex; flex-direction: column; background: color-mix(in srgb, var(--panel) 96%, transparent); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 10px 32px #0009; max-height: calc(100% - 70px); }
+.win:focus-within { border-color: var(--gutter); }
+.win[hidden], #stage.nowin ~ .win { display: none; }
+.win-h { display: flex; align-items: center; gap: 8px; height: 28px; padding: 0 4px 0 10px; background: var(--panel2); border-bottom: 1px solid var(--line2); border-radius: 8px 8px 0 0; cursor: grab; flex: none; }
+.win-h:active { cursor: grabbing; }
+.win-h .t { font-weight: 600; font-size: 12.5px; flex: 1; }
+.hb { border: 0; background: transparent; color: var(--dim); border-radius: 4px; height: 22px; width: 22px; display: grid; place-items: center; padding: 0; flex: none; }
+.hb:hover { background: var(--btn); color: var(--fg); }
+.hb[hidden] { display: none; }
+.hb.on { color: var(--accent); }
+.win-b { padding: 8px 10px; overflow: auto; min-height: 0; }
+.win-f { display: flex; gap: 6px; padding: 8px 10px; border-top: 1px solid var(--line2); flex: none; }
+
+/* scene graph */
+.search { display: flex; align-items: center; gap: 6px; height: 26px; padding: 0 4px 0 8px; border-radius: 5px; background: var(--btn); border: 1px solid var(--line); color: var(--dim); margin-bottom: 6px; }
+.search:focus-within { border-color: var(--accent); }
+.search input { flex: 1; min-width: 0; border: 0; background: transparent; outline: none; color: var(--fg); font-size: 12.5px; }
+.search .hb { width: 18px; height: 18px; }
+.filters { display: flex; gap: 4px; margin-bottom: 6px; flex-wrap: wrap; }
+.chipb { border: 1px solid var(--line); background: transparent; color: var(--dim); border-radius: 11px; height: 21px; padding: 0 9px; font-size: 11.5px; }
+.chipb:hover { color: var(--fg); }
+.chipb.on { background: var(--sel); color: var(--accent); border-color: #5ec4b655; }
+.chipb.iss { color: var(--err); border-color: #f0747055; }
+.chipb.iss.on { background: #f0747022; }
+.tree { display: flex; flex-direction: column; position: relative; }
+.row { position: relative; display: flex; align-items: center; gap: 5px; height: 22px; padding-right: 2px; border-radius: 4px; font-size: 12.5px; cursor: default; white-space: nowrap; }
+.row:hover { background: #ffffff08; }
+.row.sel { background: #21403b99; }
+.row.sel.active { background: var(--sel); }
+.row.sel.active::before { content: ""; position: absolute; left: 0; top: 4px; bottom: 4px; width: 2px; border-radius: 1px; background: var(--accent); }
+.row.sel .nm { color: #fff; } .row.sel .bdg, .row.sel .eye, .row.sel .proj-of { color: var(--dimsel); }
+.row.owner-sel { background: #21403b59; }
+.row.hid .nm, .row.hid .ty { opacity: .45; }
+.row.locked .nm { color: var(--dim); } .row.locked .ty { color: var(--gutter) !important; }
+.row.anc .nm { color: var(--dim); }
+.row .tw { width: 16px; height: 16px; display: grid; place-items: center; color: var(--gutter); border: 0; background: transparent; padding: 0; flex: none; }
+.row .tw .i { width: 11px; height: 11px; transition: transform .12s; }
+.row .tw.open .i { transform: rotate(90deg); }
+.row .nm { flex: 1; min-width: 40px; overflow: hidden; text-overflow: ellipsis; }
+.row .nm mark { background: none; color: var(--accent); }
+.row .proj-of { color: var(--dim); font-size: 11.5px; margin-left: 6px; }
+.row.proj { font-weight: 600; height: 26px; margin-top: 4px; }
+.row .rn { flex: 1; min-width: 0; height: 20px; border: 1px solid var(--accent); border-radius: 4px; background: var(--panel2); padding: 0 5px; outline: none; font-size: 12.5px; }
+.ty { color: var(--dim); }
+.ty.t-project { color: var(--accent); } .ty.t-assembly { color: var(--t-object); } .ty.t-assembly.linked { color: var(--link); } .ty.t-area { color: var(--area); } .ty.t-folder { color: var(--t-folder); } .ty.t-object { color: var(--t-object); } .ty.t-loose { color: var(--gutter); } .ty.t-cutter { color: var(--bool); }
+.bdg { display: inline-flex; align-items: center; gap: 3px; height: 16px; padding: 0 5px; border-radius: 4px; background: var(--chip); color: var(--dim); font: 500 10.5px var(--f-mono); flex: none; }
+.bdg .i { width: 11px; height: 11px; }
+.bdg .arr { color: var(--accent); display: inline-flex; align-items: center; gap: 2px; } .bdg .bool { color: var(--bool); display: inline-flex; } .bdg .off { color: var(--gutter) !important; }
+.bdg.lnk { color: var(--link); } .bdg.prio { color: var(--fg); } .bdg.act { background: var(--accent); color: var(--on-accent) !important; font: 600 10px var(--f-ui); letter-spacing: .04em; }
+.bdg.trim { color: var(--err) !important; }
+.sdot { width: 7px; height: 7px; border-radius: 50%; flex: none; display: inline-block; }
+.eye { border: 0; background: transparent; color: var(--gutter); width: 20px; height: 20px; display: grid; place-items: center; border-radius: 4px; padding: 0; flex: none; }
+.eye:hover { color: var(--fg); background: var(--btn); }
+.row.hid .eye { color: var(--dim); }
+.eye.lockg { pointer-events: none; }
+.eye .i { width: 13px; height: 13px; }
+/* drag and drop */
+.row.dragging { opacity: .45; }
+.row.drop-into { background: #21403b80; box-shadow: inset 0 0 0 1px var(--accent); }
+.row.drop-bad { background: #f074701a; }
+.dropline { position: absolute; height: 2px; background: var(--accent); pointer-events: none; z-index: 2; }
+.dropline::before { content: ""; position: absolute; left: -6px; top: -3px; width: 6px; height: 6px; border: 2px solid var(--accent); border-radius: 50%; background: var(--panel); }
+.empty { padding: 18px 6px; color: var(--dim); text-align: center; font-size: 12.5px; line-height: 1.6; }
+.empty .btn { margin-top: 8px; }
+.linkb { border: 0; background: none; padding: 0; color: var(--accent); }
+.linkb:hover { text-decoration: underline; }
+
+/* properties */
+.ph { display: flex; align-items: center; gap: 8px; margin-bottom: 3px; }
+.ph input { flex: 1; min-width: 0; height: 26px; padding: 0 8px; border-radius: 5px; border: 1px solid var(--line); background: var(--btn); font-weight: 600; }
+.ph input:focus { border-color: var(--accent); outline: none; }
+.ph .ttl { font-weight: 600; flex: 1; }
+.file { font: 11px var(--f-mono); color: var(--dim); margin: 0 0 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: copy; display: flex; gap: 5px; align-items: center; }
+.file.lnk { color: var(--link); }
+.file .i { width: 12px; height: 12px; }
+.sec { border-top: 1px solid var(--line2); padding: 8px 0 8px; display: flex; flex-direction: column; gap: 6px; }
+.sec > h4 { margin: 0; font-size: 10.5px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); display: flex; align-items: center; gap: 6px; }
+.sec > h4 .sp { flex: 1; }
+.fr { display: grid; grid-template-columns: 70px 1fr; align-items: center; gap: 8px; }
+.fr > span { color: var(--dim); font-size: 12px; }
+.axr { display: flex; gap: 3px; align-items: stretch; }
+.num { display: flex; align-items: center; height: 24px; border-radius: 5px; background: var(--btn); border: 1px solid var(--line); overflow: hidden; flex: 1; min-width: 0; }
+.num:focus-within { border-color: var(--accent); }
+.num i { font-style: normal; font: 600 10.5px var(--f-mono); width: 18px; text-align: center; align-self: stretch; display: grid; place-items: center; cursor: ew-resize; flex: none; }
+.num.x i { background: #f0605e22; color: var(--ax-x); } .num.y i { background: #8ad27e22; color: var(--ax-y); } .num.z i { background: #5b9cf022; color: var(--ax-z); }
+.num input { flex: 1; min-width: 0; width: 100%; border: 0; background: transparent; outline: none; padding: 0 6px; font: 12px var(--f-mono); font-variant-numeric: tabular-nums; text-align: right; }
+.num input::-webkit-inner-spin-button { display: none; }
+.stp { width: 24px; height: 24px; flex: none; border: 1px solid var(--line); border-radius: 5px; background: var(--btn); color: var(--dim); padding: 0; font: 500 13px var(--f-mono); line-height: 1; }
+.stp:hover { color: var(--fg); border-color: var(--gutter); }
+.xyz { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+.seg { display: flex; background: var(--btn); border: 1px solid var(--line); border-radius: 5px; padding: 2px; gap: 2px; }
+.seg button { flex: 1; border: 0; background: transparent; color: var(--dim); height: 19px; border-radius: 3px; font: 12px var(--f-mono); white-space: nowrap; padding: 0 4px; }
+.seg button:hover { color: var(--fg); }
+.seg button.on { background: var(--panel2); color: var(--fg); box-shadow: inset 0 0 0 1px var(--line); }
+.seg.ui button { font-family: var(--f-ui); }
+.btn { height: 25px; padding: 0 10px; border-radius: 5px; border: 1px solid var(--line); background: var(--btn); color: var(--fg); font-size: 12px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; }
+.btn:hover:not(:disabled) { border-color: var(--gutter); background: var(--chip); }
+.btn:disabled { color: var(--gutter); }
+.btn.pri { background: var(--accent); color: var(--on-accent); border-color: transparent; font-weight: 600; }
+.btn.pri:hover { background: #5ec4b6d9; }
+.btn.ghost { background: transparent; border-color: transparent; color: var(--dim); }
+.btn.danger { color: var(--err); }
+.btn.wide { flex: 1; }
+.btn.sq { width: 25px; padding: 0; }
+.brow { display: flex; gap: 4px; flex-wrap: wrap; }
+.brow .btn { flex: 1 1 auto; }
+.mod { position: relative; border: 1px solid var(--line); border-radius: 6px; background: var(--panel2); overflow: hidden; }
+.mod::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: var(--accent); }
+.mod.m-bool::before { background: var(--bool); }
+.mod.off::before { background: var(--gutter); }
+.mod.off .mod-h .ttl, .mod.off .mod-h .ty { color: var(--dim); }
+.mod.dropb { box-shadow: 0 -2px 0 var(--accent); } .mod.dropa { box-shadow: 0 2px 0 var(--accent); }
+.mod-h { display: flex; align-items: center; gap: 5px; height: 28px; padding: 0 4px 0 6px; font-weight: 600; font-size: 12.5px; }
+.mod:not(.coll) .mod-h { border-bottom: 1px solid var(--line2); }
+.mod-h .grip { color: var(--gutter); cursor: ns-resize; display: grid; place-items: center; width: 12px; }
+.mod-h .grip:hover { color: var(--fg); }
+.mod-h .sum { color: var(--dim); font-weight: 400; font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.mod-h .sp { flex: 1; }
+.mod-h .ty { color: var(--accent); } .mod.m-bool .mod-h .ty { color: var(--bool); }
+.mod.coll .mod-b { display: none; }
+.mod-b { padding: 8px; display: flex; flex-direction: column; gap: 6px; }
+.sw { width: 26px; height: 14px; border-radius: 7px; background: var(--track); border: 0; padding: 0; position: relative; flex: none; }
+.sw::after { content: ""; position: absolute; top: 2px; left: 2px; width: 10px; height: 10px; border-radius: 50%; background: var(--dim); transition: left .12s; }
+.sw.on { background: var(--accent); } .sw.on::after { left: 14px; background: var(--on-accent); }
+.note { font-size: 11.5px; color: var(--dim); line-height: 1.45; margin: 0; }
+.note.err { color: var(--err); } .note.warnc { color: var(--warn); } .note b { color: var(--fg); font-weight: 600; }
+.note.err b { color: var(--err); }
+.kv { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; } .kv b { font: 500 12px var(--f-mono); font-variant-numeric: tabular-nums; text-align: right; }
+.bignum { font: 600 26px/1 var(--f-num); font-variant-numeric: tabular-nums; letter-spacing: .01em; }
+.stat { display: flex; gap: 14px; flex-wrap: wrap; }
+.stat > div { display: flex; flex-direction: column; gap: 2px; } .stat small { color: var(--dim); font-size: 11px; }
+.selc { width: 100%; min-width: 0; height: 24px; border-radius: 5px; border: 1px solid var(--line); background: var(--btn); padding: 0 6px; font-size: 12px; }
+.banner { border: 1px solid #7fc8f080; background: var(--panel2); border-radius: 6px; padding: 8px; display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+.banner p { margin: 0; font-size: 12px; display: flex; gap: 6px; } .banner .i { color: var(--link); margin-top: 1px; }
+.stline { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--dim); }
+.card { background: var(--panel2); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; text-align: left; margin-top: 12px; }
+.card h5 { margin: 0 0 6px; font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); display: flex; }
+.card h5 .sp { flex: 1; }
+.card .tr { display: grid; grid-template-columns: 1fr auto 1.2fr; gap: 6px; font-size: 11.5px; padding: 3px 0; align-items: baseline; }
+.card .tr span:first-child { color: var(--dim); } .card .tr span:nth-child(2) { color: var(--gutter); }
+.card .tr small { display: block; color: var(--dim); font-size: 11px; }
+.sellist { display: flex; flex-direction: column; gap: 2px; }
+.sellist button { text-align: left; border: 0; background: transparent; border-radius: 4px; height: 22px; padding: 0 6px; display: flex; align-items: center; gap: 6px; font-size: 12px; }
+.sellist button:hover { background: var(--chip); }
+.sellist button.act { background: var(--sel); }
+
+/* map */
+.map-tools { display: flex; align-items: center; gap: 4px; margin-bottom: 6px; font-size: 11px; color: var(--dim); }
+.map-tools .sp { flex: 1; }
+#map { display: block; width: 100%; height: 180px; border-radius: 6px; background: var(--slot); cursor: default; }
+.maplg { display: flex; gap: 10px; margin-top: 6px; font-size: 11px; color: var(--dim); flex-wrap: wrap; }
+.maplg span { display: inline-flex; align-items: center; gap: 4px; }
+.maplg i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+
+/* status bar */
+#status { position: absolute; left: 0; right: 0; bottom: 0; height: 24px; display: flex; align-items: center; gap: 14px; padding: 0 10px; background: var(--panel2); border-top: 1px solid var(--line); font-size: 11.5px; color: var(--dim); z-index: 30; white-space: nowrap; overflow: hidden; }
+#status .hints { display: flex; gap: 10px; flex: 1; min-width: 0; overflow: hidden; }
+#status .hints span { display: inline-flex; gap: 4px; align-items: center; flex: none; }
+#status .hints .mchip { background: var(--sel); color: var(--accent); border-radius: 4px; padding: 0 6px; font-weight: 600; }
+#status .hints .bad { color: var(--err); }
+#status .rt { display: flex; gap: 14px; align-items: center; min-width: 0; }
+#status .rt > span { display: inline-flex; gap: 5px; align-items: center; }
+#status .rt .selt { color: var(--fg); overflow: hidden; text-overflow: ellipsis; min-width: 0; display: block; }
+#status .linkb { font-size: 11.5px; }
+.spin { width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--warn); border-right-color: transparent; animation: sp .7s linear infinite; display: inline-block; flex: none; }
+@keyframes sp { to { transform: rotate(360deg); } }
+
+/* menus */
+.menu { position: fixed; z-index: 100; min-width: 230px; max-width: calc(100vw - 16px); padding: 4px; background: var(--panel2); border: 1px solid var(--line); border-radius: 7px; box-shadow: 0 12px 36px #000a; font-size: 12.5px; }
+.menu .mh { padding: 5px 8px 4px; font-size: 10.5px; color: var(--dim); letter-spacing: .07em; text-transform: uppercase; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 300px; }
+.menu button { display: flex; align-items: center; gap: 8px; width: 100%; height: 25px; padding: 0 8px; border: 0; background: transparent; border-radius: 4px; text-align: left; white-space: nowrap; }
+.menu button:hover, .menu button:focus-visible, .menu button.open { background: var(--sel); outline: none; }
+.menu button .l { flex: 1; }
+.menu button .i { color: var(--dim); }
+.menu button .k { font: 11px var(--f-mono); color: var(--dim); margin-left: 16px; }
+.menu button .chk { width: 15px; color: var(--accent); }
+.menu button .sub { width: 11px; height: 11px; color: var(--dim); }
+.menu button.danger, .menu button.danger .i { color: var(--err); }
+.menu button[disabled] { opacity: .4; pointer-events: none; }
+.menu hr { border: 0; border-top: 1px solid var(--line2); margin: 4px 2px; }
+.menu.help { width: 340px; padding: 10px 12px; font-size: 12px; }
+.menu.help h6 { margin: 8px 0 4px; font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); }
+.menu.help h6:first-child { margin-top: 0; }
+.menu.help p { margin: 0 0 4px; line-height: 1.5; color: var(--fg); }
+.menu.help .kl { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; align-items: center; }
+
+/* toasts */
+#toasts { position: absolute; right: 12px; bottom: 36px; display: flex; flex-direction: column; gap: 6px; align-items: flex-end; z-index: 60; pointer-events: none; }
+.toast { position: relative; display: flex; align-items: center; gap: 12px; padding: 8px 12px 8px 20px; border-radius: 12px; background: #14161ae6; border: 1px solid var(--line); box-shadow: 0 6px 20px #0008; font-size: 12.5px; max-width: min(380px, calc(100vw - 60px)); animation: tin .18s ease-out; pointer-events: auto; }
+.toast::before { content: ""; position: absolute; left: 9px; top: 9px; bottom: 9px; width: 3px; border-radius: 2px; background: var(--accent); }
+.toast.warn { border-color: #f2b35e80; } .toast.warn::before { background: var(--warn); }
+.toast.error { border-color: #f07470b3; } .toast.error::before { background: var(--err); }
+.toast b { color: var(--accent); font-weight: 600; }
+.toast .ta { border: 0; background: none; color: var(--accent); font-weight: 600; padding: 0; }
+@keyframes tin { from { transform: translateY(6px); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .toast, .row .tw .i, .sw::after { animation: none; transition: none; } .spin, #hud .cur { animation: none; } }
+
+/* narrow screens: stack the windows under the viewport */
+@media (max-width: 860px) {
+  body { height: auto; }
+  #app { height: auto; overflow: visible; border: 0; background: transparent; min-height: 0; }
+  #stage { position: relative; height: 460px; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--vp); }
+  #toolbar { left: 8px; right: 8px; transform: none; max-width: none; overflow: hidden; }
+  .win { position: static !important; width: auto !important; height: auto !important; max-height: none; margin-top: 12px; box-shadow: none; }
+  .win-h { cursor: default; }
+  #w-scene .win-b { max-height: 420px; }
+  #status .hints { display: none; }
+}
+</style>
+
+<div id="app">
+  <div id="stage">
+    <canvas id="vp" aria-label="Game viewport (mock)"></canvas>
+    <div id="toolbar" role="toolbar" aria-label="Editor tools"></div>
+    <div id="hud" hidden></div>
+    <div id="status"></div>
+    <div id="toasts" aria-live="polite"></div>
+  </div>
+
+  <section class="win" id="w-scene" style="left:12px; top:56px; width:316px; height:calc(100% - 92px)" aria-label="Scene">
+    <header class="win-h" data-drag><span class="t">Scene</span><button class="hb" data-close="w-scene" aria-label="Close Scene" title="Close (reopen from Windows)"></button></header>
+    <div class="win-b" style="flex:1">
+      <label class="search"><svg class="i" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg><input id="q" placeholder="Filter  (Ctrl F)" aria-label="Filter objects"><button class="hb" id="qclear" hidden aria-label="Clear filter"></button></label>
+      <div class="filters" id="filters"></div>
+      <div class="tree" id="tree" role="tree"></div>
+    </div>
+    <div class="win-f">
+      <button class="btn wide" id="b-newproj"></button>
+      <button class="btn wide" id="b-openproj">Open project…</button>
+    </div>
+  </section>
+
+  <section class="win" id="w-props" style="right:12px; top:56px; width:310px; max-height:calc(100% - 336px)" aria-label="Properties">
+    <header class="win-h" data-drag><span class="t">Properties</span><button class="hb" data-close="w-props" aria-label="Close Properties"></button></header>
+    <div class="win-b" id="props"></div>
+  </section>
+
+  <section class="win" id="w-map" style="right:12px; bottom:36px; width:310px" aria-label="Top view">
+    <header class="win-h" data-drag><span class="t">Top view</span><button class="hb" data-close="w-map" aria-label="Close Top view"></button></header>
+    <div class="win-b">
+      <div class="map-tools"><button class="hb" id="mapfit" title="Fit everything"></button><button class="hb on" id="mapfollow" title="Follow camera"></button><span class="sp"></span><span id="mapscale"></span></div>
+      <canvas id="map" aria-label="Top-down map"></canvas>
+      <div class="maplg"><span><i style="background:var(--accent)"></i>selected</span><span><i style="background:#9fb4c98c"></i>object</span><span><i style="background:repeating-linear-gradient(45deg,var(--err) 0 2px,#f0747055 2px 4px)"></i>overlap</span><span><i style="border:1.5px dashed var(--area)"></i>area</span><span><i style="border:1.5px dotted var(--bool)"></i>cutter</span></div>
+    </div>
+  </section>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const ICON = {
+  cursor: '<path d="M3.5 2l9.5 5-4.3 1.3L7 13z"/>',
+  move: '<path d="M8 1.5v13M1.5 8h13M8 1.5L6 3.5M8 1.5l2 2M8 14.5l-2-2M8 14.5l2-2M1.5 8l2-2M1.5 8l2 2M14.5 8l-2-2M14.5 8l-2 2"/>',
+  rotate: '<path d="M13 8a5 5 0 1 1-1.5-3.6M13 2.2v3h-3"/>',
+  mirror: '<path d="M8 1.5v13M6 4.5L2.5 11.5H6zM10 4.5l3.5 7H10z"/>',
+  magnet: '<path d="M3.5 2.5v5.5a4.5 4.5 0 0 0 9 0V2.5h-3V8a1.5 1.5 0 0 1-3 0V2.5zM3.5 5h3M9.5 5h3"/>',
+  undo: '<path d="M4 6h6a3.5 3.5 0 0 1 0 7H6M4 6l3-3M4 6l3 3"/>',
+  redo: '<path d="M12 6H6a3.5 3.5 0 0 0 0 7h4M12 6L9 3M12 6L9 9"/>',
+  eye: '<path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8z"/><circle cx="8" cy="8" r="2"/>',
+  eyeoff: '<path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8z"/><path d="M2.5 2.5l11 11"/>',
+  folder: '<path d="M1.5 4v8.5h13v-7H7.5L6 4z"/>',
+  object: '<path d="M8 1.5l5.5 3v7L8 14.5l-5.5-3v-7zM2.5 4.5L8 7.5l5.5-3M8 7.5v7"/>',
+  assembly: '<path d="M5 1.5l3 1.6v3.3L5 8 2 6.4V3.1zM11 1.5l3 1.6v3.3L11 8 8 6.4V3.1zM8 8l3 1.6v3.3L8 14.5 5 12.9V9.6z"/>',
+  link: '<path d="M6.5 9.5l3-3M7 4.5l1.2-1.2a2.5 2.5 0 0 1 3.5 3.5L10.5 8M9 11.5l-1.2 1.2a2.5 2.5 0 0 1-3.5-3.5L5.5 8"/>',
+  array: '<rect x="1.5" y="5" width="3.5" height="6"/><rect x="6.25" y="5" width="3.5" height="6"/><rect x="11" y="5" width="3.5" height="6"/>',
+  bool: '<circle cx="6" cy="8" r="4.2"/><circle cx="10" cy="8" r="4.2"/>',
+  area: '<path d="M1.5 1.5h3M6.5 1.5h3M11.5 1.5h3v3M14.5 6.5v3M14.5 11.5v3h-3M9.5 14.5h-3M4.5 14.5h-3v-3M1.5 9.5v-3M1.5 4.5v-3"/>',
+  project: '<path d="M2 3.5h12v10H2zM2 6.5h12M5 1.5v2M11 1.5v2"/>',
+  loose: '<circle cx="5" cy="5" r="2"/><circle cx="11" cy="7" r="2"/><circle cx="6" cy="12" r="2"/>',
+  sync: '<path d="M13 6.5A5 5 0 0 0 3.6 4.5M3 9.5a5 5 0 0 0 9.4 2M3.5 1.5v3h3M12.5 14.5v-3h-3"/>',
+  lock: '<rect x="3" y="7" width="10" height="7" rx="1"/><path d="M5 7V5a3 3 0 0 1 6 0v2"/>',
+  chev: '<path d="M6 4l4 4-4 4"/>',
+  plus: '<path d="M8 3v10M3 8h10"/>',
+  trash: '<path d="M2.5 4h11M6 4V2.5h4V4M4 4l.8 10h6.4L12 4"/>',
+  dup: '<rect x="2" y="5" width="8" height="9" rx="1"/><path d="M6 5V2h8v9h-4"/>',
+  export: '<path d="M8 10V1.5M5 4.5l3-3 3 3M2.5 9v5h11V9"/>',
+  front: '<rect x="5" y="5" width="9" height="9" rx="1"/><path d="M2 11V2h9"/>',
+  back: '<rect x="2" y="2" width="9" height="9" rx="1"/><path d="M14 5v9H5"/>',
+  explode: '<path d="M8 1.5v4M8 10.5v4M1.5 8h4M10.5 8h4M3.5 3.5l2.5 2.5M10 10l2.5 2.5M12.5 3.5L10 6M6 10l-2.5 2.5"/>',
+  local: '<circle cx="8" cy="8" r="5.5"/><circle cx="8" cy="8" r="1.8"/>',
+  frame: '<path d="M2 5.5V2h3.5M10.5 2H14v3.5M14 10.5V14h-3.5M5.5 14H2v-3.5"/>',
+  realise: '<rect x="1.5" y="5" width="3.5" height="6"/><rect x="6.25" y="5" width="3.5" height="6" stroke-dasharray="2 1.5"/><path d="M11 8h3.5M13 6l1.5 2-1.5 2"/>',
+  group: '<rect x="1.5" y="1.5" width="13" height="13" rx="2" stroke-dasharray="2.5 2"/><rect x="4.5" y="4.5" width="7" height="7" rx="1"/>',
+  active: '<circle cx="8" cy="8" r="5.5"/><path d="M5.5 8l2 2 3.5-4"/>',
+  close: '<path d="M4 4l8 8M12 4l-8 8"/>',
+  box: '<path d="M1.5 1.5h2.5M6 1.5h2.5M11 1.5h1.5v1.5M12.5 5v2M1.5 1.5V4M1.5 6v2.5M1.5 10.5v1h1.5"/><path d="M8 7.5l6 2.5-2.5 1-1 2.5z"/>',
+  help: '<circle cx="8" cy="8" r="6.5"/><path d="M6 6.2a2 2 0 0 1 4 .2c0 1.3-2 1.6-2 3"/><circle cx="8" cy="11.6" r=".4"/>',
+  layout: '<rect x="1.5" y="2" width="13" height="12" rx="1.5"/><path d="M6 2v12M6 8h8.5"/>',
+  kebab: '<circle cx="3.5" cy="8" r=".9"/><circle cx="8" cy="8" r=".9"/><circle cx="12.5" cy="8" r=".9"/>',
+  grip: '<circle cx="6" cy="4" r=".7"/><circle cx="10" cy="4" r=".7"/><circle cx="6" cy="8" r=".7"/><circle cx="10" cy="8" r=".7"/><circle cx="6" cy="12" r=".7"/><circle cx="10" cy="12" r=".7"/>',
+  pick: '<circle cx="8" cy="8" r="4"/><path d="M8 1v3.5M8 11.5V15M1 8h3.5M11.5 8H15"/>',
+  move2: '<path d="M2 8h12M8 2v12"/>',
+  more: '<circle cx="3.5" cy="8" r=".9"/><circle cx="8" cy="8" r=".9"/><circle cx="12.5" cy="8" r=".9"/>',
+  check: '<path d="M3.5 8.5l3 3 6-7"/>',
+  folderplus: '<path d="M1.5 4v8.5h13v-7H7.5L6 4zM8 7.5v3.5M6.25 9.25h3.5"/>',
+};
+const ic = (n, cls='') => `<svg class="i ${cls}" viewBox="0 0 16 16" aria-hidden="true">${ICON[n]||''}</svg>`;
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmt = n => Math.round(n).toLocaleString('en-US');
+const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch {} } };
+document.querySelectorAll('[data-close]').forEach(b => b.innerHTML = ic('close'));
+$('#qclear').innerHTML = ic('close'); $('#b-newproj').innerHTML = ic('plus') + 'New project';
+$('#mapfit').innerHTML = ic('frame'); $('#mapfollow').innerHTML = ic('local');
+
+/* ---------- scene data (example) ---------- */
+let uid = 1;
+const N = o => { o.id = o.id || 'n' + (uid++); (o.children||[]).forEach(N); return o; };
+let tree = [
+  { type:'project', name:'Metro Line 2', active:true, open:true, sync:'shared', path:'schematics/Projects/Metro Line 2', world:'SMP · Overworld', origin:[0,64,0], children:[
+    { type:'folder', name:'Tunnels', open:true, children:[
+      { type:'object', name:'tunnel_segment', file:'files/tunnel/tunnel_segment.litematic', pos:[0,0,0], size:[8,6,7], color:'#8a8f96', prio:2, fill:.46,
+        mods:[{type:'array', on:true, count:6, mode:'rel', off:[1,0,0]}, {type:'boolean', on:true, op:'Difference', target:'cut1'}] },
+      { type:'object', id:'cut1', name:'vent_shaft_cut', file:'files/tunnel/vent_shaft_cut.litematic', pos:[20,-1,2], size:[3,9,3], color:'#b48cf0', prio:9, fill:1, mods:[] },
+    ]},
+    { type:'folder', name:'Stations', open:true, children:[
+      { type:'assembly', name:'Station A', linked:'files/stations/station_a.lasm', pos:[44,-1,-3], prio:1, open:false, mods:[], children:[
+        { type:'object', name:'platform', file:'station_a/platform.litematic', pos:[0,0,0], size:[18,5,13], color:'#b06a4f', fill:.5 },
+        { type:'object', name:'roof', file:'station_a/roof.litematic', pos:[1,5,1], size:[16,2,11], color:'#5d6570', fill:.7 },
+        { type:'object', name:'entrance_stairs', file:'station_a/entrance_stairs.litematic', pos:[6,7,8], size:[6,4,4], color:'#a59a83', fill:.5 },
+      ]},
+      { type:'assembly', name:'Ticket hall', pos:[30,0,14], prio:6, open:false, mods:[], children:[
+        { type:'object', name:'hall_floor', file:'files/stations/hall_floor.litematic', pos:[0,0,0], size:[10,1,8], color:'#9d8f74', fill:.9 },
+        { type:'object', name:'gates', file:'files/stations/gates.litematic', pos:[2,1,3], size:[6,3,2], color:'#6f7d8c', fill:.4 },
+      ]},
+    ]},
+    { type:'area', name:'Dig · Tunnel 2', source:'Heavymatica', pos:[-1,-1,-1], size:[64,8,9], color:'#f2b35e', mods:[] },
+  ]},
+  { type:'project', name:'City Block 7', open:true, sync:'local', path:'schematics/Projects/City Block 7', world:'SMP · Overworld', origin:[0,64,0], children:[
+    { type:'object', name:'tower_base', file:'files/tower_base.litematic', pos:[22,0,12], size:[10,16,10], color:'#d8c48e', prio:3, fill:.34, mods:[] },
+    { type:'folder', name:'Plaza', open:false, children:[
+      { type:'object', name:'fountain', file:'files/plaza/fountain.litematic', pos:[36,0,15], size:[5,3,5], color:'#7fa6c4', prio:4, fill:.5, mods:[] },
+    ]},
+  ]},
+  { type:'loose', name:'Loose placements', open:true, children:[
+    { type:'object', name:'old_wheat_farm', file:'old_wheat_farm.litematic', pos:[-18,0,12], size:[9,4,9], color:'#6e9b4f', prio:5, fill:.4, mods:[] },
+  ]},
+].map(N);
+
+let sel = [];                        // sel[0] is the active item
+const S = { yaw:-0.62, pitch:0.62, zoom:8.5, t:[26,2,7], speed:1 };
+let tool = 'move', snapOn = true, pivot = 'Median', localView = null, filter = 'all', query = '';
+let pendingSync = 3, regenUntil = 0, regenCount = 0, regenIds = new Set();
+let undo = [], redo = [];
+let hover = null, hoverSince = 0, gHover = null, renaming = null, boxArmed = false, box = null, pending = null, pickMode = null, treeDrag = null;
+const collapsedMods = new Set();
+let mouseP = [0, 0];
+
+/* ---------- tree helpers ---------- */
+let byId = {}, parentOf = {}, cutters = new Set();
+function reindex() {
+  byId = {}; parentOf = {}; cutters = new Set();
+  const w = (ns, p) => ns.forEach(n => { byId[n.id] = n; parentOf[n.id] = p; (n.mods||[]).forEach(m => { if (m.type === 'boolean' && m.target) cutters.add(m.target); }); if (n.children) w(n.children, n); });
+  w(tree, null);
+}
+const siblings = id => parentOf[id] ? parentOf[id].children : tree;
+function ancestors(id) { const a = []; let p = parentOf[id]; while (p) { a.push(p); p = parentOf[p.id]; } return a; }
+const isLocked = id => ancestors(id).some(a => a.type === 'assembly' && a.linked);
+function ownerOf(id) { let top = id; for (const a of ancestors(id)) if (a.type === 'assembly') top = a.id; return top; }
+const projectOf = id => { const a = ancestors(id); return a.length ? a[a.length - 1] : byId[id]; };
+const activeProject = () => tree.find(n => n.active);
+const hasTransform = n => n && (n.type === 'object' || n.type === 'assembly' || n.type === 'area');
+const isContainer = n => n.type === 'project' || n.type === 'folder' || n.type === 'loose' || (n.type === 'assembly' && !n.linked);
+const isCutter = n => n && n.type === 'object' && cutters.has(n.id);
+const arrayMod = n => (n.mods||[]).find(m => m.type === 'array');
+const boolMod = n => (n.mods||[]).find(m => m.type === 'boolean');
+const arrayLive = n => { const m = arrayMod(n); return m && m.on !== false ? m : null; };
+const typeIcon = n => isCutter(n) ? 'bool' : n.type;
+const typeCls = n => isCutter(n) ? 't-cutter' : 't-' + n.type + (n.linked ? ' linked' : '');
+function clone(n) { const c = JSON.parse(JSON.stringify(n)); const re = o => { o.id = 'n' + (uid++); (o.children||[]).forEach(re); }; re(c); return c; }
+function isDesc(a, b) { return ancestors(a).some(x => x.id === b); }  // a inside b
+
+/* ---------- transforms ---------- */
+function rotVec(n, v) { let [x,y,z] = v; if (n.mir) x = -x; for (let i = 0; i < ((n.rot||0) % 4 + 4) % 4; i++) [x,z] = [-z, x]; return [x,y,z]; }
+function xfLocal(n, p) { const r = rotVec(n, p); return [r[0]+n.pos[0], r[1]+n.pos[1], r[2]+n.pos[2]]; }
+const add = (a,b) => [a[0]+b[0], a[1]+b[1], a[2]+b[2]];
+function localSize(n) {
+  if (n.size) return n.size;
+  let mn=[1e9,1e9,1e9], mx=[-1e9,-1e9,-1e9];
+  (n.children||[]).forEach(c => { if (!hasTransform(c)) return; const s = localSize(c); for (const cn of corners([0,0,0], s)) { const p = xfLocal(c, cn); for (let k=0;k<3;k++){ mn[k]=Math.min(mn[k],p[k]); mx[k]=Math.max(mx[k],p[k]); } } });
+  return mn[0] > mx[0] ? [1,1,1] : [mx[0]-mn[0], mx[1]-mn[1], mx[2]-mn[2]];
+}
+const arrStep = (n, m) => { const s = localSize(n); return m.mode === 'abs' ? m.off.map(v => Math.round(v)) : m.off.map((v, k) => Math.round(v * s[k])); };
+function corners(a, b) { const r = []; for (let i = 0; i < 8; i++) r.push([i&1?b[0]:a[0], i&2?b[1]:a[1], i&4?b[2]:a[2]]); return r; }
+function aabb(pts) { const mn=[1e9,1e9,1e9], mx=[-1e9,-1e9,-1e9]; pts.forEach(p => { for (let k=0;k<3;k++){ mn[k]=Math.min(mn[k],p[k]); mx[k]=Math.max(mx[k],p[k]); } }); return [mn, mx]; }
+
+/* every drawable box in world space; owner = what a viewport click selects, part = the leaf object */
+function collect() {
+  const out = [];
+  const gen = (n, toWorld, owner, copy, hidden) => {
+    if (n.hidden) hidden = true;
+    if (n.type === 'project' || n.type === 'folder' || n.type === 'loose') { (n.children||[]).forEach(c => gen(c, toWorld, owner, copy, hidden)); return; }
+    const own = owner || n.id;
+    const am = arrayLive(n), cnt = am ? Math.max(1, am.count) : 1, st = am ? arrStep(n, am) : [0,0,0];
+    for (let k = 0; k < cnt; k++) {
+      const off = rotVec({ rot: n.rot, mir: n.mir }, [st[0]*k, st[1]*k, st[2]*k]);
+      const myXf = p => toWorld(add(xfLocal(n, p), off));
+      const cp = copy || k > 0;
+      if (n.size) {
+        const [mn, mx] = aabb(corners([0,0,0], n.size).map(myXf));
+        const lv = !localView || localView.includes(own) || localView.includes(n.id);
+        if (!hidden && lv) out.push({ mn, mx, node:n, owner:own, part:n.id, copy:cp, kind: n.type === 'area' ? 'area' : (isCutter(n) ? 'wire' : 'solid') });
+      } else (n.children||[]).forEach(c => gen(c, myXf, own, cp, hidden));
+    }
+  };
+  tree.forEach(n => gen(n, p => p, null, false, false));
+  return out;
+}
+function overlapsOf(boxes) {
+  const solid = boxes.filter(b => b.kind === 'solid'), res = [];
+  for (let i = 0; i < solid.length; i++) for (let j = i+1; j < solid.length; j++) {
+    const a = solid[i], b = solid[j]; if (a.owner === b.owner) continue;
+    const mn = [0,1,2].map(k => Math.max(a.mn[k], b.mn[k])), mx = [0,1,2].map(k => Math.min(a.mx[k], b.mx[k]));
+    if (mx[0] <= mn[0] || mx[1] <= mn[1] || mx[2] <= mn[2]) continue;
+    const pa = byId[a.owner].prio ?? 5, pb = byId[b.owner].prio ?? 5;
+    const [front, back] = pa <= pb ? [a, b] : [b, a];
+    res.push({ mn, mx, front: front.owner, back: back.owner, vol: (mx[0]-mn[0])*(mx[1]-mn[1])*(mx[2]-mn[2]) * (back.node.fill||.5) });
+  }
+  return res;
+}
+function blocksOf(id, boxes) { return boxes.filter(b => (b.owner === id || b.part === id) && b.kind === 'solid').reduce((s, b) => s + (b.mx[0]-b.mn[0])*(b.mx[1]-b.mn[1])*(b.mx[2]-b.mn[2])*(b.node.fill||.5), 0); }
+const selHas = (b, ids = sel) => ids.includes(b.owner) || ids.includes(b.part);
+
+/* ---------- viewport ---------- */
+const cv = $('#vp'), g = cv.getContext('2d');
+let W = 0, H = 0, DPR = 1, picks = [], gizmo = null, lastBoxes = [], lastOverlaps = [];
+function resize() { const r = $('#stage').getBoundingClientRect(); DPR = devicePixelRatio || 1; const first = !W; W = r.width; H = r.height; cv.width = W*DPR; cv.height = H*DPR; if (first) renderAll(); else { draw(); drawMap(); } }
+new ResizeObserver(resize).observe($('#stage'));
+
+function P(p) {
+  const x = p[0]-S.t[0], y = p[1]-S.t[1], z = p[2]-S.t[2];
+  const ca = Math.cos(S.yaw), sa = Math.sin(S.yaw), cp = Math.cos(S.pitch), sp = Math.sin(S.pitch);
+  const rx = x*ca - z*sa, d = x*sa + z*ca;
+  return [W/2 + rx*S.zoom, H/2 + (d*sp - y*cp)*S.zoom, d*cp + y*sp];
+}
+const camDir = () => [Math.sin(S.yaw)*Math.cos(S.pitch), Math.sin(S.pitch), Math.cos(S.yaw)*Math.cos(S.pitch)];
+function hex(h) { const v = parseInt(h.slice(1), 16); return [v>>16, (v>>8)&255, v&255]; }
+function shade(h, f, tint) { let [r,gg,b] = hex(h); if (tint) { r = r*.62 + 94*.38; gg = gg*.62 + 196*.38; b = b*.62 + 182*.38; } return `rgb(${r*f|0},${gg*f|0},${b*f|0})`; }
+const FACES = [ {ix:[1,3,7,5], n:[1,0,0], s:.8}, {ix:[0,4,6,2], n:[-1,0,0], s:.8}, {ix:[2,6,7,3], n:[0,1,0], s:1}, {ix:[0,1,5,4], n:[0,-1,0], s:.5}, {ix:[4,5,7,6], n:[0,0,1], s:.64}, {ix:[0,2,3,1], n:[0,0,-1], s:.64} ];
+const EDGES = [[0,1],[2,3],[4,5],[6,7],[0,2],[1,3],[4,6],[5,7],[0,4],[1,5],[2,6],[3,7]];
+function poly(pts) { g.beginPath(); pts.forEach((p, i) => i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1])); g.closePath(); }
+function edges(b, color, width, dash) {
+  const c = corners(b.mn, b.mx).map(P); g.save(); g.strokeStyle = color; g.lineWidth = width; g.setLineDash(dash || []);
+  g.beginPath(); EDGES.forEach(([a, e]) => { g.moveTo(c[a][0], c[a][1]); g.lineTo(c[e][0], c[e][1]); }); g.stroke(); g.restore();
+}
+function faceGrid(b, f) {
+  const a = f.n.findIndex(v => v !== 0), cval = f.n[a] > 0 ? b.mx[a] : b.mn[a], [u, v] = [0,1,2].filter(k => k !== a);
+  const pt = (iu, iv) => { const p = [0,0,0]; p[a] = cval; p[u] = iu; p[v] = iv; return P(p); };
+  g.beginPath();
+  for (let i = Math.ceil(b.mn[u] + .001); i < b.mx[u]; i++) { const p = pt(i, b.mn[v]), q = pt(i, b.mx[v]); g.moveTo(p[0], p[1]); g.lineTo(q[0], q[1]); }
+  for (let i = Math.ceil(b.mn[v] + .001); i < b.mx[v]; i++) { const p = pt(b.mn[u], i), q = pt(b.mx[u], i); g.moveTo(p[0], p[1]); g.lineTo(q[0], q[1]); }
+  g.stroke();
+}
+function hatch(pts, color) {
+  g.save(); poly(pts); g.clip(); g.strokeStyle = color; g.lineWidth = 1; g.beginPath();
+  const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]), x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+  for (let k = x0 - (y1 - y0); k < x1; k += 6) { g.moveTo(k, y1); g.lineTo(k + (y1 - y0), y0); }
+  g.stroke(); g.restore();
+}
+
+function withPositions(list, fn) { const cur = list.map(([id]) => [id, byId[id].pos, byId[id].rot]); list.forEach(([id, p, r]) => { byId[id].pos = p; byId[id].rot = r; }); const out = fn(); cur.forEach(([id, p, r]) => { byId[id].pos = p; byId[id].rot = r; }); return out; }
+
+function draw() {
+  if (!W) return;
+  g.setTransform(DPR, 0, 0, DPR, 0, 0);
+  const sky = g.createLinearGradient(0, 0, 0, H); sky.addColorStop(0, '#151a20'); sky.addColorStop(1, '#0c0e11');
+  g.fillStyle = sky; g.fillRect(0, 0, W, H);
+  g.lineWidth = 1;
+  for (let x = -32; x <= 80; x += 4) { const a = P([x,-1,-20]), b = P([x,-1,32]); g.strokeStyle = x === 0 ? '#5b9cf055' : (x % 16 ? '#ffffff08' : '#ffffff12'); g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke(); }
+  for (let z = -20; z <= 32; z += 4) { const a = P([-32,-1,z]), b = P([80,-1,z]); g.strokeStyle = z === 0 ? '#f0605e55' : (z % 16 ? '#ffffff08' : '#ffffff12'); g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke(); }
+
+  // the real placements stay put while dragging; the ghost shows where they will go
+  let boxes, ghosts = null;
+  if (drag?.base) { boxes = withPositions(drag.base, collect); ghosts = collect().filter(b => selHas(b)); }
+  else boxes = collect();
+  lastBoxes = boxes; lastOverlaps = overlapsOf(boxes);
+  const c = camDir(), faces = [], later = [], low = [];
+  boxes.forEach(b => {
+    const pc = corners(b.mn, b.mx).map(P);
+    if (b.kind !== 'solid') { later.push(b); FACES.forEach(f => low.push({ pts: f.ix.map(i => pc[i]), owner: b.owner })); return; }
+    FACES.forEach(f => {
+      if (f.n[0]*c[0] + f.n[1]*c[1] + f.n[2]*c[2] <= 0) return;
+      const pts = f.ix.map(i => pc[i]);
+      faces.push({ pts, depth: pts.reduce((s, p) => s + p[2], 0) / 4, b, f });
+    });
+  });
+  faces.sort((a, b) => a.depth - b.depth);
+  faces.forEach(({ pts, b, f }) => {
+    g.fillStyle = shade(b.node.color, f.s * (b.copy ? .86 : 1), selHas(b)); poly(pts); g.fill();
+    if (S.zoom > 4.5) { g.strokeStyle = '#00000030'; g.lineWidth = 1; faceGrid(b, f); }
+    g.strokeStyle = '#0000006a'; g.lineWidth = 1; poly(pts); g.stroke();
+  });
+  picks = low.concat(faces.map(f => ({ pts: f.pts, owner: f.b.owner })));
+
+  // overlap volumes: always; hatched top face as the second cue
+  lastOverlaps.forEach(o => {
+    const pc = corners(o.mn, o.mx).map(P);
+    g.fillStyle = '#f074702e'; FACES.forEach(f => { if (f.n[0]*c[0]+f.n[1]*c[1]+f.n[2]*c[2] > 0) { poly(f.ix.map(i => pc[i])); g.fill(); } });
+    hatch([2,6,7,3].map(i => pc[i]), '#f0747080');
+    edges(o, '#f07470d9', 1.5);
+  });
+  // areas, cutters
+  later.forEach(b => {
+    const on = selHas(b);
+    if (b.kind === 'area') { const tp = corners(b.mn, b.mx).map(P); g.fillStyle = '#f2b35e0d'; poly([2,6,7,3].map(i => tp[i])); g.fill(); edges(b, on ? '#5ec4b6' : '#f2b35ecc', on ? 2 : 1.5, [9, 5]); }
+    else { const bm = Object.values(byId).find(o => boolMod(o)?.target === b.part); const live = bm && boolMod(bm).on !== false; if (on) edges(b, '#5ec4b6', 2); edges(b, live ? '#b48cf0' : '#4f565f99', 1.5, [2, 3]); }
+  });
+  // hover outline
+  if (hover && !drag && !box && !flying) boxes.filter(b => b.owner === hover && !selHas(b) && !b.copy).forEach(b => edges(b, byId[hover].linked ? '#7fc8f099' : '#e2e5e973', 1.5));
+  // box select preview
+  if (box) { const hit = boxHits(); boxes.filter(b => hit.includes(b.owner) && !b.copy).forEach(b => edges(b, box.mode === 'sub' ? '#f07470aa' : '#e2e5e973', 1.5)); }
+  // selection outlines (originals)
+  boxes.forEach(b => {
+    if (!selHas(b) || b.kind !== 'solid') return;
+    const locked = sel.includes(b.part) && isLocked(b.part);
+    if (ghosts) edges(b, '#5ec4b659', 1.5);
+    else if (locked) edges(b, '#4f565f', 1.5);
+    else edges(b, b.copy ? '#5ec4b680' : (sel[0] === b.owner || sel[0] === b.part ? '#5ec4b6' : '#5ec4b6bf'), b.copy ? 1 : (sel[0] === b.owner || sel[0] === b.part ? 2 : 1.5));
+  });
+  // part of a local assembly selected: faint dashed box around its assembly
+  sel.filter(id => byId[id] && ownerOf(id) !== id).forEach(id => { const bb = selBox([ownerOf(id)], true); if (bb) edges({ mn: bb[0], mx: bb[1] }, '#5ec4b659', 1, [5, 4]); });
+  // ghost + tether
+  if (ghosts) {
+    ghosts.forEach(b => { const pc = corners(b.mn, b.mx).map(P); g.fillStyle = '#5ec4b610'; FACES.forEach(f => { if (f.n[0]*c[0]+f.n[1]*c[1]+f.n[2]*c[2] > 0) { poly(f.ix.map(i => pc[i])); g.fill(); } }); edges(b, b.copy ? '#5ec4b666' : '#5ec4b6', b.copy ? 1 : 2, [6, 4]); });
+    const a = selBox(sel, true, boxes), b = selBox(sel, true, ghosts);
+    if (a && b) { const pa = P(ctrOf(a)), pb = P(ctrOf(b)); g.strokeStyle = '#5ec4b680'; g.lineWidth = 1; g.beginPath(); g.moveTo(pa[0], pa[1]); g.lineTo(pb[0], pb[1]); g.stroke(); }
+    if (drag.snap) drawSnap(drag.snap);
+  }
+  // labels: selection tags, hover tag, overlap labels only when involved
+  const placed = [];
+  const involved = new Set([...sel, hover].filter(Boolean));
+  lastOverlaps.forEach(o => {
+    if (!involved.has(o.front) && !involved.has(o.back)) return;
+    const p = P([(o.mn[0]+o.mx[0])/2, o.mx[1], (o.mn[2]+o.mx[2])/2]);
+    tag(p[0], p[1] - 12, `−${fmt(o.vol)} from ${byId[o.back].name}`, '#f07470', placed);
+  });
+  if (!flying && !orbit) {
+    const tagIds = sel.length > 8 ? [sel[0]] : sel;
+    tagIds.forEach(id => { const bb = selBox([id], true, ghosts || boxes); if (!bb) return; const p = P([(bb[0][0]+bb[1][0])/2, bb[1][1], (bb[0][2]+bb[1][2])/2]); tag(p[0], p[1] - 16, byId[id].name + (sel.length > 8 ? `  +${sel.length - 1}` : ''), '#5ec4b6', placed); });
+    if (hover && !sel.includes(hover) && performance.now() - hoverSince > 300 && !drag) { const bb = selBox([hover], true); if (bb) { const p = P([(bb[0][0]+bb[1][0])/2, bb[1][1], (bb[0][2]+bb[1][2])/2]); tag(p[0], p[1] - 16, byId[hover].name, '#e2e5e9d9', placed); } }
+  }
+  drawGizmo(ghosts || boxes);
+  if (box) { const x = Math.min(box.x0, box.x1), y = Math.min(box.y0, box.y1), w = Math.abs(box.x1 - box.x0), h = Math.abs(box.y1 - box.y0); const sub = box.mode === 'sub'; g.fillStyle = sub ? '#f074700f' : '#5ec4b614'; g.fillRect(x, y, w, h); g.strokeStyle = sub ? '#f07470' : '#5ec4b6'; g.lineWidth = 1; g.strokeRect(x + .5, y + .5, w, h); }
+}
+const ctrOf = bb => [(bb[0][0]+bb[1][0])/2, (bb[0][1]+bb[1][1])/2, (bb[0][2]+bb[1][2])/2];
+function tag(x, y, text, color, placed) {
+  g.font = '500 11px "JetBrains Mono", monospace'; const w = g.measureText(text).width + 12, h = 18;
+  let ty = y;
+  for (let k = 0; k < 4; k++) { const hit = placed.some(r => Math.abs(r.x - x) < (r.w + w) / 2 && Math.abs(r.y - ty) < h); if (!hit) break; if (k === 3) return; ty -= h + 4; }
+  placed.push({ x, y: ty, w });
+  g.fillStyle = '#14161ad1'; g.beginPath(); g.roundRect(x - w/2, ty - 9, w, h, 4); g.fill();
+  g.fillStyle = color; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, x, ty + .5);
+}
+function selBox(ids, baseOnly, list = lastBoxes) {
+  const bs = list.filter(b => selHas(b, ids) && (!baseOnly || !b.copy));
+  return bs.length ? aabb(bs.flatMap(b => [b.mn, b.mx])) : null;
+}
+function drawSnap(s) {
+  const q = [0,1,2].map(() => 0), pts = [];
+  const [u, v] = [0,1,2].filter(k => k !== s.axis);
+  for (const [a, b] of [[0,0],[1,0],[1,1],[0,1]]) { const p = [0,0,0]; p[s.axis] = s.coord; p[u] = a ? s.mx[u] : s.mn[u]; p[v] = b ? s.mx[v] : s.mn[v]; pts.push(P(p)); }
+  g.fillStyle = '#5ec4b626'; poly(pts); g.fill(); g.strokeStyle = '#5ec4b6'; g.lineWidth = 2; poly(pts); g.stroke();
+  const cx = pts.reduce((a, p) => a + p[0], 0) / 4, cy = pts.reduce((a, p) => a + p[1], 0) / 4;
+  g.fillStyle = '#5ec4b6'; g.beginPath(); g.moveTo(cx, cy - 4.5); g.lineTo(cx + 4.5, cy); g.lineTo(cx, cy + 4.5); g.lineTo(cx - 4.5, cy); g.closePath(); g.fill();
+  tag(cx, cy + 18, 'snapped to ' + s.name, '#5ec4b6', []);
+}
+
+/* ---------- gizmo (screen px, constant size) ---------- */
+const AX = [[1,0,0],[0,1,0],[0,0,1]], AXC = ['#f0605e','#8ad27e','#5b9cf0'], AXN = ['x','y','z'];
+const lighten = h => { const [r, gg, b] = hex(h); return `rgb(${r + (255-r)*.25|0},${gg + (255-gg)*.25|0},${b + (255-b)*.25|0})`; };
+function axisDir(o, ctr, i) { const q = P(add(ctr, AX[i])), dx = q[0]-o[0], dy = q[1]-o[1], ppb = Math.hypot(dx, dy) || 1e-6; return { dir: [dx/ppb, dy/ppb], ppb }; }
+function drawGizmo(list) {
+  gizmo = null;
+  if (!sel.length || tool === 'select' || tt || flying || box || boxArmed || pickMode) return;
+  const ids = sel.filter(id => hasTransform(byId[id])); if (!ids.length) return;
+  const bb = pivotBox(ids, list); if (!bb) return;
+  const ctr = ctrOf(bb), o = P(ctr), off = ids.some(isLocked);
+  gizmo = { ctr, o, handles: [], off };
+  const line = (a, b, col, w) => { g.strokeStyle = col; g.lineWidth = w; g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke(); };
+  if (tool === 'move') {
+    const D = [0,1,2].map(i => axisDir(o, ctr, i));
+    // constraint lines while dragging
+    if (drag?.kind === 'axis') { const d = D[drag.axis].dir; line([o[0]-d[0]*3000, o[1]-d[1]*3000], [o[0]+d[0]*3000, o[1]+d[1]*3000], AXC[drag.axis] + '80', 1); }
+    if (drag?.kind === 'plane') [0, 2].forEach(i => { const d = D[i].dir; line([o[0]-d[0]*3000, o[1]-d[1]*3000], [o[0]+d[0]*3000, o[1]+d[1]*3000], AXC[i] + '80', 1); });
+    // XZ plane handle
+    const ux = D[0].dir, uz = D[2].dir, cross = Math.abs(ux[0]*uz[1] - ux[1]*uz[0]);
+    const showPlane = cross * 18 * 18 > 60 && (!drag || drag.kind === 'plane');
+    if (showPlane) {
+      const q = [[30,30],[48,30],[48,48],[30,48]].map(([a, b]) => [o[0] + ux[0]*a + uz[0]*b, o[1] + ux[1]*a + uz[1]*b]);
+      const hot = !off && (gHover?.type === 'plane' || drag?.kind === 'plane');
+      g.fillStyle = off ? '#4f565f55' : (hot ? '#8ad27e8c' : '#8ad27e4d'); poly(q); g.fill();
+      g.strokeStyle = '#00000073'; g.lineWidth = 3.5; poly(q); g.stroke();
+      g.strokeStyle = off ? '#4f565f' : '#8ad27e'; g.lineWidth = 1.5; poly(q); g.stroke();
+      gizmo.plane = q;
+    }
+    D.forEach(({ dir, ppb }, i) => {
+      if (drag && !(drag.kind === 'axis' && drag.axis === i)) return;
+      const fore = ppb < 2, hot = !off && !fore && (gHover?.type === 'axis' && gHover.axis === i || drag?.axis === i);
+      const col = off ? '#4f565f' : hot ? lighten(AXC[i]) : AXC[i];
+      const L = 84, a = [o[0]+dir[0]*14, o[1]+dir[1]*14], e = [o[0]+dir[0]*L, o[1]+dir[1]*L], w = off ? 2 : drag?.axis === i ? 4 : hot ? 3.5 : 2.5;
+      const nx = -dir[1], ny = dir[0], tip = [e[0]+dir[0]*14, e[1]+dir[1]*14];
+      g.globalAlpha = fore ? .25 : 1;
+      line(a, e, '#00000073', w + 2);
+      g.fillStyle = '#00000073'; g.beginPath(); g.moveTo(tip[0]+dir[0]*1.5, tip[1]+dir[1]*1.5); g.lineTo(e[0]+nx*7.5, e[1]+ny*7.5); g.lineTo(e[0]-nx*7.5, e[1]-ny*7.5); g.closePath(); g.fill();
+      line(a, e, col, w);
+      g.fillStyle = col; g.beginPath(); g.moveTo(tip[0], tip[1]); g.lineTo(e[0]+nx*6, e[1]+ny*6); g.lineTo(e[0]-nx*6, e[1]-ny*6); g.closePath(); g.fill();
+      g.font = '600 11.5px "JetBrains Mono", monospace'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(AXN[i].toUpperCase(), tip[0]+dir[0]*12, tip[1]+dir[1]*12);
+      g.globalAlpha = 1;
+      if (!fore && !off) gizmo.handles.push({ axis: i, a, b: tip, dir, ppb });
+    });
+    g.fillStyle = off ? '#4f565f' : '#e2e5e9'; g.beginPath(); g.arc(o[0], o[1], 4.5, 0, 7); g.fill(); g.strokeStyle = '#00000080'; g.lineWidth = 1; g.stroke();
+    if (off) tag(o[0], o[1] + 22, 'Locked: part of a linked assembly', '#858c96', []);
+    gizmo.D = D;
+  } else if (tool === 'rotate') {
+    const r = 72 / S.zoom, pts = [];
+    for (let k = 0; k <= 64; k++) { const t = k/64*Math.PI*2; pts.push(P([ctr[0]+Math.cos(t)*r, ctr[1], ctr[2]+Math.sin(t)*r])); }
+    const hot = !off && (gHover?.type === 'ring' || drag?.kind === 'ring'), col = off ? '#4f565f' : hot ? lighten(AXC[1]) : AXC[1];
+    if (drag?.kind === 'ring' && drag.steps) {
+      const a0 = drag.a0, a1 = drag.a0 + drag.steps * Math.PI / 2, arc = [P(ctr)];
+      for (let k = 0; k <= 24; k++) { const t = a0 + (a1 - a0) * k / 24; arc.push(P([ctr[0]+Math.cos(t)*r, ctr[1], ctr[2]+Math.sin(t)*r])); }
+      g.fillStyle = '#8ad27e26'; poly(arc); g.fill();
+    }
+    const ring = w => { g.lineWidth = w; g.beginPath(); pts.forEach((p, i) => i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1])); g.stroke(); };
+    g.strokeStyle = '#00000073'; ring(hot ? 5.5 : 4.5); g.strokeStyle = col; ring(off ? 2 : hot ? 3.5 : 2.5);
+    for (let k = 0; k < 4; k++) { const t = k*Math.PI/2, p = P([ctr[0]+Math.cos(t)*r, ctr[1], ctr[2]+Math.sin(t)*r]); g.fillStyle = col; g.beginPath(); g.moveTo(p[0], p[1]-4); g.lineTo(p[0]+4, p[1]); g.lineTo(p[0], p[1]+4); g.lineTo(p[0]-4, p[1]); g.closePath(); g.fill(); }
+    if (gHover?.type === 'ring' && !drag) { const dx = mouseP[0]-o[0], dy = mouseP[1]-o[1], d = Math.hypot(dx, dy) || 1; g.fillStyle = col; g.font = '600 14px Inter, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(keys.shift ? '↺' : '↻', mouseP[0] + dx/d*16, mouseP[1] + dy/d*16); }
+    g.fillStyle = off ? '#4f565f' : '#e2e5e9'; g.beginPath(); g.arc(o[0], o[1], 3.5, 0, 7); g.fill();
+    if (!off) gizmo.ring = pts;
+    gizmo.r = r;
+  }
+}
+function pivotBox(ids, list = lastBoxes) {
+  if (pivot === 'Active object') return selBox([ids[0]], true, list);
+  if (pivot === 'Bounding box') return selBox(ids, true, list);
+  const cs = ids.map(id => selBox([id], true, list)).filter(Boolean).map(ctrOf); if (!cs.length) return null;
+  const m = [0,1,2].map(k => cs.reduce((s, c) => s + c[k], 0) / cs.length); return [m, m];
+}
+function segDist(p, a, b) { const vx = b[0]-a[0], vy = b[1]-a[1], t = Math.max(0, Math.min(1, ((p[0]-a[0])*vx + (p[1]-a[1])*vy) / (vx*vx + vy*vy))); return Math.hypot(p[0]-a[0]-vx*t, p[1]-a[1]-vy*t); }
+function inPoly(p, pts) { let c = false; for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) { const a = pts[i], b = pts[j]; if ((a[1] > p[1]) !== (b[1] > p[1]) && p[0] < (b[0]-a[0]) * (p[1]-a[1]) / (b[1]-a[1]) + a[0]) c = !c; } return c; }
+function hitGizmo(p) {
+  if (!gizmo || gizmo.off) return null;
+  if (gizmo.handles.length) { let best = null; gizmo.handles.forEach(h => { const d = segDist(p, h.a, h.b); if (d < 9 && (!best || d < best.d)) best = { d, h }; }); if (best) return { type:'axis', axis: best.h.axis, h: best.h }; }
+  if (gizmo.plane && inPoly(p, gizmo.plane)) return { type:'plane' };
+  if (gizmo.ring) { for (let i = 1; i < gizmo.ring.length; i++) if (segDist(p, gizmo.ring[i-1], gizmo.ring[i]) < 8) return { type:'ring' }; }
+  return null;
+}
+function pickAll(p) { const out = []; for (let i = picks.length - 1; i >= 0; i--) if (inPoly(p, picks[i].pts) && !out.includes(picks[i].owner)) out.push(picks[i].owner); return out; }
+// screen delta -> world XZ delta (inverse of the projection restricted to the ground plane)
+function screenToXZ(dx, dy) {
+  const o = P([0,0,0]), a = P([1,0,0]), b = P([0,0,1]);
+  const m = [a[0]-o[0], b[0]-o[0], a[1]-o[1], b[1]-o[1]], det = m[0]*m[3] - m[1]*m[2];
+  if (Math.abs(det) < 1e-6) return [0, 0];
+  return [(dx*m[3] - m[1]*dy) / det, (m[0]*dy - m[2]*dx) / det];
+}
+function boxHits() {
+  if (!box) return [];
+  const x0 = Math.min(box.x0, box.x1), x1 = Math.max(box.x0, box.x1), y0 = Math.min(box.y0, box.y1), y1 = Math.max(box.y0, box.y1);
+  const out = new Set();
+  lastBoxes.forEach(b => {
+    const pc = corners(b.mn, b.mx).map(P), xs = pc.map(p => p[0]), ys = pc.map(p => p[1]);
+    if (Math.max(...xs) >= x0 && Math.min(...xs) <= x1 && Math.max(...ys) >= y0 && Math.min(...ys) <= y1) out.add(b.owner);
+  });
+  return [...out];
+}
+
+/* ---------- actions ---------- */
+function snapshot() { return JSON.stringify({ tree, sel }); }
+function restore(s) { const o = JSON.parse(s); tree = o.tree; sel = o.sel.filter(Boolean); reindex(); sel = sel.filter(id => byId[id]); renderAll(); }
+function pushUndo(label) { undo.push({ s: snapshot(), label }); if (undo.length > 100) undo.shift(); redo = []; }
+function doUndo() { if (!undo.length) return toast('Nothing to undo'); const u = undo.pop(); redo.push({ s: snapshot(), label: u.label }); restore(u.s); toast('Undid ' + esc(u.label || 'last step')); }
+function doRedo() { if (!redo.length) return toast('Nothing to redo'); const r = redo.pop(); undo.push({ s: snapshot(), label: r.label }); restore(r.s); toast('Redid ' + esc(r.label || 'last step')); }
+function changed(regen) {
+  if (sel.some(id => byId[id] && projectOf(id)?.sync === 'shared') || regen === 'shared') pendingSync++;
+  if (regen) { regenCount = regen === true ? 2 : 1; regenIds = new Set(sel); regenUntil = performance.now() + 900; setTimeout(() => { regenIds = new Set(); renderStatus(); renderTree(); }, 950); }
+  reindex(); renderAll();
+}
+function commit(label, fn, regen) { pushUndo(label); fn(); changed(regen); }
+const nameOf = ids => ids.length === 1 ? byId[ids[0]].name : ids.length + ' objects';
+/* viewport selection: picks the owner (assembly instance); tree selection picks exactly the row */
+function select(id, additive, exact) {
+  if (id == null) { if (!additive) sel = []; }
+  else {
+    const t = exact ? id : ownerOf(id);
+    if (additive) sel = sel.includes(t) ? sel.filter(s => s !== t) : [t, ...sel]; else sel = [t];
+  }
+  renderAll();
+}
+function insertAfter(id, nodes) { const sib = siblings(id); sib.splice(sib.indexOf(byId[id]) + 1, 0, ...nodes); }
+function removeNode(id) { const sib = siblings(id); sib.splice(sib.indexOf(byId[id]), 1); }
+const movable = () => sel.filter(id => hasTransform(byId[id]) && !isLocked(id));
+function rotateNodes(ids, dir) {
+  ids.forEach(id => {
+    const n = byId[id], before = selBox([id], true, collect());
+    n.rot = (((n.rot||0) + dir) % 4 + 4) % 4;
+    const after = selBox([id], true, collect());
+    if (before && after) for (const k of [0, 2]) n.pos[k] += Math.round((before[0][k]+before[1][k])/2 - (after[0][k]+after[1][k])/2);
+  });
+}
+function rotateSel(dir) {
+  const m = movable(); if (!m.length) return;
+  commit('Rotate ' + nameOf(m), () => rotateNodes(m, dir), true);
+}
+function mirrorSel() { const m = movable(); if (!m.length) return toast('Select something to mirror'); commit('Mirror ' + nameOf(m), () => m.forEach(id => { const n = byId[id], b = selBox([id], true, collect()); n.mir = !n.mir; const a = selBox([id], true, collect()); if (a && b) n.pos[0] += Math.round(b[0][0] - a[0][0]); }), true); }
+function duplicate(linked) {
+  const ids = movable(); if (!ids.length) return;
+  pushUndo(linked ? 'Linked duplicate' : 'Duplicate'); const made = [];
+  ids.forEach(id => { const n = byId[id], c = clone(n), s = localSize(n); c.name = n.name + (linked ? '' : '.001'); c.pos = [n.pos[0], n.pos[1], n.pos[2] + s[2] + 2]; if (linked) c.linkOf = n.file || n.linked || n.name; insertAfter(id, [c]); reindex(); made.push(c.id); });
+  sel = made; changed(true); toast(linked ? 'Linked duplicate: shares the same file, edits show on both' : 'Duplicated. It starts as a typed move in the real editor (G)');
+}
+function realise(id) {
+  const n = byId[id], am = arrayMod(n); if (!am) return;
+  pushUndo('Realise ' + n.name);
+  const st = arrStep(n, am), folder = N({ type:'folder', name: n.name + ' (realised)', open:true, children:[] });
+  for (let k = 0; k < am.count; k++) {
+    const c = clone(n); c.mods = (c.mods||[]).filter(m => m.type !== 'array');
+    c.pos = add(n.pos, rotVec(n, [st[0]*k, st[1]*k, st[2]*k])); c.name = `${n.name}.${String(k+1).padStart(3,'0')}`; folder.children.push(c);
+  }
+  const sib = siblings(id); sib.splice(sib.indexOf(n), 1, folder); reindex();
+  sel = [folder.children[0].id]; changed(true);
+  toast(`Realised <b>${am.count}</b> copies into folder <b>${esc(folder.name)}</b>`, { action: 'Undo', fn: doUndo });
+}
+function breakUp(id) {
+  const a = byId[id]; pushUndo('Break up ' + a.name);
+  const folder = N({ type:'folder', name: a.name, open:true, children:[] });
+  (a.children||[]).forEach(c => { const k = clone(c); if (hasTransform(k)) { k.pos = xfLocal(a, c.pos); k.rot = ((c.rot||0) + (a.rot||0)) % 4; k.prio = a.prio; k.mods = k.mods || []; } folder.children.push(k); });
+  const sib = siblings(id); sib.splice(sib.indexOf(a), 1, folder); reindex(); sel = []; changed(true);
+  toast(`Broke up <b>${esc(a.name)}</b> in place: ${folder.children.length} objects you can move one by one`, { action: 'Undo', fn: doUndo });
+}
+function setPrio(ids, mode) {
+  commit('Front order', () => {
+    const objs = Object.values(byId).filter(n => hasTransform(n) && n.type !== 'area' && ownerOf(n.id) === n.id && !isCutter(n)).sort((a, b) => (a.prio??5) - (b.prio??5));
+    const moving = objs.filter(n => ids.includes(n.id)); if (!moving.length) return;
+    let i = objs.indexOf(moving[0]); const rest = objs.filter(n => !ids.includes(n.id));
+    const ni = mode === 'front' ? 0 : mode === 'back' ? rest.length : mode === 'up' ? Math.max(0, i - 1) : Math.min(rest.length, i + 1);
+    rest.splice(ni, 0, ...moving); rest.forEach((n, k) => n.prio = k + 1);
+  }, true);
+}
+function hideSel() { if (!sel.length) return; commit('Hide', () => sel.forEach(id => byId[id].hidden = !byId[id].hidden)); }
+function unhideAll() { commit('Show hidden', () => Object.values(byId).forEach(n => n.hidden = false)); }
+function delSel() {
+  const ids = sel.filter(id => byId[id] && !isLocked(id) && byId[id].type !== 'loose' && byId[id].type !== 'project'); if (!ids.length) return;
+  const n = ids.length; commit('Delete ' + nameOf(ids), () => { ids.forEach(id => byId[id] && removeNode(id)); reindex(); sel = []; }, true);
+  toast(`Deleted ${n} item${n > 1 ? 's' : ''}`, { action: 'Undo', fn: doUndo });
+}
+function toggleLocal() { localView = localView ? null : (sel.length ? [...sel] : null); if (localView) frameSel(); renderAll(); }
+function frameSel() { lastBoxes = collect(); const bb = sel.length ? selBox(sel, false) : aabb(lastBoxes.flatMap(b => [b.mn, b.mx])); if (!bb) return; S.t = ctrOf(bb); const span = Math.max(bb[1][0]-bb[0][0], bb[1][2]-bb[0][2], bb[1][1]-bb[0][1], 1); S.zoom = Math.max(3, Math.min(30, Math.min(W, H) * .5 / span)); draw(); drawMap(); }
+function addMod(ids, type) {
+  commit('Add ' + type, () => ids.forEach(id => { const n = byId[id]; n.mods = n.mods || []; if (type === 'array') { if (!arrayMod(n)) n.mods.push({ type:'array', on:true, count:3, mode:'rel', off:[1,0,0] }); } else if (n.type !== 'area') n.mods.push({ type:'boolean', on:true, op:'Difference', target: Object.values(byId).find(o => isCutter(o) || (o.type === 'object' && o.id !== id && ownerOf(o.id) === o.id))?.id }); }), true);
+}
+function applyBool(id, i) {
+  const n = byId[id], m = n.mods[i], t = byId[m.target];
+  commit('Apply Boolean', () => { n.mods.splice(i, 1); n.file = n.file.replace('.litematic', '') + '_bool.litematic'; }, true);
+  toast(`Applied Boolean: wrote <b>${esc(n.file.split('/').pop())}</b> (${esc(n.name)} ${m.op === 'Intersect' ? '∩' : 'minus'} ${esc(t?.name || 'object')})`, { action: 'Undo', fn: doUndo });
+}
+function selectAll() { const vis = [...new Set(collect().map(b => b.owner))]; sel = vis; renderAll(); }
+
+/* ---------- drag, typed transforms, box select ---------- */
+let drag = null, tt = null, orbit = null, rmb = null, flying = false;
+const keys = {};
+function baseOf(ids) { return ids.map(id => [id, [...byId[id].pos], byId[id].rot || 0]); }
+function startMove(kind, axis) { const ids = movable(); if (!ids.length) return false; pushUndo('Move ' + nameOf(ids)); drag = { kind, axis, base: baseOf(ids), d: [0,0,0], snap: null }; return true; }
+function applyDelta(d, snapAxes, noSnap) {
+  drag.base.forEach(([id, p]) => byId[id].pos = add(p, d));
+  drag.snap = null;
+  if (snapOn !== !!noSnap) {
+    const all = collect(), bb = selBox(sel, false, all);
+    if (bb) {
+      let best = null;
+      snapAxes.forEach(axis => all.forEach(o => {
+        if (selHas(o) || o.kind !== 'solid') return;
+        const near = [0,1,2].filter(k => k !== axis).every(k => o.mn[k] < bb[1][k] + 2 && o.mx[k] > bb[0][k] - 2); if (!near) return;
+        [[bb[0][axis], o.mx[axis]], [bb[1][axis], o.mn[axis]], [bb[0][axis], o.mn[axis]], [bb[1][axis], o.mx[axis]]].forEach(([mine, theirs]) => { const dd = theirs - mine; if (Math.abs(dd) <= 1.5 && dd !== 0 && (!best || Math.abs(dd) < Math.abs(best.dd))) best = { dd, axis, coord: theirs, o }; });
+      }));
+      if (best) {
+        d = [...d]; d[best.axis] += best.dd; drag.base.forEach(([id, p]) => byId[id].pos = add(p, d));
+        const nb = selBox(sel, false, collect()), mn = [0,0,0], mx = [0,0,0];
+        [0,1,2].forEach(k => { mn[k] = Math.max(nb[0][k], best.o.mn[k]); mx[k] = Math.min(nb[1][k], best.o.mx[k]); });
+        if ([0,1,2].filter(k => k !== best.axis).every(k => mx[k] > mn[k])) drag.snap = { axis: best.axis, coord: best.coord, mn, mx, name: byId[best.o.owner].name };
+      }
+    }
+  }
+  drag.d = d;
+}
+function startRing(p) {
+  const ids = movable(); if (!ids.length) return;
+  pushUndo('Rotate ' + nameOf(ids));
+  const o = gizmo.o, w = screenToXZ(p[0] - o[0], p[1] - o[1]);
+  drag = { kind:'ring', base: baseOf(ids), a0: Math.atan2(w[1], w[0]), steps: 0, start: p, moved: false };
+}
+function updateRing(p) {
+  const o = gizmo ? gizmo.o : P(ctrOf(selBox(sel, true))), w = screenToXZ(p[0] - o[0], p[1] - o[1]);
+  let da = Math.atan2(w[1], w[0]) - drag.a0; while (da > Math.PI) da -= 2*Math.PI; while (da < -Math.PI) da += 2*Math.PI;
+  const steps = Math.round(da / (Math.PI / 2));
+  drag.base.forEach(([id, pos, r]) => { byId[id].pos = [...pos]; byId[id].rot = r; });
+  if (steps) rotateNodes(drag.base.map(b => b[0]), steps);
+  drag.steps = steps;
+}
+function endDrag(apply) {
+  const d = drag; drag = null;
+  if (!apply) { d.base.forEach(([id, p, r]) => { byId[id].pos = p; byId[id].rot = r; }); undo.pop(); renderAll(); return; }
+  const movedAny = d.base.some(([id, p, r]) => byId[id].pos.some((v, k) => v !== p[k]) || (byId[id].rot||0) !== r);
+  if (!movedAny) { undo.pop(); renderAll(); return; }
+  changed(true);
+}
+function hud() {
+  const h = $('#hud'), chips = a => `<span class="chips">${[0,1,2].map(i => `<button class="chip-ax ${AXN[i]} ${a.includes(i) ? 'on' : ''}" data-ax="${i}">${AXN[i].toUpperCase()}</button>`).join('')}</span>`;
+  if (tt) {
+    h.innerHTML = tt.mode === 'move'
+      ? `Move ${chips([tt.axis])} <b>${esc(tt.num || '0')}</b><span class="cur"></span> blocks <span class="d">· Enter confirm · Esc cancel</span>`
+      : `Rotate ${chips([1])} <b>${esc(tt.num || '0')}</b><span class="cur"></span>° <span class="d">· snaps to 90° · Enter · Esc</span>`;
+  } else if (drag?.kind === 'ring') h.innerHTML = `Rotate <span class="ax-y">Y</span> <b>${drag.steps >= 0 ? '+' : ''}${drag.steps * 90}°</b> <span class="d">· release to apply</span>`;
+  else if (drag) {
+    const dd = drag.d, txt = drag.kind === 'plane' ? `<span class="ax-x">X</span><span class="ax-z">Z</span> <b>${sg(dd[0])}, ${sg(dd[2])}</b>` : `<span class="ax-${AXN[drag.axis]}">${AXN[drag.axis].toUpperCase()}</span> <b>${sg(dd[drag.axis])}</b>`;
+    h.innerHTML = `Move ${txt} blocks${drag.snap ? ` <span style="color:var(--accent)">· snapped to ${esc(drag.snap.name)}</span>` : ''} <span class="d">· release to place</span>`;
+  } else if (flying) h.innerHTML = `Fly <span class="spd"><i style="width:${(Math.log(S.speed/.2)/Math.log(40))*100}%"></i></span> <b>${S.speed.toFixed(1)}×</b> <span class="d">· loading chunks…</span>`;
+  else { h.hidden = true; renderStatus(); return; }
+  h.hidden = false; renderStatus();
+}
+const sg = v => (v >= 0 ? '+' : '') + v;
+$('#hud').addEventListener('mousedown', e => { const b = e.target.closest('[data-ax]'); if (!b || !tt || tt.mode !== 'move') return; e.preventDefault(); tt.axis = +b.dataset.ax; updateTT(); });
+const mouse = e => { const r = cv.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+function setCursor() {
+  let c = '';
+  if (flying || orbit) c = 'none'; else if (boxArmed || box || pickMode) c = 'cross';
+  else if (drag?.kind === 'axis') c = Math.abs(gizmo?.D?.[drag.axis]?.dir[0] ?? 1) > .7 ? 'ew' : 'ns';
+  else if (drag) c = 'all'; else if (gHover?.type === 'plane') c = 'all'; else if (gHover) c = 'hand';
+  cv.className = c;
+}
+cv.addEventListener('contextmenu', e => e.preventDefault());
+cv.addEventListener('mousedown', e => {
+  closeMenu(); const p = mouse(e); mouseP = p;
+  if (tt) { if (e.button === 0) confirmTT(); else cancelTT(); return; }
+  if (drag && e.button === 2) { endDrag(false); hud(); return; }
+  if (e.button === 0) {
+    if (pickMode) { const hits = pickAll(p); if (hits.length) { const pm = pickMode; pickMode = null; if (hits[0] === pm.id) { toast('An object can\'t cut itself', { level: 'warn' }); renderAll(); return; } commit('Set cutter', () => byId[pm.id].mods[pm.i].target = hits[0], true); toast(`Cutter set to <b>${esc(byId[hits[0]].name)}</b>`); } return; }
+    if (boxArmed) { box = { x0: p[0], y0: p[1], x1: p[0], y1: p[1], mode: e.ctrlKey ? 'sub' : e.shiftKey ? 'add' : 'set' }; boxArmed = false; draw(); setCursor(); hud(); return; }
+    const gh = hitGizmo(p);
+    if (gh?.type === 'axis') { if (startMove('axis', gh.axis)) { drag.start = p; drag.h = gh.h; hud(); draw(); setCursor(); } return; }
+    if (gh?.type === 'plane') { if (startMove('plane', 0)) { drag.start = p; hud(); draw(); setCursor(); } return; }
+    if (gh?.type === 'ring') { startRing(p); hud(); draw(); return; }
+    const hits = pickAll(p);
+    if (!hits.length) { pending = { p, shift: e.shiftKey, ctrl: e.ctrlKey }; return; }
+    if (e.altKey && hits.includes(sel[0])) { select(hits[(hits.indexOf(sel[0]) + 1) % hits.length]); toast(`Alt+click: ${hits.length} objects under the cursor, cycling`); return; }
+    select(hits[0], e.shiftKey);
+  } else if (e.button === 1) { e.preventDefault(); orbit = { p, pan: e.shiftKey }; setCursor(); draw(); }
+  else if (e.button === 2) { rmb = { p, moved: false, cx: e.clientX, cy: e.clientY }; }
+});
+cv.addEventListener('dblclick', e => { const hits = pickAll(mouse(e)); if (hits.length) { sel = [hits[0]]; frameSel(); renderAll(); } });
+function startFly() { if (!rmb || flying) return; rmb.moved = true; flying = true; setCursor(); hud(); draw(); flyLoop(); }
+addEventListener('mousemove', e => {
+  const p = mouse(e); mouseP = p;
+  if (pending && Math.hypot(p[0]-pending.p[0], p[1]-pending.p[1]) >= 5) { box = { x0: pending.p[0], y0: pending.p[1], x1: p[0], y1: p[1], mode: pending.ctrl ? 'sub' : pending.shift ? 'add' : 'set' }; pending = null; setCursor(); hud(); }
+  if (box) { box.x1 = p[0]; box.y1 = p[1]; box.mode = e.ctrlKey ? 'sub' : e.shiftKey ? 'add' : box.mode === 'sub' || box.mode === 'add' ? box.mode : 'set'; draw(); return; }
+  if (drag && !tt) {
+    if (drag.kind === 'axis') { const d = (p[0]-drag.start[0])*drag.h.dir[0] + (p[1]-drag.start[1])*drag.h.dir[1]; const v = [0,0,0]; v[drag.axis] = Math.round(d / drag.h.ppb); applyDelta(v, [drag.axis], e.ctrlKey); }
+    else if (drag.kind === 'plane') { const w = screenToXZ(p[0]-drag.start[0], p[1]-drag.start[1]); applyDelta([Math.round(w[0]), 0, Math.round(w[1])], [0, 2], e.ctrlKey); }
+    else if (drag.kind === 'ring') { if (Math.hypot(p[0]-drag.start[0], p[1]-drag.start[1]) >= 5) drag.moved = true; if (drag.moved) updateRing(p); }
+    hud(); draw(); drawMap(); return;
+  }
+  if (orbit) {
+    const dx = e.movementX, dy = e.movementY;
+    if (orbit.pan) { const w = screenToXZ(-dx, -dy); S.t[0] += w[0]; S.t[2] += w[1]; }
+    else { S.yaw += dx * .008; S.pitch = Math.max(.15, Math.min(1.45, S.pitch + dy * .006)); }
+    draw(); drawMap(); return;
+  }
+  if (rmb) {
+    const dx = p[0]-rmb.p[0], dy = p[1]-rmb.p[1];
+    if (!rmb.moved && Math.hypot(dx, dy) >= 5) startFly();
+    if (rmb.moved) { S.yaw += dx * .006; S.pitch = Math.max(.15, Math.min(1.45, S.pitch + dy * .005)); rmb.p = p; draw(); drawMap(); }
+    return;
+  }
+  if (e.target !== cv) { if (hover || gHover) { hover = null; gHover = null; setCursor(); draw(); renderStatus(); } return; }
+  const gh = hitGizmo(p), h = gh ? null : pickAll(p)[0] || null;
+  const gk = gh ? gh.type + (gh.axis ?? '') : '', ok = gHover ? gHover.type + (gHover.axis ?? '') : '';
+  if (h !== hover || gk !== ok) { if (h !== hover) hoverSince = performance.now(); hover = h; gHover = gh; setCursor(); draw(); renderStatus(); if (h) setTimeout(draw, 320); }
+});
+addEventListener('mouseup', e => {
+  if (pending && e.button === 0) { if (!pending.shift) select(null); pending = null; }
+  if (box && e.button === 0) {
+    const hits = boxHits(), m = box.mode; box = null;
+    if (m === 'sub') sel = sel.filter(id => !hits.includes(id)); else if (m === 'add') sel = [...sel, ...hits.filter(h => !sel.includes(h))]; else sel = hits;
+    renderAll(); setCursor(); hud(); return;
+  }
+  if (drag && e.button === 0 && !tt) {
+    if (drag.kind === 'ring' && !drag.moved) { const d = drag; drag = null; undo.pop(); d.base.forEach(([id, p, r]) => { byId[id].pos = p; byId[id].rot = r; }); rotateSel(keys.shift || e.shiftKey ? -1 : 1); hud(); setCursor(); return; }
+    endDrag(true); hud(); setCursor();
+  }
+  if (orbit && e.button === 1) { orbit = null; setCursor(); draw(); }
+  if (rmb && e.button === 2) {
+    if (!rmb.moved) { const hits = pickAll(mouse(e)); if (hits.length && !sel.includes(hits[0])) select(hits[0]); openCtx(rmb.cx, rmb.cy, hits.length ? 'sel' : 'empty'); }
+    rmb = null; flying = false; setCursor(); hud(); draw();
+  }
+});
+cv.addEventListener('mouseleave', () => { if (hover || gHover) { hover = null; gHover = null; draw(); renderStatus(); } });
+cv.addEventListener('wheel', e => {
+  e.preventDefault();
+  if (flying) { S.speed = Math.max(.2, Math.min(8, S.speed * (e.deltaY < 0 ? 1.2 : 1/1.2))); hud(); return; }
+  const f = Math.exp(-e.deltaY * .0012); S.zoom = Math.max(2, Math.min(40, S.zoom * f)); draw(); drawMap();
+}, { passive: false });
+function flyLoop() {
+  if (!flying) return;
+  const ca = Math.cos(S.yaw), sa = Math.sin(S.yaw), v = .5 * S.speed * (keys.shift ? 3 : 1);
+  let mv = false;
+  const fw = [-sa, 0, -ca], rt = [ca, 0, -sa];
+  if (keys.w) { S.t = add(S.t, fw.map(x => x*v)); mv = true; } if (keys.s) { S.t = add(S.t, fw.map(x => -x*v)); mv = true; }
+  if (keys.d) { S.t = add(S.t, rt.map(x => x*v)); mv = true; } if (keys.a) { S.t = add(S.t, rt.map(x => -x*v)); mv = true; }
+  if (keys.e) { S.t[1] += v; mv = true; } if (keys.q) { S.t[1] -= v; mv = true; }
+  if (mv) { draw(); drawMap(); }
+  requestAnimationFrame(flyLoop);
+}
+function startTyped(mode, axis = 0, num = '') {
+  if (mode === 'move') { if (!drag && !startMove('typed', axis)) return; drag.kind = 'typed'; drag.axis = axis; tt = { mode, axis, num }; updateTT(); }
+  else { if (!movable().length) return; tt = { mode, num }; hud(); draw(); }
+  setCursor();
+}
+function confirmTT() {
+  const t = tt; tt = null;
+  if (t.mode === 'move') { endDrag(true); hud(); const n = parseInt(t.num || '0', 10) || 0; if (n) toast(`Moved ${n} block${Math.abs(n) === 1 ? '' : 's'} on ${AXN[t.axis].toUpperCase()}`); }
+  else { hud(); const deg = parseInt(t.num || '90', 10) || 0, steps = Math.round(deg / 90); if (steps) rotateSel(steps); else draw(); }
+}
+function cancelTT() { const t = tt; tt = null; if (t?.mode === 'move' && drag) endDrag(false); hud(); draw(); }
+function updateTT() { if (tt.mode === 'move') { const v = [0,0,0]; v[tt.axis] = parseInt(tt.num || '0', 10) || 0; applyDelta(v, [tt.axis], true); drag.snap = null; } hud(); draw(); drawMap(); }
+
+addEventListener('keydown', e => {
+  const k = e.key.toLowerCase();
+  if (e.target.matches('input, select, textarea')) { if (e.key === 'Escape') e.target.blur(); return; }
+  keys.shift = e.shiftKey; keys.ctrl = e.ctrlKey;
+  if (rmb && 'wasdqe'.includes(k) && k.length === 1) { if (!flying) startFly(); keys[k] = true; e.preventDefault(); return; }
+  if (menus.length) { if (e.key === 'Escape') closeMenu(); return; }  // menus handle their own keys
+  if (e.key === 'Escape') {
+    if (tt) return cancelTT();
+    if (drag) { endDrag(false); hud(); setCursor(); return; }
+    if (box || boxArmed || pickMode || pending) { box = null; boxArmed = false; pickMode = null; pending = null; setCursor(); renderAll(); return; }
+    return toast('Nothing to cancel. In the game, Esc now opens the pause menu (the editor stays on behind it)');
+  }
+  if (tt) {
+    e.preventDefault();
+    if (e.key === 'Enter') return confirmTT();
+    if (tt.mode === 'move' && 'xyz'.includes(k) && k.length === 1) { tt.axis = 'xyz'.indexOf(k); return updateTT(); }
+    if (/^[0-9]$/.test(e.key)) { tt.num += e.key; return updateTT(); }
+    if (e.key === '-') { tt.num = tt.num.startsWith('-') ? tt.num.slice(1) : '-' + tt.num; return updateTT(); }
+    if (e.key === 'Backspace') { tt.num = tt.num.slice(0, -1); return updateTT(); }
+    return;
+  }
+  // typing a number during a gizmo drag hands over to a typed move on that axis
+  if (drag?.kind === 'axis' && /^[0-9-]$/.test(e.key)) { e.preventDefault(); drag.base.forEach(([id, p]) => byId[id].pos = [...p]); return startTyped('move', drag.axis, e.key === '-' ? '-' : e.key); }
+  if (drag) return;
+  const mod = e.ctrlKey || e.metaKey;
+  if (mod && k === 'z') { e.preventDefault(); return e.shiftKey ? doRedo() : doUndo(); }
+  if (mod && k === 'y') { e.preventDefault(); return doRedo(); }
+  if (mod && k === 'g') { e.preventDefault(); return act('group'); }
+  if (mod && k === 'f') { e.preventDefault(); return $('#q').focus(); }
+  if (mod && k === 's') { e.preventDefault(); return toast('Saved 2 open projects'); }
+  if (mod) return;
+  if (e.key === 'Tab') { e.preventDefault(); $('#stage').classList.toggle('nowin'); return; }
+  if (e.key === 'F2') { e.preventDefault(); return startRename(sel[0]); }
+  if (e.key === 'PageUp' || e.key === 'PageDown') { e.preventDefault(); const ids = sel.filter(id => byId[id] && hasTransform(byId[id]) && ownerOf(id) === id); if (ids.length) setPrio(ids, e.key === 'PageUp' ? (e.shiftKey ? 'front' : 'up') : (e.shiftKey ? 'back' : 'down')); return; }
+  if (k === 'a' && e.shiftKey) { e.preventDefault(); const r = cv.getBoundingClientRect(); return openMenu(r.left + mouseP[0], r.top + mouseP[1], addItems(), 'Add to ' + (activeProject()?.name || 'scene')); }
+  if (k === 'a' && e.altKey) { e.preventDefault(); sel = []; return renderAll(); }
+  if (k === 'a') { e.preventDefault(); return selectAll(); }
+  if (k === 'b') { e.preventDefault(); boxArmed = true; setCursor(); draw(); return hud(); }
+  if (k === 'g' && sel.length) { e.preventDefault(); return startTyped('move'); }
+  if (k === 'r' && sel.length) { e.preventDefault(); return startTyped('rotate'); }
+  if (k === 'd' && e.shiftKey) { e.preventDefault(); return duplicate(false); }
+  if (k === 'd' && e.altKey) { e.preventDefault(); return duplicate(true); }
+  if (k === 'h' && e.altKey) { e.preventDefault(); return unhideAll(); }
+  if (k === 'h') return hideSel();
+  if (k === 'x' || e.key === 'Delete') return delSel();
+  if (k === '/') { e.preventDefault(); return toggleLocal(); }
+  if (k === '.' || k === 'f' || (e.key === 'Enter' && document.activeElement?.closest?.('#tree'))) return frameSel();
+  if (k === 'w') { tool = 'select'; return renderAll(); }
+  if (k === 'm') return mirrorSel();
+});
+addEventListener('keyup', e => { const k = e.key.toLowerCase(); keys[k] = false; keys.shift = e.shiftKey; keys.ctrl = e.ctrlKey; if (gHover?.type === 'ring') draw(); });
+
+/* ---------- menus (with submenus) ---------- */
+let menus = [];
+function closeMenu(level = 0) { while (menus.length > level) menus.pop().remove(); }
+addEventListener('mousedown', e => { if (menus.length && !e.target.closest('.menu')) closeMenu(); }, true);
+function renderItems(el, items, head) {
+  el.innerHTML = (head ? `<div class="mh">${esc(head)}</div>` : '') + items.filter(it => !it.hide).map((it, i) => {
+    if (it.sep) return '<hr>';
+    if (it.head) return `<div class="mh">${esc(it.head)}</div>`;
+    const lead = it.check != null ? `<span class="chk">${it.check ? ic('check') : ''}</span>` : ic(it.icon || '');
+    return `<button role="menuitem" data-i="${items.indexOf(it)}" ${it.dis ? 'disabled' : ''} class="${it.danger ? 'danger' : ''}" ${it.sub ? 'aria-haspopup="true"' : ''}>${lead}<span class="l">${esc(it.label)}</span>${it.key ? `<span class="k">${esc(it.key)}</span>` : ''}${it.sub ? ic('chev', 'sub') : ''}</button>`;
+  }).join('');
+}
+function openMenu(x, y, items, head, level = 0) {
+  closeMenu(level);
+  const el = document.createElement('div'); el.className = 'menu'; el.setAttribute('role', 'menu'); el._items = items; el._level = level;
+  renderItems(el, items, head); document.body.append(el); menus.push(el);
+  const r = el.getBoundingClientRect();
+  el.style.left = Math.max(8, Math.min(x, innerWidth - r.width - 8)) + 'px';
+  el.style.top = Math.max(8, Math.min(y, innerHeight - r.height - 8)) + 'px';
+  el.addEventListener('mouseover', e => {
+    const b = e.target.closest('button[data-i]'); if (!b || b._t) return;
+    clearTimeout(el._hov); const it = items[+b.dataset.i];
+    el._hov = setTimeout(() => { if (it.sub) openSub(el, b); else { closeMenu(level + 1); el.querySelectorAll('.open').forEach(o => o.classList.remove('open')); } }, it.sub ? 100 : 60);
+  });
+  el.addEventListener('click', e => { const b = e.target.closest('button[data-i]'); if (!b) return; const it = items[+b.dataset.i]; if (it.sub) return openSub(el, b, true); closeMenu(); it.run?.(); });
+  el.addEventListener('keydown', e => menuKey(e, el));
+  if (level === 0 || el._focus) (el.querySelector('button:not([disabled])'))?.focus({ preventScroll: true });
+  return el;
+}
+function openSub(parent, btn, focus) {
+  const it = parent._items[+btn.dataset.i]; if (!it.sub) return;
+  parent.querySelectorAll('.open').forEach(o => o.classList.remove('open')); btn.classList.add('open');
+  const r = btn.getBoundingClientRect();
+  const el = openMenu(r.right + 2, r.top - 5, it.sub, null, parent._level + 1);
+  const er = el.getBoundingClientRect(); if (r.right + 2 + er.width > innerWidth - 8) el.style.left = Math.max(8, r.left - er.width - 2) + 'px';
+  if (focus) el.querySelector('button:not([disabled])')?.focus();
+}
+function menuKey(e, el) {
+  const bs = [...el.querySelectorAll('button:not([disabled])')], i = bs.indexOf(document.activeElement);
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); bs[(i + (e.key === 'ArrowDown' ? 1 : -1) + bs.length) % bs.length]?.focus(); }
+  else if (e.key === 'ArrowRight' && document.activeElement?.getAttribute('aria-haspopup')) { e.preventDefault(); openSub(el, document.activeElement, true); }
+  else if (e.key === 'ArrowLeft' && el._level > 0) { e.preventDefault(); const lvl = el._level; closeMenu(lvl); menus[lvl - 1].querySelector('.open')?.focus(); }
+  else if (e.key === 'Escape') { e.preventDefault(); const lvl = el._level; closeMenu(lvl); if (lvl) menus[lvl - 1].querySelector('.open')?.focus(); }
+  e.stopPropagation();
+}
+const I = (label, icon, run, o = {}) => ({ label, icon, run, ...o });
+const SEP = { sep: true };
+function addItems(into) {
+  const p = into || activeProject();
+  const t = what => () => toast(`Mockup: opens the ${what} picker; it goes into <b>${esc(p?.name || 'scene')}</b>`);
+  return [I('Schematic…', 'object', t('schematic'), { key: into ? '' : 'Shift A' }), I('Assembly (.lasm)…', 'assembly', t('assembly')), I('Link project as assembly…', 'link', t('project')), I('Heavymatica area', 'area', () => toast('Mockup: draw the area in the world, like Heavymatica')), I('Folder', 'folder', () => act('new-folder', p?.id))];
+}
+function exportItems(n, many) {
+  if (many) return [I('Selection (.zip)…', 'export', () => act('export')), I('Bake into one .litematic…', 'export', () => act('bake'))];
+  if (n.type === 'assembly') return [I('Assembly (.zip)…', 'export', () => act('export')), I('Bake to one .litematic…', 'export', () => act('bake'))];
+  return [I('Schematic (.litematic)…', 'export', () => act('export')), I('Baked with modifiers (.litematic)…', 'export', () => act('bake'), { dis: !(n.mods||[]).length })];
+}
+function moveToItems() {
+  const out = [];
+  tree.filter(p => p.type === 'project').forEach(p => {
+    out.push(I(p.name, 'project', () => moveNodes(sel, p, p.children.length), { dis: sel.every(id => parentOf[id] === p) }));
+    const walk = (ns, d) => ns.forEach(n => { if (n.type === 'folder') { out.push(I('  '.repeat(d) + n.name, 'folder', () => moveNodes(sel, n, n.children.length), { dis: sel.every(id => parentOf[id] === n) })); walk(n.children, d + 1); } });
+    walk(p.children, 1);
+  });
+  return out;
+}
+function openCtx(x, y, kind) {
+  const n = byId[sel[0]], many = sel.length > 1;
+  if (kind === 'empty' || !n) {
+    return openMenu(x, y, [
+      I('Add', 'plus', null, { key: 'Shift A', sub: addItems() }), SEP,
+      I('Select all', 'cursor', selectAll, { key: 'A' }), I('Select none', 'close', () => { sel = []; renderAll(); }, { key: 'Alt A', dis: !sel.length }), I('Box select', 'box', () => { boxArmed = true; setCursor(); hud(); }, { key: 'B' }), SEP,
+      I('Frame all', 'frame', () => { sel = []; frameSel(); renderAll(); }, { key: 'F' }), I('Show hidden', 'eye', unhideAll, { key: 'Alt H', dis: !Object.values(byId).some(o => o.hidden) }), I('Leave local view', 'local', toggleLocal, { key: '/', hide: !localView }), SEP,
+      I(undo.length ? 'Undo ' + (undo[undo.length - 1].label || '') : 'Undo', 'undo', doUndo, { key: 'Ctrl Z', dis: !undo.length }), I('Redo', 'redo', doRedo, { key: 'Ctrl Shift Z', dis: !redo.length }),
+    ], 'Add to ' + (activeProject()?.name || 'scene'));
+  }
+  if (!many && isLocked(n.id)) {
+    const asm = byId[ownerOf(n.id)];
+    return openMenu(x, y, [I('Select assembly', 'assembly', () => { sel = [asm.id]; renderAll(); }), I('Make assembly local', 'link', () => { sel = [asm.id]; act('make-local'); }), SEP, I('Frame selected', 'frame', frameSel, { key: 'F' })], `${n.name} · in ${asm.name} (linked)`);
+  }
+  if (!many && n.type === 'project') {
+    return openMenu(x, y, [
+      I('Make active project', 'active', () => act('set-active'), { dis: n.active }), I('Rename', 'object', () => startRename(n.id), { key: 'F2' }), I('New folder', 'folderplus', () => act('new-folder', n.id)),
+      I('Add', 'plus', null, { sub: addItems(n) }), I('Link into active project as assembly', 'link', () => toast(`Linked <b>${esc(n.name)}</b> into <b>${esc(activeProject().name)}</b> as an assembly`), { hide: n.active }), SEP,
+      I('Push changes to Syncmatica', 'sync', () => act('push'), { hide: n.sync !== 'shared', dis: !pendingSync }), I(n.sync === 'shared' ? 'Stop sharing on Syncmatica' : 'Share on Syncmatica', 'sync', () => { commit('Sharing', () => n.sync = n.sync === 'shared' ? 'local' : 'shared'); }), SEP,
+      I('Export', 'export', null, { sub: [I('Project (.zip)…', 'export', () => act('export')), I('Bake to one .litematic…', 'export', () => act('bake'))] }), I('Show in file explorer', 'folder', () => toast('Mockup: opens ' + esc(n.path))), SEP,
+      I('Close project', 'close', () => toast('Mockup: closes the project (asks first when something is unsaved)')),
+    ], n.name);
+  }
+  if (!many && n.type === 'loose') {
+    return openMenu(x, y, [I('Select contents', 'cursor', () => { sel = n.children.map(c => c.id); renderAll(); }), I('Show hidden', 'eye', unhideAll, { key: 'Alt H' }), SEP, I('Convert to project…', 'project', () => act('to-proj'))], n.name);
+  }
+  if (!many && n.type === 'folder') {
+    return openMenu(x, y, [
+      I('New folder', 'folderplus', () => act('new-folder', n.id)), I('Rename', 'object', () => startRename(n.id), { key: 'F2' }), I('Select contents', 'cursor', () => { sel = n.children.map(c => c.id); renderAll(); }), I(n.hidden ? 'Show' : 'Hide', n.hidden ? 'eye' : 'eyeoff', hideSel, { key: 'H' }), SEP,
+      I('Create assembly from folder', 'group', () => act('group'), { key: 'Ctrl G' }), I('Convert to project', 'project', () => act('to-proj')), SEP,
+      I('Export folder (.zip)…', 'export', () => act('export')), SEP, I('Delete folder…', 'trash', delSel, { key: 'X', danger: true }),
+    ], n.name);
+  }
+  // objects, cutters, areas, assemblies (one or several)
+  const ids = sel.filter(id => byId[id]), objs = ids.map(id => byId[id]);
+  const area = !many && n.type === 'area', cut = !many && isCutter(n), asm = !many && n.type === 'assembly', am = !many && arrayMod(n), bm = !many && boolMod(n);
+  const anyOrder = objs.some(o => o.type !== 'area' && !isCutter(o));
+  const P1 = !many && n.prio != null ? ` (P${n.prio})` : '';
+  return openMenu(x, y, [
+    I('Duplicate', 'dup', () => duplicate(false), { key: 'Shift D' }), I('Linked duplicate', 'link', () => duplicate(true), { key: 'Alt D' }), I('Rename', 'object', () => startRename(n.id), { key: 'F2', hide: many }), SEP,
+    I('Transform', 'move', null, { sub: [I('Move', 'move', () => startTyped('move'), { key: 'G' }), I('Rotate +90°', 'rotate', () => rotateSel(1)), I('Rotate −90°', 'rotate', () => rotateSel(-1)), I('Mirror X', 'mirror', mirrorSel, { key: 'M' }), I('Mirror Z  (= X + 180°)', 'mirror', () => { mirrorSel(); rotateSel(2); })] }),
+    I('Modifiers', 'array', null, { sub: [
+      I('Add Array', 'array', () => addMod(ids, 'array'), { dis: !many && !!am }), I('Add Boolean', 'bool', () => addMod(ids, 'boolean'), { hide: area || cut || objs.every(o => o.type === 'area') }),
+      { sep: true, hide: !(am || bm) }, I(`Realise array (${am?.count} objects)`, 'realise', () => realise(n.id), { hide: !am }), I('Apply Boolean → .litematic', 'bool', () => applyBool(n.id, n.mods.indexOf(bm)), { hide: !bm }),
+    ] }),
+    I('Front order' + P1, 'front', null, { hide: area || cut || !anyOrder, sub: [I('Bring to front', 'front', () => setPrio(ids, 'front'), { key: 'Shift PgUp' }), I('Bring forward', 'front', () => setPrio(ids, 'up'), { key: 'PgUp' }), I('Send backward', 'back', () => setPrio(ids, 'down'), { key: 'PgDn' }), I('Send to back', 'back', () => setPrio(ids, 'back'), { key: 'Shift PgDn' })] }),
+    I('Assembly', 'assembly', null, { hide: !asm, sub: n.linked
+      ? [I('Make local (copy files)', 'link', () => act('make-local')), I('Break up in place', 'explode', () => breakUp(n.id)), I('Realise (independent copies)', 'realise', () => act('realise-asm')), I('Reload from source', 'sync', () => toast('Reloaded <b>' + esc(n.linked) + '</b>')), I('Open source project', 'project', () => toast('Mockup: opens the project that holds ' + esc(n.linked)))]
+      : [I('Break up in place', 'explode', () => breakUp(n.id)), I('Realise (independent copies)', 'realise', () => act('realise-asm')), I('Save as linked .lasm…', 'link', () => toast('Mockup: saves the assembly as its own .lasm and links it'))] }),
+    I('Create assembly from selection', 'group', () => act('group'), { key: 'Ctrl G' }),
+    I('Move to', 'folder', null, { sub: moveToItems() }), SEP,
+    I('Hide', 'eyeoff', hideSel, { key: 'H' }), I('Local view', 'local', toggleLocal, { key: '/' }), I('Frame selected', 'frame', frameSel, { key: 'F' }), SEP,
+    I('Export', 'export', null, { hide: area, sub: exportItems(n, many) }), { sep: true, hide: area },
+    I('Delete', 'trash', delSel, { key: 'X', danger: true }),
+  ], many ? sel.length + ' objects' : n.name + (n.linked ? ' · linked' : ''));
+}
+function act(a, arg) {
+  const id = sel[0], n = byId[id];
+  switch (a) {
+    case 'make-local': commit('Make local', () => { n.linked = null; }); return toast(`Made <b>${esc(n.name)}</b> local: its files were copied into this project`, { action: 'Undo', fn: doUndo });
+    case 'realise-asm': return toast(`Mockup: like Break up, but every part gets its own copy of its file`);
+    case 'group': {
+      const ids = sel.filter(i => byId[i] && hasTransform(byId[i]) && !isLocked(i));
+      const src = n?.type === 'folder' ? n : null;
+      const parts = src ? src.children.filter(hasTransform).map(c => c.id) : ids;
+      if (!parts.length) return toast('Select objects first', { level: 'warn' });
+      pushUndo('Create assembly');
+      const first = byId[parts[0]], base = [...first.pos], asmN = N({ type:'assembly', name:'Assembly', pos: base, prio: first.prio, mods: [], open: true, children: [] });
+      insertAfter(parts[0], [asmN]);
+      parts.forEach(pid => { const c = byId[pid]; removeNode(pid); c.pos = [c.pos[0]-base[0], c.pos[1]-base[1], c.pos[2]-base[2]]; asmN.children.push(c); });
+      reindex(); sel = [asmN.id]; changed(true); renamingSelect = true; startRename(asmN.id);
+      return toast('Created an assembly. It is saved as an .lasm file in the active project', { action: 'Undo', fn: doUndo });
+    }
+    case 'set-active': tree.forEach(p => p.active = p === n); renderAll(); return toast(`New objects now go into <b>${esc(n.name)}</b>`);
+    case 'new-folder': { const p = byId[arg] || activeProject(); commit('New folder', () => { const f = N({ type:'folder', name:'New folder', open:true, children:[] }); p.children.unshift(f); p.open = true; sel = [f.id]; }); return startRename(sel[0]); }
+    case 'to-proj': return toast(`Mockup: <b>${esc(n.name)}</b> becomes a project in schematics/Projects/; its files are copied into it`);
+    case 'push': pendingSync = 0; renderAll(); return toast('Pushed to Syncmatica: flat placements and the project manifest');
+    case 'export': return toast(`Exported <b>${esc(sel.length > 1 ? sel.length + ' objects' : n.name)}</b> to schematics/exports/`);
+    case 'bake': return toast(`Baked <b>${esc(n.name)}</b> into one .litematic, for players without Litematica Array`);
+    default: return toast('Mockup: this opens a picker or a dialog in the real editor');
+  }
+}
+let renamingSelect = false;
+
+/* ---------- scene graph window ---------- */
+function renderFilters() {
+  const issues = issueIds().length;
+  const F = [['all', 'All'], ['object', 'Schematics'], ['assembly', 'Assemblies'], ['area', 'Areas']];
+  if (issues || filter === 'issues') F.push(['issues', `Issues ${issues}`]);
+  if (filter === 'issues' && !issues) filter = 'all';
+  $('#filters').innerHTML = F.map(([k, l]) => `<button class="chipb ${filter === k ? 'on' : ''} ${k === 'issues' ? 'iss' : ''}" data-f="${k}">${l}</button>`).join('');
+}
+$('#filters').addEventListener('click', e => { const b = e.target.closest('[data-f]'); if (b) { filter = b.dataset.f; renderFilters(); renderTree(); } });
+$('#q').addEventListener('input', e => { query = e.target.value.trim().toLowerCase(); $('#qclear').hidden = !query; renderTree(); });
+$('#qclear').addEventListener('click', () => { $('#q').value = ''; query = ''; $('#qclear').hidden = true; renderTree(); });
+function selfMatch(n) { return (filter === 'all' || n.type === filter) && (!query || n.name.toLowerCase().includes(query)); }
+function matches(n) { return selfMatch(n) || (n.children||[]).some(matches); }
+function issueIds() { const s = new Set(); lastOverlaps.forEach(o => { s.add(o.front); s.add(o.back); }); return [...s].filter(id => byId[id]); }
+function hl(name) { if (!query) return esc(name); const i = name.toLowerCase().indexOf(query); if (i < 0) return esc(name); return esc(name.slice(0, i)) + '<mark>' + esc(name.slice(i, i + query.length)) + '</mark>' + esc(name.slice(i + query.length)); }
+let visRows = [];
+function rowHtml(n, depth, opt = {}) {
+  const trims = opt.trims, inOv = opt.inOv;
+  const locked = isLocked(n.id), kids = n.children && n.children.length, open = n.open || query || (filter !== 'all' && filter !== 'issues');
+  const isSel = sel.includes(n.id), ownSel = !isSel && sel.some(s => s !== n.id && byId[s] && ownerOf(s) === n.id);
+  const hid = n.hidden || ancestors(n.id).some(a => a.hidden), am = arrayMod(n), bm = boolMod(n);
+  let badges = '';
+  if (n.type === 'project') { if (n.active) badges += '<span class="bdg act">ACTIVE</span>'; if (n.sync === 'shared') badges += '<span class="sdot" title="Shared on Syncmatica" style="background:var(--ok)"></span>'; }
+  if (n.linked || n.linkOf) badges += `<span class="bdg lnk" title="Linked: ${esc(n.linked || n.linkOf)}">${ic('link')}</span>`;
+  if (am || bm) badges += `<span class="bdg" title="Modifiers: ${(n.mods||[]).map(m => (m.type === 'array' ? 'Array ×' + m.count : 'Boolean ' + m.op) + (m.on === false ? ' (off)' : '')).join(', ')}">${am ? `<span class="arr ${am.on === false ? 'off' : ''}">${ic('array')}×${am.count}</span>` : ''}${bm ? `<span class="bool ${bm.on === false ? 'off' : ''}">${ic('bool')}</span>` : ''}</span>`;
+  if (trims[n.id]) badges += `<span class="bdg trim" title="Blocks this object loses to objects in front of it">−${fmt(trims[n.id])}</span>`;
+  if (inOv.has(n.id) && n.prio != null) badges += `<span class="bdg prio" title="Front order: 1 is in front. Front order, not tree order, decides which object keeps overlapping blocks.">P${n.prio}</span>`;
+  if (regenIds.has(n.id) && performance.now() < regenUntil) badges += '<i class="spin" title="Rebuilding its derived file"></i>';
+  const slot = n.type === 'loose' ? '<span class="eye"></span>' : locked ? `<span class="eye lockg" title="Part of a linked assembly">${ic('lock')}</span>` : `<button class="eye" data-act="eye" aria-label="${n.hidden ? 'Show' : 'Hide'} ${esc(n.name)}">${ic(n.hidden ? 'eyeoff' : 'eye')}</button>`;
+  const anc = opt.anc && !selfMatch(n);
+  const name = renaming === n.id ? `<input class="rn" value="${esc(n.name)}" aria-label="Rename">` : `<span class="nm" title="${esc(n.file || n.path || n.name)}">${hl(n.name)}${opt.flat ? `<span class="proj-of">${esc(projectOf(n.id).name)}</span>` : ''}</span>`;
+  visRows.push(n.id);
+  return `<div class="row ${n.type === 'project' || n.type === 'loose' ? 'proj' : ''} ${isSel ? 'sel' : ''} ${isSel && sel[0] === n.id ? 'active' : ''} ${ownSel ? 'owner-sel' : ''} ${hid ? 'hid' : ''} ${locked ? 'locked' : ''} ${anc ? 'anc' : ''}" role="treeitem" aria-selected="${isSel}" ${kids ? `aria-expanded="${!!open}"` : ''} tabindex="-1" data-id="${n.id}" draggable="${renaming !== n.id && n.type !== 'loose'}" style="padding-left:${2 + depth*14}px">
+      ${kids && !opt.flat ? `<button class="tw ${open ? 'open' : ''}" data-act="tw" tabindex="-1" aria-label="${open ? 'Collapse' : 'Expand'}">${ic('chev')}</button>` : '<span class="tw"></span>'}
+      <span class="ty ${typeCls(n)}" data-act="ty">${ic(typeIcon(n))}</span>${name}${badges}${slot}
+    </div>`;
+}
+function renderTree() {
+  const trims = {}, inOv = new Set(); lastOverlaps.forEach(o => { trims[o.back] = (trims[o.back] || 0) + o.vol; inOv.add(o.front); inOv.add(o.back); });
+  visRows = []; const rows = [];
+  if (filter === 'issues') {
+    issueIds().map(id => byId[id]).filter(n => !query || n.name.toLowerCase().includes(query)).sort((a, b) => (a.prio ?? 99) - (b.prio ?? 99)).forEach(n => rows.push(rowHtml(n, 0, { trims, inOv, flat: true })));
+  } else {
+    const row = (n, depth) => {
+      if ((query || filter !== 'all') && !matches(n)) return;
+      rows.push(rowHtml(n, depth, { trims, inOv, anc: query || filter !== 'all' }));
+      const open = n.open || query || filter !== 'all';
+      if (n.children && n.children.length && open) n.children.forEach(c => row(c, depth + 1));
+      else if (n.children && !n.children.length && n.open && isContainer(n) && !query && filter === 'all') rows.push(`<div class="row" style="padding-left:${2 + (depth+1)*14 + 21}px;color:var(--dim);font-size:11.5px">Empty. Right-click › Add, or drag objects here.</div>`);
+    };
+    tree.forEach(n => row(n, 0));
+  }
+  const empty = !tree.some(n => n.type === 'project') && !(tree.find(n => n.type === 'loose')?.children.length)
+    ? '<div class="empty">No projects open.<br><button class="btn pri" data-a="newproj">New project</button> <button class="btn" data-a="openproj">Open project…</button></div>'
+    : `<div class="empty">Nothing matches “${esc(query)}”.<br><button class="linkb" data-a="clearq">Clear filter</button></div>`;
+  $('#tree').innerHTML = rows.join('') || empty;
+  renderFilters();
+  const rn = $('#tree .rn'); if (rn) { rn.focus(); rn.select(); }
+}
+function startRename(id) {
+  const n = byId[id]; if (!n || n.type === 'loose' || isLocked(id)) return;
+  ancestors(id).forEach(a => a.open = true);
+  if ($('#w-scene').hidden) { const inp = $('#props .ph input'); if (inp) { inp.focus(); inp.select(); } return; }
+  renaming = id; renderTree(); renderStatus();
+}
+$('#tree').addEventListener('keydown', e => {
+  if (!e.target.matches('.rn')) return;
+  if (e.key === 'Enter') { e.preventDefault(); finishRename(true); }
+  else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); finishRename(false); }
+});
+$('#tree').addEventListener('focusout', e => { if (e.target.matches('.rn')) finishRename(true); });
+function finishRename(ok) {
+  const inp = $('#tree .rn'); if (!renaming || !inp) return;
+  const id = renaming, v = inp.value.trim(); renaming = null;
+  if (ok && v && v !== byId[id].name) commit('Rename', () => byId[id].name = v); else { renderTree(); renderStatus(); }
+}
+$('#tree').addEventListener('click', e => {
+  const b0 = e.target.closest('[data-a]'); if (b0) { if (b0.dataset.a === 'clearq') $('#qclear').click(); else (b0.dataset.a === 'newproj' ? $('#b-newproj') : $('#b-openproj')).click(); return; }
+  const r = e.target.closest('.row[data-id]'); if (!r || e.target.matches('.rn')) return; const id = r.dataset.id, n = byId[id];
+  const b = e.target.closest('[data-act]');
+  if (b?.dataset.act === 'tw') { n.open = !n.open; return renderTree(); }
+  if (b?.dataset.act === 'eye') { commit(n.hidden ? 'Show' : 'Hide', () => n.hidden = !n.hidden); return; }
+  r.focus({ preventScroll: true });
+  if (e.ctrlKey && sel[0]) { const a = visRows.indexOf(sel[0]), z = visRows.indexOf(id); if (a >= 0 && z >= 0) { const range = visRows.slice(Math.min(a, z), Math.max(a, z) + 1); sel = [sel[0], ...range.filter(x => x !== sel[0])]; return renderAll(); } }
+  select(id, e.shiftKey, true);
+});
+$('#tree').addEventListener('dblclick', e => {
+  const r = e.target.closest('.row[data-id]'); if (!r) return; const id = r.dataset.id;
+  if (e.target.closest('[data-act="ty"]')) { if (hasTransform(byId[id])) { sel = [id]; frameSel(); renderAll(); } return; }
+  if (e.target.closest('.nm')) startRename(id);
+});
+$('#tree').addEventListener('keydown', e => {
+  if (e.target.matches('.rn') || !e.target.closest('.row')) return;
+  const i = visRows.indexOf(sel[0]);
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); e.stopPropagation(); const nid = visRows[Math.max(0, Math.min(visRows.length - 1, i + (e.key === 'ArrowDown' ? 1 : -1)))]; if (nid) { sel = [nid]; renderAll(); $(`#tree .row[data-id="${nid}"]`)?.focus(); } }
+  else if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { e.preventDefault(); e.stopPropagation(); const n = byId[sel[0]]; if (n?.children) { n.open = e.key === 'ArrowRight'; renderTree(); $(`#tree .row[data-id="${n.id}"]`)?.focus(); } }
+  else if (e.key === ' ') { e.preventDefault(); e.stopPropagation(); hideSel(); }
+});
+$('#tree').addEventListener('contextmenu', e => {
+  e.preventDefault(); const r = e.target.closest('.row[data-id]'); if (!r) return; const id = r.dataset.id;
+  if (!sel.includes(id)) { sel = [id]; renderAll(); }
+  openCtx(e.clientX, e.clientY, 'sel');
+});
+/* drag and drop: reorder and reparent */
+let dropLine = null, expandTimer = null, dropState = null;
+function dropCheck(ids, parent) {
+  for (const id of ids) {
+    const n = byId[id];
+    if (isLocked(id)) return 'Parts of a linked assembly can’t be moved. Make it local first';
+    if (n.type === 'project' && parent) return 'Projects stay at the top level. Link one into another instead';
+    if (n.type !== 'project' && !parent) return 'Only projects sit at the top level';
+    if (parent && (parent.id === id || isDesc(parent.id, id))) return `Can’t put ${n.name} inside itself`;
+  }
+  if (parent && !isContainer(parent)) return parent.type === 'assembly' ? 'Linked assemblies are read-only' : `${parent.name} can’t hold other items`;
+  if (parent && isLocked(parent.id)) return 'Linked assemblies are read-only';
+  return null;
+}
+function clearDrop() { $('#tree').querySelectorAll('.drop-into,.drop-bad').forEach(r => r.classList.remove('drop-into', 'drop-bad')); dropLine?.remove(); dropLine = null; }
+$('#tree').addEventListener('dragstart', e => {
+  const r = e.target.closest('.row[data-id]'); if (!r) return; const id = r.dataset.id;
+  const ids = sel.includes(id) ? sel.filter(s => byId[s] && byId[s].type !== 'loose') : [id];
+  treeDrag = { ids }; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', ids.length > 1 ? ids.length + ' objects' : byId[id].name);
+  requestAnimationFrame(() => ids.forEach(i => $(`#tree .row[data-id="${i}"]`)?.classList.add('dragging'))); renderStatus();
+});
+$('#tree').addEventListener('dragover', e => {
+  if (!treeDrag) return; const r = e.target.closest('.row[data-id]'); clearDrop(); dropState = null; if (!r) return;
+  const t = byId[r.dataset.id], rr = r.getBoundingClientRect(), y = (e.clientY - rr.top) / rr.height;
+  const into = isContainer(t) || (t.type === 'assembly' && t.linked);
+  const zone = into ? (y < .25 ? 'before' : y > .75 ? 'after' : 'into') : (y < .5 ? 'before' : 'after');
+  const parent = zone === 'into' ? t : parentOf[t.id];
+  const bad = treeDrag.ids.includes(t.id) && zone !== 'into' ? null : dropCheck(treeDrag.ids, parent);
+  if (bad) { r.classList.add('drop-bad'); dropState = { bad }; renderStatus(); e.dataTransfer.dropEffect = 'none'; return; }
+  e.preventDefault(); e.dataTransfer.dropEffect = 'move';
+  if (zone === 'into') { r.classList.add('drop-into'); if (!t.open && t.children?.length) { if (!expandTimer || expandTimer.id !== t.id) { clearTimeout(expandTimer?.h); expandTimer = { id: t.id, h: setTimeout(() => { t.open = true; renderTree(); }, 600) }; } } }
+  else { const tr = $('#tree').getBoundingClientRect(), indent = parseFloat(r.style.paddingLeft) + 21; dropLine = document.createElement('div'); dropLine.className = 'dropline'; dropLine.style.left = indent + 'px'; dropLine.style.right = '2px'; dropLine.style.top = (zone === 'before' ? rr.top - tr.top - 1 : rr.bottom - tr.top - 1) + 'px'; $('#tree').append(dropLine); }
+  dropState = { t, zone, parent }; renderStatus();
+  const wb = $('#w-scene .win-b'), wr = wb.getBoundingClientRect(); if (e.clientY < wr.top + 24) wb.scrollTop -= 8; else if (e.clientY > wr.bottom - 24) wb.scrollTop += 8;
+});
+$('#tree').addEventListener('drop', e => {
+  e.preventDefault(); if (!treeDrag || !dropState || dropState.bad) return;
+  const { t, zone, parent } = dropState, list = parent ? parent.children : tree;
+  let idx = zone === 'into' ? list.length : list.indexOf(t) + (zone === 'after' ? 1 : 0);
+  moveNodes(treeDrag.ids, parent, idx);
+});
+$('#tree').addEventListener('dragend', () => { treeDrag = null; dropState = null; clearDrop(); clearTimeout(expandTimer?.h); expandTimer = null; renderTree(); renderStatus(); });
+function moveNodes(ids, parent, idx) {
+  const bad = dropCheck(ids, parent); if (bad) return toast(esc(bad), { level: 'warn' });
+  const fromProj = new Set(ids.map(id => projectOf(id)?.id)), toProj = parent ? (parent.type === 'project' ? parent : projectOf(parent.id)) : null;
+  commit('Move in tree', () => {
+    const list = parent ? parent.children : tree;
+    const nodes = ids.map(id => byId[id]);
+    nodes.forEach(n => { const sib = siblings(n.id), i = sib.indexOf(n); if (sib === list && i < idx) idx--; sib.splice(i, 1); });
+    list.splice(Math.max(0, Math.min(idx, list.length)), 0, ...nodes);
+    if (parent) parent.open = true;
+  }, toProj && [...fromProj].some(p => p !== toProj.id));
+  if (toProj && [...fromProj].some(p => p !== toProj.id)) toast(`Moved into <b>${esc(toProj.name)}</b>; its file was copied into that project’s files/`, { action: 'Undo', fn: doUndo });
+}
+$('#b-newproj').addEventListener('click', () => { commit('New project', () => { const p = N({ type:'project', name:'Untitled project', open:true, sync:'local', path:'schematics/Projects/Untitled project', world:'SMP · Overworld', origin:[0,64,0], children:[] }); tree.splice(tree.findIndex(n => n.type === 'loose'), 0, p); sel = [p.id]; }); startRename(sel[0]); });
+$('#b-openproj').addEventListener('click', () => toast('Opens the project browser: every folder under schematics/Projects/'));
+
+/* ---------- properties ---------- */
+const AXL = ['x','y','z'];
+function axRow(label, k, val, key) {
+  return `<div class="fr"><span>${label}</span><div class="axr"><label class="num ${AXL[k]}"><i data-scrub="${key}${k}" title="Drag to scrub">${AXL[k].toUpperCase()}</i><input type="number" step="1" value="${val}" data-k="${key}${k}" aria-label="${key} ${AXL[k]}"></label><button class="stp" data-step="${key}${k}" data-d="-1" aria-label="${AXL[k]} minus 1" title="−1 (Shift −16)">−</button><button class="stp" data-step="${key}${k}" data-d="1" aria-label="${AXL[k]} plus 1" title="+1 (Shift +16)">+</button></div></div>`;
+}
+function head(n, extra = '') {
+  const src = n.type === 'area' ? 'Heavymatica area' : n.linked ? n.linked : n.linkOf ? n.file : n.file || n.path || '';
+  return `<div class="ph"><span class="ty ${typeCls(n)}">${ic(typeIcon(n))}</span>${n.type === 'loose' ? `<span class="ttl">${esc(n.name)}</span>` : `<input value="${esc(n.name)}" data-k="name" aria-label="Name" ${isLocked(n.id) ? 'disabled' : ''}>`}</div>
+    ${src ? `<p class="file ${n.linked ? 'lnk' : ''}" data-copy="${esc(src)}" title="${esc(src)} (click to copy)">${n.linked ? ic('link') : ''}<span style="overflow:hidden;text-overflow:ellipsis">${esc(src)}</span></p>` : ''}${extra}`;
+}
+function xfSection(n, multi) {
+  const pos = multi ? pivotPos() : n.pos;
+  const rot = multi ? (new Set(sel.map(id => byId[id].rot || 0)).size === 1 ? byId[sel[0]].rot || 0 : -1) : (n.rot || 0);
+  return `<div class="sec"><h4>Transform${multi ? '<span class="sp"></span><span style="text-transform:none;letter-spacing:0;font-weight:400">pivot · ' + pivot.toLowerCase() + '</span>' : ''}</h4>
+      ${axRow('Location', 0, pos[0], multi ? 'piv' : 'pos')}${axRow('', 1, pos[1], multi ? 'piv' : 'pos')}${axRow('', 2, pos[2], multi ? 'piv' : 'pos')}
+      <div class="fr"><span>Rotation Y</span>${multi ? '<div class="brow"><button class="btn" data-rotd="-1">↺ 90°</button><button class="btn" data-rotd="1">↻ 90°</button></div>' : `<div class="seg" role="group" aria-label="Rotation">${[0,1,2,3].map(r => `<button class="${rot === r ? 'on' : ''}" data-rot="${r}">${r*90}°</button>`).join('')}</div>`}</div>
+      <div class="fr"><span>Mirror</span><div class="seg ui"><button class="${!multi && n.mir ? 'on' : ''}" data-a="mirror" title="Mirror Z is Mirror X + 180°; it is in the Transform menu">Mirror X</button></div></div>
+    </div>`;
+}
+function pivotPos() { const bb = pivotBox(movable()); if (!bb) return [0,0,0]; return [Math.round(bb[0][0]), Math.round(bb[0][1]), Math.round(bb[0][2])]; }
+function modCard(n, m, i) {
+  const coll = collapsedMods.has(n.id + ':' + i), on = m.on !== false;
+  const sum = m.type === 'array' ? `×${m.count} · ${arrStep(n, m).join(', ')}` : `${m.op} · ${esc(byId[m.target]?.name || 'no object')}`;
+  const hdr = `<div class="mod-h"><span class="grip" draggable="true" data-mgrip="${i}" title="Drag to reorder">${ic('grip')}</span><button class="tw ${coll ? '' : 'open'} hb" style="width:16px;height:16px" data-mcoll="${i}" aria-label="${coll ? 'Expand' : 'Collapse'}">${ic('chev')}</button><span class="ty">${ic(m.type === 'array' ? 'array' : 'bool')}</span><span class="ttl">${m.type === 'array' ? 'Array' : 'Boolean'}</span>${coll ? `<span class="sum">${sum}</span>` : ''}<span class="sp"></span><button class="sw ${on ? 'on' : ''}" data-mon="${i}" role="switch" aria-checked="${on}" title="Show this modifier in the world"></button><button class="hb" data-mmenu="${i}" aria-label="Modifier menu">${ic('kebab')}</button></div>`;
+  if (m.type === 'array') {
+    const st = arrStep(n, m), sz = localSize(n), tot = [0,1,2].map(k => sz[k] + Math.abs(st[k]) * (m.count - 1));
+    return `<div class="mod m-array ${on ? '' : 'off'} ${coll ? 'coll' : ''}" data-mi="${i}">${hdr}<div class="mod-b">
+      <div class="fr"><span>Count</span><div class="axr"><label class="num"><input type="number" min="1" max="1024" value="${m.count}" data-mod="${i}" data-mk="count" aria-label="Array count" style="text-align:left"></label><button class="stp" data-mstep="${i}" data-d="-1" aria-label="Count minus 1">−</button><button class="stp" data-mstep="${i}" data-d="1" aria-label="Count plus 1">+</button></div></div>
+      <div class="fr"><span>Offset</span><div class="seg ui"><button class="${m.mode !== 'abs' ? 'on' : ''}" data-mmode="${i}" data-v="rel">Relative</button><button class="${m.mode === 'abs' ? 'on' : ''}" data-mmode="${i}" data-v="abs">Blocks</button></div></div>
+      <div class="fr"><span></span><div class="xyz">${AXL.map((a, k) => `<label class="num ${a}"><i>${a.toUpperCase()}</i><input type="number" step="${m.mode === 'abs' ? 1 : .5}" value="${m.off[k]}" data-mod="${i}" data-mk="off${k}" aria-label="Offset ${a}"></label>`).join('')}</div></div>
+      <p class="note">= ${st.join(', ')} blocks per copy · ${tot.join(' × ')} total</p>
+      <button class="btn" data-a="realise">${ic('realise')}Realise into ${m.count} objects</button></div></div>`;
+  }
+  const t = byId[m.target], bbA = selBox([n.id], false), bbB = t ? selBox([t.id], true) : null;
+  const touch = bbA && bbB && [0,1,2].every(k => bbA[0][k] < bbB[1][k] && bbB[0][k] < bbA[1][k]);
+  const busy = performance.now() < regenUntil;
+  const status = !on ? '<span class="sdot" style="background:var(--gutter)"></span>Off: nothing is cut' : !t ? '<span class="sdot" style="background:var(--warn)"></span>Pick a cutter object' : !touch ? '<span class="sdot" style="background:var(--warn)"></span><span style="color:var(--warn)">The cutter doesn’t touch this object: nothing is removed</span>' : busy ? '<i class="spin"></i>Rebuilding derived file…' : '<span class="sdot" style="background:var(--ok)"></span>Live · derived file up to date';
+  const opts = Object.values(byId).filter(o => o.type === 'object' && o.id !== n.id && !isDesc(n.id, o.id) && projectOf(o.id) === projectOf(n.id));
+  return `<div class="mod m-bool ${on ? '' : 'off'} ${coll ? 'coll' : ''}" data-mi="${i}">${hdr}<div class="mod-b">
+      <div class="fr"><span>Operation</span><div class="seg ui">${['Difference', 'Intersect'].map(o => `<button class="${m.op === o ? 'on' : ''}" data-mop="${i}" data-v="${o}">${o}</button>`).join('')}</div></div>
+      <div class="fr"><span>Object</span><div class="axr"><select class="selc" data-mod="${i}" data-mk="target">${t ? '' : '<option value="">Choose…</option>'}${opts.map(o => `<option value="${o.id}" ${m.target === o.id ? 'selected' : ''}>${esc(o.name)}</option>`).join('')}</select><button class="stp ${pickMode ? 'on' : ''}" data-pick="${i}" title="Pick the cutter in the world" aria-label="Pick in the world" style="display:grid;place-items:center">${ic('pick')}</button></div></div>
+      <div class="stline">${status}</div>
+      <button class="btn pri" data-apply="${i}" ${t ? '' : 'disabled'} title="Writes ${esc((n.file||'').split('/').pop().replace('.litematic', ''))}_bool.litematic and uses it for this object. Ctrl Z undoes.">Apply → new .litematic</button></div></div>`;
+}
+function modsSection(n) {
+  const am = arrayMod(n), noBool = n.type === 'area' || isCutter(n);
+  return `<div class="sec"><h4>Modifiers</h4>${(n.mods||[]).map((m, i) => modCard(n, m, i)).join('')}
+    <div class="brow"><button class="btn" data-a="add-array" ${am ? 'disabled' : ''}>${ic('plus')}Array</button>${noBool ? '' : `<button class="btn" data-a="add-bool">${ic('plus')}Boolean</button>`}</div></div>`;
+}
+function orderSection(n) {
+  const agg = (list, key) => Object.values(list.reduce((m, o) => { const k = o[key]; (m[k] = m[k] || { ...o, vol: 0 }).vol += o.vol; return m; }, {}));
+  const trimmed = agg(lastOverlaps.filter(o => o.back === n.id), 'front'), wins = agg(lastOverlaps.filter(o => o.front === n.id), 'back');
+  return `<div class="sec"><h4>Front order<span class="sp"></span><span class="bdg prio">P${n.prio ?? '–'}</span></h4>
+      <div class="brow"><button class="btn wide" data-a="front">${ic('front')}Front</button><button class="btn sq" data-a="fwd" aria-label="Bring forward" title="Bring forward (PgUp)">↑</button><button class="btn sq" data-a="bwd" aria-label="Send backward" title="Send backward (PgDn)">↓</button><button class="btn wide" data-a="back">${ic('back')}Back</button></div>
+      ${trimmed.map(o => `<p class="note err">Loses ${fmt(o.vol)} blocks to <button class="linkb" data-goto="${o.front}">${esc(byId[o.front].name)}</button> (P${byId[o.front].prio}).</p>`).join('')}
+      ${wins.map(o => `<p class="note">Wins ${fmt(o.vol)} blocks over <button class="linkb" data-goto="${o.back}">${esc(byId[o.back].name)}</button>.</p>`).join('')}
+      ${!trimmed.length && !wins.length ? '<p class="note">No overlaps. When objects overlap, the one in front (P1) keeps the blocks.</p>' : ''}
+    </div>`;
+}
+function blocksSection(n) {
+  const cut = lastOverlaps.filter(o => o.back === n.id).reduce((s, o) => s + o.vol, 0), blocks = blocksOf(n.id, lastBoxes), busy = regenIds.has(n.id) && performance.now() < regenUntil;
+  return `<div class="sec"><h4>Blocks${busy ? ' <i class="spin"></i>' : ''}</h4><div class="stat" style="${busy ? 'opacity:.6' : ''}"><div><span class="bignum">${fmt(blocks - cut)}</span><small>counted</small></div>${cut ? `<div><span class="bignum" style="color:var(--err)">−${fmt(cut)}</span><small>trimmed by front objects</small></div>` : ''}</div></div>`;
+}
+function renderProps() {
+  const el = $('#props');
+  if (!sel.length) {
+    const hideCard = store.get('la.hideLitematicaCard') === '1';
+    el.innerHTML = `<div class="empty">Click an object in the world or in Scene.<br><kbd>Shift</kbd> add · <kbd>Alt</kbd> cycle overlapping · <kbd>B</kbd> box select
+      ${hideCard ? '' : `<div class="card"><h5>From Litematica?<span class="sp"></span><button class="linkb" data-a="hidecard" style="font-size:11px;letter-spacing:0;text-transform:none">Hide this</button></h5>
+        <div class="tr"><span>Placement</span><span>→</span><span><b>Object</b><small>G move · R rotate 90°</small></span></div>
+        <div class="tr"><span>Overlapping placements</span><span>→</span><span><b>Front order</b><small>P1 keeps the blocks; material list and printer see the result</small></span></div>
+        <div class="tr"><span>Repeated copies</span><span>→</span><span><b>Array modifier</b><small>stays editable until Realise</small></span></div>
+        <div class="tr"><span>Camera</span><span>→</span><span><b>MMB orbit</b><small>hold RMB + WASD to fly</small></span></div></div>`}</div>`;
+    return;
+  }
+  const n = byId[sel[0]]; if (!n) { el.innerHTML = ''; return; }
+  if (sel.length > 1) {
+    const ids = sel.filter(id => byId[id]), tot = ids.reduce((s, id) => s + blocksOf(id, lastBoxes), 0);
+    el.innerHTML = `<div class="ph"><span class="ty">${ic('group')}</span><span class="ttl">${ids.length} objects</span></div><p class="file" style="cursor:default">${fmt(tot)} blocks in the selection</p>
+      ${movable().length ? xfSection(n, true) : ''}
+      <div class="sec"><h4>Front order</h4><div class="brow"><button class="btn wide" data-a="front">${ic('front')}Front</button><button class="btn sq" data-a="fwd" aria-label="Forward">↑</button><button class="btn sq" data-a="bwd" aria-label="Backward">↓</button><button class="btn wide" data-a="back">${ic('back')}Back</button></div><p class="note">Keeps their order among themselves.</p></div>
+      <div class="sec"><div class="brow"><button class="btn" data-a="group">${ic('group')}Create assembly</button><button class="btn" data-a="hide">${ic('eyeoff')}Hide</button><button class="btn danger" data-a="delete">${ic('trash')}Delete</button></div></div>
+      <div class="sec"><h4>Selection</h4><div class="sellist">${ids.map(id => `<button class="${id === sel[0] ? 'act' : ''}" data-goto="${id}"><span class="ty ${typeCls(byId[id])}">${ic(typeIcon(byId[id]))}</span>${esc(byId[id].name)}</button>`).join('')}</div></div>`;
+    return;
+  }
+  if (n.type === 'project') {
+    const objs = Object.values(byId).filter(o => projectOf(o.id) === n && hasTransform(o) && ownerOf(o.id) === o.id);
+    const blocks = objs.reduce((s, o) => s + blocksOf(o.id, lastBoxes), 0);
+    el.innerHTML = head({ ...n, file: n.path + '/project.json' }) + `
+      <div class="sec"><div class="stat"><div><span class="bignum">${objs.length}</span><small>objects</small></div><div><span class="bignum">${fmt(blocks)}</span><small>blocks, after trims</small></div></div></div>
+      <div class="sec"><h4>Project</h4>
+        <div class="kv"><span>World</span><b>${esc(n.world)}</b></div>
+        <div class="fr"><span>Origin</span><div class="xyz">${AXL.map((a, k) => `<label class="num ${a}"><i>${a.toUpperCase()}</i><input type="number" value="${n.origin[k]}" data-k="org${k}" aria-label="Origin ${a}"></label>`).join('')}</div></div>
+        <div class="kv"><span>Syncmatica</span><span>${n.sync === 'shared' ? '<b style="color:var(--ok)">shared</b>' : '<b style="color:var(--dim)">local only</b>'} <button class="linkb" data-a="share" style="font-size:12px;margin-left:6px">${n.sync === 'shared' ? 'Stop sharing' : 'Share'}</button></span></div>
+        <div class="brow">${n.active ? '<span class="btn ghost wide" style="color:var(--accent)">Active project</span>' : '<button class="btn wide" data-a="set-active">Make active</button>'}${n.sync === 'shared' && pendingSync ? `<button class="btn wide" data-a="push">${ic('sync')}Push ${pendingSync}</button>` : ''}<button class="btn wide" data-a="export-menu">${ic('export')}Export ▾</button></div>
+        <p class="note">New objects go into the active project. Linking this project into another one places it there as an assembly.</p>
+      </div>`;
+    return;
+  }
+  if (n.type === 'folder' || n.type === 'loose') {
+    el.innerHTML = head(n) + `<div class="sec"><div class="kv"><span>Items</span><b>${(n.children||[]).length}</b></div>
+      ${n.type === 'loose' ? '<p class="note">Placements that belong to no project, as in plain Litematica. Drag them into a project, or turn all of them into one. A project unlocks arrays, Booleans, assemblies and Syncmatica pushes.</p><button class="btn pri" data-a="to-proj">' + ic('project') + 'Convert to project…</button>'
+        : `<p class="note">Folders only organise. Front order decides which blocks count.</p><div class="brow"><button class="btn" data-a="group">${ic('group')}Make assembly</button><button class="btn" data-a="to-proj">Convert to project</button><button class="btn" data-a="export">${ic('export')}Export .zip</button></div>`}</div>`;
+    return;
+  }
+  // objects, assemblies, areas, cutters, locked parts
+  const locked = isLocked(n.id);
+  let out = '';
+  if (locked) {
+    const asm = byId[ownerOf(n.id)];
+    out += `<div class="banner"><p>${ic('lock')}<span>Part of linked assembly <b>${esc(asm.name)}</b> (${esc(asm.linked.split('/').pop())}). Read-only here.</span></p><div class="brow"><button class="btn" data-goto="${asm.id}">Select assembly</button><button class="btn" data-a="make-local-asm">Make assembly local</button></div></div>`;
+  }
+  const dupNote = n.linkOf ? `<p class="note" style="margin:-4px 0 8px;display:flex;gap:5px;align-items:center;color:var(--link)">${ic('link')}Shares its file with ${Object.values(byId).filter(o => o !== n && (o.file === n.file)).length} other object(s)</p>` : '';
+  let body = xfSection(n, false);
+  if (n.type === 'area') {
+    body += `<div class="sec"><h4>Size</h4><div class="xyz">${AXL.map((a, k) => `<label class="num ${a}"><i>${a.toUpperCase()}</i><input type="number" min="1" value="${n.size[k]}" data-k="size${k}" aria-label="Size ${a}"></label>`).join('')}</div></div>
+      <div class="sec"><h4>Area</h4><div class="kv"><span>Volume</span><b>${fmt(n.size[0]*n.size[1]*n.size[2])} blocks</b></div><div class="kv"><span>Used by</span><b>Heavymatica</b></div>
+      <button class="btn" data-a="heavy">${ic('area')}Open in Heavymatica</button>
+      <p class="note warnc">Areas never change schematic blocks and take no part in Booleans or the front order.</p></div>` + modsSection(n);
+  } else if (isCutter(n)) {
+    const users = Object.values(byId).filter(o => (o.mods||[]).some(m => m.type === 'boolean' && m.target === n.id));
+    body += `<div class="sec"><h4>Cutter</h4>${users.map(u => `<p class="note">Cuts <button class="linkb" data-goto="${u.id}">${esc(u.name)}</button> (${esc(boolMod(u).op)}${boolMod(u).on === false ? ', off' : ''}).</p>`).join('')}<p class="note">Its own blocks aren’t counted, printed or pushed.</p></div>` + modsSection(n);
+  } else {
+    if (n.type === 'assembly') body += `<div class="sec"><h4>Assembly</h4><div class="kv"><span>Parts</span><b>${(n.children||[]).length}</b></div>
+      ${n.linked ? `<div class="kv"><span>Source</span><span style="color:var(--link);font:11px var(--f-mono);overflow:hidden;text-overflow:ellipsis">${esc(n.linked)}</span></div>` : '<div class="kv"><span>Source</span><b style="font-family:var(--f-ui);font-weight:400;color:var(--dim)">saved in this project</b></div>'}
+      <div class="brow">${n.linked ? `<button class="btn" data-a="make-local">${ic('link')}Make local</button>` : ''}<button class="btn" data-a="breakup">${ic('explode')}Break up</button><button class="btn" data-a="realise-asm">${ic('realise')}Realise</button></div></div>`;
+    body += blocksSection(n) + (ownerOf(n.id) === n.id ? orderSection(n) : '') + modsSection(n);
+  }
+  el.innerHTML = out + head(n, dupNote) + (locked ? `<fieldset disabled style="border:0;margin:0;padding:0;opacity:.5">${body}</fieldset>` : body);
+}
+$('#props').addEventListener('change', e => {
+  const t = e.target, n = byId[sel[0]]; if (!n) return;
+  const k = t.dataset.k;
+  if (k === 'name') { commit('Rename', () => n.name = t.value.trim() || n.name); return; }
+  if (k?.startsWith('pos')) { const a = +k[3], v = parseInt(t.value, 10) || 0; commit('Move ' + n.name, () => n.pos[a] = v, true); return; }
+  if (k?.startsWith('piv')) { const a = +k[3], v = parseInt(t.value, 10) || 0, d = v - pivotPos()[a]; commit('Move ' + sel.length + ' objects', () => movable().forEach(id => byId[id].pos[a] += d), true); return; }
+  if (k?.startsWith('size')) { const a = +k[4]; commit('Resize area', () => n.size[a] = Math.max(1, parseInt(t.value, 10) || 1)); return; }
+  if (k?.startsWith('org')) { commit('Origin', () => n.origin[+k[3]] = parseInt(t.value, 10) || 0); return; }
+  if (t.dataset.mod != null) {
+    const m = n.mods[+t.dataset.mod], mk = t.dataset.mk;
+    commit('Edit modifier', () => { if (mk === 'count') m.count = Math.max(1, Math.min(1024, parseInt(t.value, 10) || 1)); else if (mk.startsWith('off')) m.off[+mk[3]] = parseFloat(t.value) || 0; else m[mk] = t.value; }, true);
+  }
+});
+// −/+ steppers: 1 block, Shift = 16; hold to repeat; one undo step per hold
+let stepHold = null;
+$('#props').addEventListener('pointerdown', e => {
+  const b = e.target.closest('[data-step],[data-mstep]'); if (!b || e.button !== 0 || b.disabled || b.closest('fieldset[disabled]')) return; e.preventDefault();
+  const big = e.shiftKey ? 16 : 1, d = +b.dataset.d * big;
+  if (b.dataset.mstep != null) { const n = byId[sel[0]], m = n.mods[+b.dataset.mstep]; commit('Array count', () => m.count = Math.max(1, Math.min(1024, m.count + +b.dataset.d)), true); return; }
+  const key = b.dataset.step, axis = +key[3], multi = key.startsWith('piv'), ids = multi ? movable() : [sel[0]];
+  const inp = $(`#props input[data-k="${key}"]`);
+  pushUndo('Move ' + nameOf(ids));
+  const step = () => { ids.forEach(id => byId[id].pos[axis] += d); if (inp) inp.value = multi ? pivotPos()[axis] : byId[ids[0]].pos[axis]; draw(); drawMap(); };
+  step(); stepHold = { t: setTimeout(() => { stepHold.i = setInterval(step, 70); }, 380) };
+  const up = () => { clearTimeout(stepHold.t); clearInterval(stepHold.i); stepHold = null; removeEventListener('pointerup', up); changed(true); };
+  addEventListener('pointerup', up);
+});
+// scrub on the axis tag
+$('#props').addEventListener('pointerdown', e => {
+  const tg = e.target.closest('[data-scrub]'); if (!tg || e.button !== 0 || tg.closest('fieldset[disabled]')) return; e.preventDefault();
+  const key = tg.dataset.scrub, axis = +key[3], multi = key.startsWith('piv'), ids = multi ? movable() : [sel[0]];
+  const x0 = e.clientX, base = ids.map(id => [...byId[id].pos]), inp = $(`#props input[data-k="${key}"]`); let moved = 0;
+  pushUndo('Move ' + nameOf(ids));
+  const mv = ev => { const d = Math.round((ev.clientX - x0) / 4) * (ev.shiftKey ? 10 : 1); if (d === moved) return; moved = d; ids.forEach((id, i) => byId[id].pos[axis] = base[i][axis] + d); if (inp) inp.value = multi ? pivotPos()[axis] : byId[ids[0]].pos[axis]; draw(); drawMap(); };
+  const up = () => { removeEventListener('pointermove', mv); removeEventListener('pointerup', up); if (moved) changed(true); else undo.pop(); };
+  addEventListener('pointermove', mv); addEventListener('pointerup', up);
+});
+// reorder modifier cards by their grip
+let modDrag = null;
+$('#props').addEventListener('dragstart', e => { const g0 = e.target.closest('[data-mgrip]'); if (!g0) return; modDrag = +g0.dataset.mgrip; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', 'modifier'); });
+$('#props').addEventListener('dragover', e => { if (modDrag == null) return; const c = e.target.closest('.mod'); $('#props').querySelectorAll('.dropb,.dropa').forEach(x => x.classList.remove('dropb', 'dropa')); if (!c) return; e.preventDefault(); const r = c.getBoundingClientRect(); c.classList.add(e.clientY < r.top + r.height / 2 ? 'dropb' : 'dropa'); });
+$('#props').addEventListener('drop', e => { if (modDrag == null) return; e.preventDefault(); const c = e.target.closest('.mod'); if (!c) return; const r = c.getBoundingClientRect(), n = byId[sel[0]], from = modDrag; let to = +c.dataset.mi + (e.clientY < r.top + r.height / 2 ? 0 : 1); if (from < to) to--; modDrag = null; if (from === to) return renderProps(); commit('Reorder modifiers', () => { const [m] = n.mods.splice(from, 1); n.mods.splice(to, 0, m); }, true); });
+$('#props').addEventListener('dragend', () => { modDrag = null; $('#props').querySelectorAll('.dropb,.dropa').forEach(x => x.classList.remove('dropb', 'dropa')); });
+$('#props').addEventListener('click', e => {
+  const cp = e.target.closest('[data-copy]'); if (cp) { try { navigator.clipboard?.writeText(cp.dataset.copy); } catch {} return toast('Path copied'); }
+  const b = e.target.closest('button'); if (!b || b.disabled) return; const n = byId[sel[0]];
+  const D = b.dataset;
+  if (D.goto) { sel = sel.length > 1 && sel.includes(D.goto) ? [D.goto, ...sel.filter(s => s !== D.goto)] : [D.goto]; ancestors(D.goto).forEach(a => a.open = true); return renderAll(); }
+  if (D.rot != null) { const want = +D.rot, cur = n.rot || 0, d = ((want - cur) % 4 + 4) % 4; if (d) rotateSel(d === 3 ? -1 : d); return; }
+  if (D.rotd) return rotateSel(+D.rotd);
+  if (D.mon != null) { const m = n.mods[+D.mon]; commit(m.on === false ? 'Enable modifier' : 'Disable modifier', () => m.on = m.on === false, true); return; }
+  if (D.mcoll != null) { const key = n.id + ':' + D.mcoll; collapsedMods.has(key) ? collapsedMods.delete(key) : collapsedMods.add(key); return renderProps(); }
+  if (D.mmode != null) { const m = n.mods[+D.mmode]; if (m.mode !== D.v) commit('Offset mode', () => { const st = arrStep(n, m); m.mode = D.v; m.off = D.v === 'abs' ? st : st.map((v, k) => Math.round(v / localSize(n)[k] * 2) / 2); }, true); return; }
+  if (D.mop != null) { const m = n.mods[+D.mop]; if (m.op !== D.v) commit('Boolean operation', () => m.op = D.v, true); return; }
+  if (D.pick != null) { pickMode = { id: n.id, i: +D.pick }; setCursor(); renderAll(); return; }
+  if (D.mmenu != null) {
+    const i = +D.mmenu, m = n.mods[i], r = b.getBoundingClientRect();
+    return openMenu(r.left - 150, r.bottom + 4, [
+      m.type === 'array' ? I(`Realise into ${m.count} objects`, 'realise', () => realise(n.id)) : I('Apply → new .litematic', 'bool', () => applyBool(n.id, i), { dis: !m.target }),
+      I('Move up', 'chev', () => commit('Reorder modifiers', () => { n.mods.splice(i - 1, 0, n.mods.splice(i, 1)[0]); }, true), { dis: i === 0 }),
+      I('Move down', 'chev', () => commit('Reorder modifiers', () => { n.mods.splice(i + 1, 0, n.mods.splice(i, 1)[0]); }, true), { dis: i === n.mods.length - 1 }),
+      I('Duplicate', 'dup', () => commit('Duplicate modifier', () => n.mods.splice(i + 1, 0, JSON.parse(JSON.stringify(m))), true), { dis: m.type === 'array' }),
+      SEP, I('Remove', 'trash', () => commit('Remove modifier', () => n.mods.splice(i, 1), true), { danger: true }),
+    ], m.type === 'array' ? 'Array' : 'Boolean');
+  }
+  if (D.apply != null) return applyBool(n.id, +D.apply);
+  const a = D.a; if (!a) return;
+  const ids = sel.filter(id => byId[id]);
+  ({ mirror: mirrorSel, 'add-array': () => addMod([n.id], 'array'), 'add-bool': () => addMod([n.id], 'boolean'), realise: () => realise(n.id), breakup: () => breakUp(n.id),
+     front: () => setPrio(ids, 'front'), back: () => setPrio(ids, 'back'), fwd: () => setPrio(ids, 'up'), bwd: () => setPrio(ids, 'down'), hide: hideSel, delete: delSel,
+     hidecard: () => { store.set('la.hideLitematicaCard', '1'); renderProps(); }, share: () => commit('Sharing', () => n.sync = n.sync === 'shared' ? 'local' : 'shared'),
+     'make-local-asm': () => { sel = [ownerOf(n.id)]; act('make-local'); }, heavy: () => toast('Mockup: opens this area in Heavymatica'),
+     'export-menu': () => { const r = b.getBoundingClientRect(); openMenu(r.left, r.bottom + 4, [I('Project (.zip)…', 'export', () => act('export')), I('Bake to one .litematic…', 'export', () => act('bake'))]); },
+  }[a] || (() => act(a)))();
+});
+
+/* ---------- top view ---------- */
+const mc = $('#map'), mg = mc.getContext('2d'); let mapXf = null;
+function drawMap() {
+  const r = mc.getBoundingClientRect(); if (!r.width) return;
+  mc.width = r.width * DPR; mc.height = r.height * DPR; mg.setTransform(DPR, 0, 0, DPR, 0, 0);
+  mg.fillStyle = '#1c1f24'; mg.fillRect(0, 0, r.width, r.height);
+  const all = lastBoxes; if (!all.length) { mg.fillStyle = '#858c96'; mg.font = '12px Inter, sans-serif'; mg.textAlign = 'center'; mg.fillText('Nothing placed yet.', r.width / 2, r.height / 2); return; }
+  const [mn, mx] = aabb(all.flatMap(b => [b.mn, b.mx]));
+  const pad = 10, sc = Math.min((r.width - pad*2) / (mx[0]-mn[0] + 8), (r.height - pad*2) / (mx[2]-mn[2] + 8));
+  const ox = pad + ((r.width - pad*2) - (mx[0]-mn[0])*sc) / 2 - mn[0]*sc, oz = pad + ((r.height - pad*2) - (mx[2]-mn[2])*sc) / 2 - mn[2]*sc;
+  mapXf = { sc, ox, oz }; $('#mapscale').textContent = `1 px = ${(1 / sc).toFixed(1)} blocks`;
+  mg.lineWidth = 1;
+  for (let x = Math.ceil(mn[0]/16)*16; x <= mx[0]; x += 16) { mg.strokeStyle = x === 0 ? '#5b9cf059' : '#2a2e35b3'; mg.beginPath(); mg.moveTo(ox + x*sc, 0); mg.lineTo(ox + x*sc, r.height); mg.stroke(); }
+  for (let z = Math.ceil(mn[2]/16)*16; z <= mx[2]; z += 16) { mg.strokeStyle = z === 0 ? '#f0605e59' : '#2a2e35b3'; mg.beginPath(); mg.moveTo(0, oz + z*sc); mg.lineTo(r.width, oz + z*sc); mg.stroke(); }
+  const rect = b => [ox + b.mn[0]*sc, oz + b.mn[2]*sc, (b.mx[0]-b.mn[0])*sc, (b.mx[2]-b.mn[2])*sc];
+  all.filter(b => b.kind === 'area').forEach(b => { mg.fillStyle = '#f2b35e0f'; mg.fillRect(...rect(b)); mg.setLineDash([4, 3]); mg.strokeStyle = selHas(b) ? '#5ec4b6' : '#f2b35ecc'; mg.strokeRect(...rect(b)); mg.setLineDash([]); });
+  all.filter(b => b.kind === 'solid').sort((a, b) => a.mx[1] - b.mx[1]).forEach(b => { mg.fillStyle = selHas(b) ? (b.copy ? '#5ec4b699' : '#5ec4b6') : (b.copy ? '#9fb4c95e' : '#9fb4c98c'); mg.fillRect(...rect(b)); mg.strokeStyle = '#00000080'; mg.strokeRect(...rect(b)); if (b.owner === hover && !selHas(b)) { mg.strokeStyle = '#e2e5e999'; mg.strokeRect(...rect(b)); } });
+  all.filter(b => b.kind === 'wire').forEach(b => { mg.setLineDash([2, 2]); mg.strokeStyle = '#b48cf0'; mg.strokeRect(...rect(b)); mg.setLineDash([]); });
+  lastOverlaps.forEach(o => { const [x, y, w, h] = rect(o); mg.fillStyle = '#f0747059'; mg.fillRect(x, y, w, h); mg.save(); mg.beginPath(); mg.rect(x, y, w, h); mg.clip(); mg.strokeStyle = '#f07470'; mg.beginPath(); for (let k = x - h; k < x + w; k += 4) { mg.moveTo(k, y + h); mg.lineTo(k + h, y); } mg.stroke(); mg.restore(); });
+  const cx0 = ox + S.t[0]*sc, cz0 = oz + S.t[2]*sc, sa = Math.sin(S.yaw), ca = Math.cos(S.yaw), d = 26;
+  const camx = cx0 + sa*d, camz = cz0 + ca*d, lx = -sa, lz = -ca;
+  mg.fillStyle = '#e2e5e922'; mg.beginPath(); mg.moveTo(camx, camz);
+  mg.lineTo(camx + (lx*Math.cos(.5) - lz*Math.sin(.5))*40, camz + (lx*Math.sin(.5) + lz*Math.cos(.5))*40);
+  mg.lineTo(camx + (lx*Math.cos(-.5) - lz*Math.sin(-.5))*40, camz + (lx*Math.sin(-.5) + lz*Math.cos(-.5))*40); mg.closePath(); mg.fill();
+  mg.fillStyle = '#e2e5e9'; mg.beginPath(); mg.arc(camx, camz, 3.5, 0, 7); mg.fill();
+  mg.strokeStyle = '#e2e5e955'; mg.beginPath(); mg.arc(cx0, cz0, 3, 0, 7); mg.stroke();
+}
+mc.addEventListener('click', e => {
+  if (!mapXf) return; const r = mc.getBoundingClientRect(), x = (e.clientX - r.left - mapXf.ox) / mapXf.sc, z = (e.clientY - r.top - mapXf.oz) / mapXf.sc;
+  const hit = [...lastBoxes].reverse().find(b => b.kind === 'solid' && x >= b.mn[0] && x <= b.mx[0] && z >= b.mn[2] && z <= b.mx[2]) || lastBoxes.find(b => b.kind !== 'solid' && x >= b.mn[0] && x <= b.mx[0] && z >= b.mn[2] && z <= b.mx[2]);
+  if (hit) select(hit.owner, e.shiftKey);
+});
+mc.addEventListener('dblclick', e => { if (!mapXf) return; const r = mc.getBoundingClientRect(); S.t[0] = (e.clientX - r.left - mapXf.ox) / mapXf.sc; S.t[2] = (e.clientY - r.top - mapXf.oz) / mapXf.sc; draw(); drawMap(); });
+$('#mapfit').addEventListener('click', () => { sel = []; frameSel(); renderAll(); });
+$('#mapfollow').addEventListener('click', e => e.currentTarget.classList.toggle('on'));
+
+/* ---------- toolbar + status ---------- */
+function renderToolbar() {
+  const t = (k, icon, label, key) => `<button class="tb ${tool === k ? 'on' : ''}" data-tool="${k}" aria-pressed="${tool === k}" title="${label} (${key})">${ic(icon)}<span class="lbl">${label}</span><kbd>${key}</kbd></button>`;
+  const noSel = !movable().length;
+  $('#toolbar').innerHTML = `<button class="mode" data-b="leave" title="Leave the editor (F6)">Editor <kbd>F6</kbd></button>
+    <button class="tb add" data-b="add" title="Add (Shift A)">${ic('plus')}<span class="lbl">Add</span></button><span class="sep"></span>
+    ${t('select', 'cursor', 'Select', 'W')}${t('move', 'move', 'Move', 'G')}${t('rotate', 'rotate', 'Rotate', 'R')}
+    <button class="tb ${boxArmed || box ? 'on' : ''}" data-b="box" title="Box select (B)">${ic('box')}</button>
+    <button class="tb tb-opt2" data-b="mirror" title="Mirror X (M)" ${noSel ? 'disabled' : ''}>${ic('mirror')}</button><span class="sep tb-opt"></span>
+    <button class="tb tb-opt ${snapOn ? 'on' : ''}" data-b="snap" aria-pressed="${snapOn}" title="Snap to faces of other objects (hold Ctrl while dragging to invert)">${ic('magnet')}<span class="lbl">Snap</span></button>
+    <select class="tsel tb-opt" id="pivot" aria-label="Pivot point" title="Pivot point">${['Median', 'Active object', 'Bounding box'].map(p => `<option ${p === pivot ? 'selected' : ''}>${p}</option>`).join('')}</select>
+    <button class="tb tb-opt ${localView ? 'on' : ''}" data-b="local" title="Local view (/)">${ic('local')}</button><span class="sep tb-opt"></span>
+    <button class="tb tb-opt" data-b="undo" title="${undo.length ? 'Undo ' + esc(undo[undo.length - 1].label || '') + ' (Ctrl Z)' : 'Nothing to undo'}" ${undo.length ? '' : 'disabled'}>${ic('undo')}</button><button class="tb tb-opt" data-b="redo" title="Redo (Ctrl Shift Z)" ${redo.length ? '' : 'disabled'}>${ic('redo')}</button><span class="sep tb-opt"></span>
+    <button class="tb tb-opt" data-b="windows" title="Windows">${ic('layout')}</button>
+    <button class="tb push tb-opt2 ${pendingSync ? '' : 'clean'}" data-b="push" title="${pendingSync ? pendingSync + ' changes in shared projects aren’t pushed yet' : 'Everything is pushed'}">${ic('sync')}<span class="lbl">Push</span><span class="pill">${pendingSync}</span></button>
+    <button class="tb tb-opt" data-b="help" title="Quick guide">${ic('help')}</button>
+    <button class="tb" id="tb-more" data-b="more" title="More">${ic('more')}</button>`;
+}
+function windowsItems() {
+  const w = id => !$('#' + id).hidden;
+  const tog = id => () => { $('#' + id).hidden = !$('#' + id).hidden; drawMap(); };
+  return [I('Scene', null, tog('w-scene'), { check: w('w-scene') }), I('Properties', null, tog('w-props'), { check: w('w-props') }), I('Top view', null, tog('w-map'), { check: w('w-map') }),
+    I('Hide all windows', null, () => $('#stage').classList.toggle('nowin'), { check: $('#stage').classList.contains('nowin'), key: 'Tab' }), SEP,
+    I('Reset layout', 'layout', () => { ['w-scene', 'w-props', 'w-map'].forEach(id => { const el = $('#' + id); el.hidden = false; el.style.left = el.style.top = el.style.right = el.style.bottom = ''; }); $('#w-scene').style.cssText = 'left:12px; top:56px; width:316px; height:calc(100% - 92px)'; $('#w-props').style.cssText = 'right:12px; top:56px; width:310px; max-height:calc(100% - 336px)'; $('#w-map').style.cssText = 'right:12px; bottom:36px; width:310px'; $('#stage').classList.remove('nowin'); drawMap(); })];
+}
+function helpMenu(x, y) {
+  closeMenu();
+  const el = document.createElement('div'); el.className = 'menu help'; el._level = 0;
+  el.innerHTML = `<h6>Camera</h6><div class="kl"><kbd>MMB</kbd><span>orbit · <kbd>Shift</kbd> pan · wheel zoom</span><kbd>hold RMB</kbd><span>fly with W A S D, Q E · wheel = speed</span><kbd>F</kbd><span>frame the selection</span></div>
+    <h6>Editing</h6><div class="kl"><kbd>G</kbd><span>move, then X/Y/Z and a number, Enter</span><kbd>R</kbd><span>rotate in 90° steps · <kbd>M</kbd> mirror X</span><kbd>Shift D</kbd><span>duplicate · <kbd>Alt D</kbd> linked duplicate</span><kbd>B</kbd><span>box select · <kbd>A</kbd> all · <kbd>Alt A</kbd> none</span><kbd>H</kbd><span>hide · <kbd>Alt H</kbd> show all · <kbd>/</kbd> local view</span></div>
+    <h6>Nothing is final until you say so</h6><p>Arrays and Booleans are modifiers: they stay editable. <b>Realise</b> turns an array into separate objects, <b>Apply</b> writes a Boolean result as a new .litematic, <b>Bake</b> exports one .litematic for players without the mod.</p>`;
+  document.body.append(el); menus.push(el);
+  const r = el.getBoundingClientRect(); el.style.left = Math.max(8, Math.min(x, innerWidth - r.width - 8)) + 'px'; el.style.top = y + 'px';
+}
+$('#toolbar').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b || b.disabled) return;
+  if (b.dataset.tool) { tool = b.dataset.tool; return renderAll(); }
+  const r = b.getBoundingClientRect();
+  ({ mirror: mirrorSel, snap: () => { snapOn = !snapOn; renderToolbar(); }, local: toggleLocal, undo: doUndo, redo: doRedo, push: () => act('push'),
+     leave: () => toast('F6 leaves the editor: windows fade out and the game takes the mouse again'),
+     add: () => openMenu(r.left, r.bottom + 6, addItems(), 'Add to ' + (activeProject()?.name || 'scene')),
+     box: () => { boxArmed = !boxArmed; setCursor(); renderToolbar(); hud(); draw(); },
+     windows: () => openMenu(r.left, r.bottom + 6, windowsItems()),
+     help: () => helpMenu(r.right - 340, r.bottom + 6),
+     more: () => openMenu(r.right - 230, r.bottom + 6, [I(`Push to Syncmatica (${pendingSync})`, 'sync', () => act('push'), { dis: !pendingSync }), I('Mirror X', 'mirror', mirrorSel, { key: 'M', dis: !movable().length }), SEP, I('Snap', 'magnet', () => { snapOn = !snapOn; renderToolbar(); }, { check: snapOn }), I('Local view', 'local', toggleLocal, { key: '/' }), I('Undo', 'undo', doUndo, { key: 'Ctrl Z', dis: !undo.length }), I('Redo', 'redo', doRedo, { dis: !redo.length }), I('Pivot', 'local', null, { sub: ['Median', 'Active object', 'Bounding box'].map(p => I(p, null, () => { pivot = p; renderAll(); }, { check: pivot === p })) }), I('Windows', 'layout', null, { sub: windowsItems() }), I('Quick guide', 'help', () => helpMenu(8, r.bottom + 6))]),
+  })[b.dataset.b]?.();
+});
+$('#toolbar').addEventListener('change', e => { if (e.target.id === 'pivot') { pivot = e.target.value; renderAll(); } });
+function hints() {
+  const h = (k, t) => `<span>${k.split('|').map(x => `<kbd>${x}</kbd>`).join('')} ${t}</span>`;
+  let pre = localView ? '<span class="mchip">Local view</span>' + h('/', 'leave') : '';
+  if (treeDrag) return dropState?.bad ? `<span class="bad">${esc(dropState.bad)}</span>` : 'Drop <b style="color:var(--fg);font-weight:500">between</b> rows to reorder · <b style="color:var(--fg);font-weight:500">on</b> a folder, project or local assembly to move in · ' + h('Esc', 'cancel');
+  if (renaming) return h('Enter', 'rename') + h('Esc', 'cancel');
+  if (pickMode) return 'Click the cutter object ' + h('Esc', 'cancel');
+  if (tt) return h('0–9', 'number') + h('X|Y|Z', 'axis') + h('−', 'negate') + h('Backspace', '') + h('Enter', 'confirm') + h('Esc', 'cancel');
+  if (box || boxArmed) return h('drag', 'select') + h('Shift', 'add') + h('Ctrl', 'subtract') + h('Esc', 'cancel');
+  if (flying) return h('W|A|S|D', 'move') + h('Q|E', 'down/up') + h('Shift', 'fast') + h('Wheel', 'speed') + h('release RMB', 'stop');
+  if (drag?.kind === 'ring') return h('RMB|Esc', 'cancel') + h('release', 'apply');
+  if (drag) return h('Ctrl', snapOn ? 'snap off' : 'snap on') + h('0–9', 'type the distance') + h('RMB|Esc', 'cancel') + h('release', 'place');
+  if (gHover?.type === 'axis') return h('drag', 'move along ' + AXN[gHover.axis].toUpperCase()) + h('Ctrl', 'hold to ' + (snapOn ? 'turn snapping off' : 'snap'));
+  if (gHover?.type === 'plane') return h('drag', 'move on the ground (X and Z)') + h('Ctrl', 'snap off');
+  if (gHover?.type === 'ring') return h('click', '+90°') + h('Shift click', '−90°') + h('drag', 'rotate in 90° steps');
+  if (sel.length) return pre + h('G', 'move') + h('R', 'rotate') + h('M', 'mirror') + h('Shift D', 'duplicate') + h('H', 'hide') + h('X', 'delete') + h('F', 'frame') + h('RMB', 'menu');
+  return pre + h('LMB', 'select') + h('drag', 'box select') + h('MMB', 'orbit') + h('Shift MMB', 'pan') + h('Wheel', 'zoom') + h('hold RMB', 'fly') + h('RMB', 'menu') + h('Shift A', 'add');
+}
+function renderStatus() {
+  const busy = performance.now() < regenUntil;
+  const n = byId[sel[0]];
+  let selTxt = 'Nothing selected';
+  if (sel.length > 1) { const bb = selBox(sel, false); selTxt = `${sel.length} objects` + (bb ? ` · ${[0,1,2].map(k => Math.round(bb[1][k]-bb[0][k])).join('×')}` : ''); }
+  else if (n) { const bb = selBox([n.id], true); selTxt = n.name + (bb ? ` · ${[0,1,2].map(k => Math.round(bb[1][k]-bb[0][k])).join('×')} at ${bb[0].map(Math.round).join(', ')}` : '') + (arrayMod(n) ? ` · array ×${arrayMod(n).count}` : ''); }
+  const shared = tree.some(p => p.sync === 'shared');
+  $('#status').innerHTML = `<div class="hints">${hints()}</div>
+    <div class="rt"><span class="selt">${esc(selTxt)}</span>
+      <span>${busy ? `<i class="spin"></i>Rebuilding ${regenCount} derived file${regenCount > 1 ? 's' : ''}…` : '<span class="sdot" style="background:var(--ok)"></span>Derived files up to date'}</span>
+      ${shared ? `<span><span class="sdot" style="background:${pendingSync ? 'var(--warn)' : 'var(--ok)'}"></span>${pendingSync ? pendingSync + ' change' + (pendingSync > 1 ? 's' : '') + ' not pushed' : 'Syncmatica up to date'}</span>` : ''}</div>`;
+}
+function renderAll() { reindex(); sel = sel.filter(id => byId[id]); draw(); renderTree(); renderProps(); renderToolbar(); renderStatus(); drawMap(); }
+
+/* ---------- windows: drag by header, bring to front, close ---------- */
+let zTop = 21;
+document.querySelectorAll('.win').forEach(w => {
+  w.addEventListener('mousedown', () => { w.style.zIndex = ++zTop; });
+  const h = w.querySelector('[data-drag]');
+  h.addEventListener('mousedown', e => {
+    if (matchMedia('(max-width: 860px)').matches || e.button !== 0 || e.target.closest('button')) return;
+    const app = $('#app').getBoundingClientRect(), r = w.getBoundingClientRect(), dx = e.clientX - r.left, dy = e.clientY - r.top;
+    w.style.right = 'auto'; w.style.bottom = 'auto'; w.style.left = (r.left - app.left) + 'px'; w.style.top = (r.top - app.top) + 'px';
+    const mv = ev => { w.style.left = Math.max(0, Math.min(app.width - 80, ev.clientX - app.left - dx)) + 'px'; w.style.top = Math.max(0, Math.min(app.height - 32, ev.clientY - app.top - dy)) + 'px'; };
+    const up = () => { removeEventListener('mousemove', mv); removeEventListener('mouseup', up); };
+    addEventListener('mousemove', mv); addEventListener('mouseup', up); e.preventDefault();
+  });
+});
+document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => { $('#' + b.dataset.close).hidden = true; toast('Window closed. Reopen it from the Windows menu in the toolbar'); }));
+
+/* ---------- toasts ---------- */
+function toast(html, o = {}) {
+  const t = document.createElement('div'); t.className = 'toast ' + (o.level || ''); t.innerHTML = `<span>${html}</span>` + (o.action ? `<button class="ta">${esc(o.action)}</button>` : '');
+  if (o.action) t.querySelector('.ta').addEventListener('click', () => { t.remove(); o.fn(); });
+  $('#toasts').append(t);
+  let left = o.level === 'error' ? 8000 : o.level === 'warn' ? 5000 : 3600, timer, t0;
+  const run = () => { t0 = Date.now(); timer = setTimeout(() => t.remove(), left); };
+  t.addEventListener('mouseenter', () => { clearTimeout(timer); left -= Date.now() - t0; }); t.addEventListener('mouseleave', run); run();
+  while ($('#toasts').children.length > 3) $('#toasts').firstChild.remove();
+}
+
+reindex(); sel = [tree[0].children[0].children[0].id]; renderAll();
+</script>

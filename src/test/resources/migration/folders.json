@@ -1,0 +1,21 @@
+{
+  "folders": {
+    "f-root": { "name": "Castle", "parent": null, "open": true, "hidden": false, "color": 2 },
+    "f-towers": { "name": "towers", "parent": "f-root", "open": false, "hidden": true, "color": -1 },
+    "f-orphan": { "name": "Orphan", "parent": "gone", "open": true, "hidden": false, "color": -1 },
+    "f-loopA": { "name": "LoopA", "parent": "f-loopB", "open": true, "hidden": false, "color": -1 },
+    "f-loopB": { "name": "LoopB", "parent": "f-loopA", "open": true, "hidden": false, "color": -1 }
+  },
+  "placements": {
+    "11111111-1111-1111-1111-111111111111": "f-towers",
+    "22222222-2222-2222-2222-222222222222": "f-root",
+    "33333333-3333-3333-3333-333333333333": "no-such-folder",
+    "44444444-4444-4444-4444-444444444444": "f-orphan",
+    "55555555-5555-5555-5555-555555555555": "f-root",
+    "my-mod:entry-1": "f-root"
+  },
+  "hiddenByFolder": [ "11111111-1111-1111-1111-111111111111" ],
+  "placementColors": {
+    "11111111-1111-1111-1111-111111111111": 3
+  }
+}

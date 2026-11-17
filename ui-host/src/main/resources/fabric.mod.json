@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "id": "cg-uihost",
+  "version": "${version}",
+  "name": "CG UI Host",
+  "description": "Shared Dear ImGui host for GermanCGArtist's mods: ImGui context, natives, input routing and a frame hook. Other mods register UiLayers.",
+  "authors": ["GermanCGArtist"],
+  "license": "MIT",
+  "environment": "client",
+  "mixins": ["cg-uihost.mixins.json"],
+  "depends": {
+    "fabricloader": ">=0.19.3",
+    "java": ">=25"
+  }
+}

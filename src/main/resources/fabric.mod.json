@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "schemarray",
+  "version": "${version}",
+  "name": "Litematica Array",
+  "description": "Arrays Litematica placements: copies and gaps along X, Y and Z right in the placement configuration (under Rotate), shown live as linked placements that follow the original. Also adds a Shape Generator (Litematica main menu) that builds boxes, spheres, domes, cylinders, arches and more as schematics, with a live in-world preview.",
+  "authors": ["GermanCGArtist"],
+  "contact": { "sources": "https://github.com/GermanCGArtist/Litematica-Array" },
+  "license": "MIT",
+  "environment": "client",
+  "entrypoints": { "client": ["dev.schemarray.SchemArrayMod"] },
+  "mixins": ["schemarray.mixins.json", "schemarray-editor.mixins.json"],
+  "depends": {
+    "fabricloader": ">=0.19.3",
+    "fabric-api": "*",
+    "minecraft": "${minecraft_dep}",
+    "cg-uihost": "*",
+    "litematica": "*",
+    "malilib": "*",
+    "java": ">=25"
+  }
+}
