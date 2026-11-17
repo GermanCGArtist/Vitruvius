@@ -103,7 +103,7 @@ public final class AreaType implements SceneObjectType {
 }
 
 // in your client initializer:
-if (FabricLoader.getInstance().isModLoaded("litematica_array")) {
+if (FabricLoader.getInstance().isModLoaded("schemarray")) {
     SchematicArrayApi.registerObjectType(new AreaType());
 }
 
