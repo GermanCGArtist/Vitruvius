@@ -11,13 +11,13 @@ are kept and written back unchanged, so files from a newer 2.x survive being ope
 | `schematics/Projects/<name>/` | One 2.0 project (see below). |
 | `schematics/exports/` | Output of the editor's exports (`.zip`, baked `.litematic`). |
 | `<your save folder>/*.litematic` | Shapes saved by the Shape Generator. |
-| `config/schemarray/folders.json` | Placement-list folders (global, all worlds). |
-| `config/schemarray/arrays.json` | 1.x arrays. Read by 2.0 for migration; not written by the editor. |
-| `config/schemarray/shapes.json` | Shape Generator presets and last settings. |
-| `config/schemarray/editor-session.json` | Per world: the *migrated* flag, the open project folders and the active one. |
-| `config/schemarray/editor-loose/<world>.lasm` | The **Loose** node of a world, after migration. |
-| `config/schemarray/editor-loose/.cache/derived/` | Trimmed files for Loose objects (never cleaned up automatically). |
-| `config/schemarray/editor-ui.properties` | Editor UI state: snap, pivot mode, hidden hints. Delete it to reset. |
+| `config/vitruvius/folders.json` | Placement-list folders (global, all worlds). |
+| `config/vitruvius/arrays.json` | 1.x arrays. Read by 2.0 for migration; not written by the editor. |
+| `config/vitruvius/shapes.json` | Shape Generator presets and last settings. |
+| `config/vitruvius/editor-session.json` | Per world: the *migrated* flag, the open project folders and the active one. |
+| `config/vitruvius/editor-loose/<world>.lasm` | The **Loose** node of a world, after migration. |
+| `config/vitruvius/editor-loose/.cache/derived/` | Trimmed files for Loose objects (never cleaned up automatically). |
+| `config/vitruvius/editor-ui.properties` | Editor UI state: snap, pivot mode, hidden hints. Delete it to reset. |
 
 ## Project folder
 

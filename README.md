@@ -4,13 +4,13 @@ A client-side Fabric mod that turns [Litematica](https://modrinth.com/mod/litema
 schematic builds. Place, move, rotate, mirror, array, trim and group schematics in a Blender-style 3D editor, share
 whole projects over Syncmatica, and generate shapes from blocks, all on top of Litematica's own placements.
 
-> **Naming.** The repository is called Vitruvius. The mod itself is still named **Litematica Array**, with the mod id
-> `schemarray` and the Java package `dev.schemarray`. The mod id is kept on purpose so that mods built against it
+> **Naming.** The repository is called Vitruvius. The mod itself is still named **Vitruvius**, with the mod id
+> `vitruvius` and the Java package `dev.vitruvius`. The mod id is kept on purpose so that mods built against it
 > (Heavymatica) keep working.
 >
 > **Status.** This is the **2.0 line, currently alpha** (`2.0.0-alpha.6`, Minecraft 26.1.1). The stable 1.x line
 > (arrays, folders, shape generator) lives in
-> [Litematica-Array](https://github.com/GermanCGArtist/Litematica-Array) and is also part of 2.0.
+> [Vitruvius](https://github.com/GermanCGArtist/Vitruvius) and is also part of 2.0.
 
 ## What it does
 
@@ -41,11 +41,11 @@ The mod is client-side only.
 ## Install
 
 There is no published 2.0 release yet. Build the jar yourself (see [Build](#build)) and put
-`build/libs/litematica-array-2.0.0-alpha.6+mc26.1.1.jar` into your `mods` folder, next to Litematica, malilib and Fabric
+`build/libs/vitruvius-2.0.0-alpha.6+mc26.1.1.jar` into your `mods` folder, next to Litematica, malilib and Fabric
 API.
 
 For the stable 1.x line, download a jar from the
-[Litematica-Array releases](https://github.com/GermanCGArtist/Litematica-Array/releases).
+[Vitruvius releases](https://github.com/GermanCGArtist/Vitruvius/releases).
 
 > Do not run 1.x and 2.0 together. They are the same mod id.
 

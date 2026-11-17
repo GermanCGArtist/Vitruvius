@@ -1,6 +1,6 @@
 # API for other mods
 
-The package `dev.schemarray.api` (mod id `schemarray`) lets another mod extend the mod. `SchematicArrayApi.API_VERSION`
+The package `dev.vitruvius.api` (mod id `vitruvius`) lets another mod extend the mod. `VitruviusApi.API_VERSION`
 is `2`. Call everything from the **client thread**.
 
 | API | Version | For |
@@ -15,20 +15,20 @@ as read-only rows.
 
 ## Depending on it
 
-Compile against the mod's jar and declare a dependency on the mod id `schemarray` in your `fabric.mod.json`. Check at
+Compile against the mod's jar and declare a dependency on the mod id `vitruvius` in your `fabric.mod.json`. Check at
 runtime that it is there before you touch the API:
 
 ```java
-if (FabricLoader.getInstance().isModLoaded("schemarray")) {
-    SchematicArrayApi.registerListEntries(new MyProvider());
+if (FabricLoader.getInstance().isModLoaded("vitruvius")) {
+    VitruviusApi.registerListEntries(new MyProvider());
 }
 ```
 
-If you need a feature of API 2, compare `SchematicArrayApi.API_VERSION` with `2` first.
+If you need a feature of API 2, compare `VitruviusApi.API_VERSION` with `2` first.
 
 ## List entries
 
-`SchematicArrayApi.registerListEntries(ListEntryProvider)`: your `ListEntry` rows appear in Litematica's placement list,
+`VitruviusApi.registerListEntries(ListEntryProvider)`: your `ListEntry` rows appear in Litematica's placement list,
 mixed with the placements and sorted by name. They can sit in folders, be colored, multi-selected and dragged like
 placement rows.
 
@@ -44,7 +44,7 @@ A `ListEntry` has:
 
 Array copies, the configuration screen and Litematica's own row buttons stay placement-only.
 
-Folder data for entries is stored under `id()` in `config/schemarray/folders.json`, next to the placements'. Read it with:
+Folder data for entries is stored under `id()` in `config/vitruvius/folders.json`, next to the placements'. Read it with:
 
 | Call | Returns |
 |---|---|
@@ -55,13 +55,13 @@ Folder data for entries is stored under `id()` in `config/schemarray/folders.jso
 
 ## Shape actions
 
-`SchematicArrayApi.registerShapeAction(label, hover, action)` adds a button to the Shape Generator screen. The action
+`VitruviusApi.registerShapeAction(label, hover, action)` adds a button to the Shape Generator screen. The action
 receives a `ShapeActionContext(voxels, suggestedName, suggestedOrigin)`: the generated `VoxelResult`, the text of the name
 field and the origin (`BlockPos`) of the preview.
 
 ## Folder actions
 
-`SchematicArrayApi.registerFolderAction(buttonLabel, hoverText, action)` adds a button to every folder row in the
+`VitruviusApi.registerFolderAction(buttonLabel, hoverText, action)` adds a button to every folder row in the
 placement list. The action receives a `FolderActionContext(folderId, folderName, entryIds)`: the folder and the ids of all
 entries inside it.
 
@@ -69,7 +69,7 @@ entries inside it.
 
 For things that have a position and a size (areas, markers) and should be full citizens of the editor, see
 [API v2](../editor-2.0/API-v2.md): register a `SceneObjectType` and read your objects back with
-`SchematicArrayApi.objectsOfType(typeId)`.
+`VitruviusApi.objectsOfType(typeId)`.
 
 ## Rules
 

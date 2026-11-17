@@ -1,4 +1,4 @@
-# Litematica Array 2.0 editor: design spec
+# Vitruvius 2.0 editor: design spec
 
 Status: design for M0–M6. Product decisions are in `../DECISIONS.md` and are not reopened here.
 Reference mockup: `mockup-v2.html` (this folder). Where the mockup and this file disagree, **this file wins**.
@@ -163,7 +163,7 @@ never rely on italics (the mockup's italic "locked" names are replaced by `DIM` 
   central node stays empty and transparent, so the game shows through and mouse input there goes to the viewport
   (`WantCaptureMouse` is false over it). Windows can be docked to the left/right/bottom edges or tabbed together.
 - The toolbar and status bar are **not** dockable (`NoDocking | NoMove | NoResize | NoTitleBar | NoSavedSettings`).
-- Layout (positions, sizes, docking, open/closed) persists in the shared host's ini under the `schemarray` prefix.
+- Layout (positions, sizes, docking, open/closed) persists in the shared host's ini under the `vitruvius` prefix.
   A **Reset layout** item in the toolbar's Windows menu restores the defaults below.
 
 ### 4.2 Default layout (game window W × H, scale 1.0)
@@ -1096,7 +1096,7 @@ From **cg-uihost** (`ui-host/`, package `dev.cg.uihost`), the shared ImGui host:
 |---|---|
 | colours, style, fonts, `u32`, `textColored`, `pushText` | `Theme` (copy of Manhattan's `UiTheme`): `Theme.ACCENT` …, `UiHost.theme().ui()/small()/mono()/numM()/numL()` |
 | UI scale | `UiHost.scale()` |
-| registering the editor UI | `UiHost.register(UiLayer)`; the editor is one layer, id `schemarray.editor`, `visible()` = editor mode on |
+| registering the editor UI | `UiHost.register(UiLayer)`; the editor is one layer, id `vitruvius.editor`, `visible()` = editor mode on |
 | input routing | override `UiLayer.wantsKeyboard()` / `wantsMouse()` per 12.4 |
 
 **Host changes this spec needs** (small, in `HostCore`): enable `ImGuiConfigFlags.DockingEnable` and

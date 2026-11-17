@@ -29,7 +29,7 @@ dependencies {
     include project(":ui-host")
     compileOnly "io.github.spair:imgui-java-binding:1.90.0"   // API types only; the real classes ship in cg-uihost
 
-    // Unit tests for the Minecraft-free shape core (dev.schemarray.shape)
+    // Unit tests for the Minecraft-free shape core (dev.vitruvius.shape)
     testImplementation "org.junit.jupiter:junit-jupiter:5.11.4"
     testRuntimeOnly "org.junit.platform:junit-platform-launcher"
 }

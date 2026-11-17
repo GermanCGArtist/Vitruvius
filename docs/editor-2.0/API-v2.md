@@ -1,6 +1,6 @@
-# Litematica Array API v2: scene objects of your own
+# Vitruvius API v2: scene objects of your own
 
-For the author of Heavymatica (or any mod that has things with a position and a size). `SchematicArrayApi.API_VERSION` is `2`.
+For the author of Heavymatica (or any mod that has things with a position and a size). `VitruviusApi.API_VERSION` is `2`.
 The 1.x API (list entries, shape actions, folder actions) is unchanged and keeps working.
 
 ## What you get
@@ -19,7 +19,7 @@ What they never do: change schematic blocks, take part in a Boolean or in the fr
 `false`). A project with a type nobody registered still loads: the node is grey with a **MOD** badge, keeps its `data`
 unchanged, and can still be moved, hidden and deleted.
 
-## The types (package `dev.schemarray.api`)
+## The types (package `dev.vitruvius.api`)
 
 ```java
 public interface SceneObjectType {
@@ -33,7 +33,7 @@ public interface SceneObjectType {
 }
 ```
 
-`Box` and `Transform` are `dev.schemarray.editor.core` records. A box is a block range `[min, maxExclusive)`.
+`Box` and `Transform` are `dev.vitruvius.editor.core` records. A box is a block range `[min, maxExclusive)`.
 `world` is the node's world transform (mirror first, then turn, then move: `world.apply(localBlock)`), and the box in the world is
 `bounds(data).transformed(world)`. `renderOutline` is called every frame for every visible object and every array copy
 of it, on the client thread: keep it cheap.
@@ -59,8 +59,8 @@ Every widget returns the (possibly edited) value and sets `changed()` when it di
 ## Registering and reading back
 
 ```java
-SchematicArrayApi.registerObjectType(SceneObjectType type);          // client thread, at startup
-List<SceneObjectView> SchematicArrayApi.objectsOfType(String typeId); // for your Manhattan export
+VitruviusApi.registerObjectType(SceneObjectType type);          // client thread, at startup
+List<SceneObjectView> VitruviusApi.objectsOfType(String typeId); // for your Manhattan export
 ```
 
 `SceneObjectView(UUID id, String name, String cell, Transform world, JsonObject data, boolean hidden)`: one entry per placed
@@ -103,12 +103,12 @@ public final class AreaType implements SceneObjectType {
 }
 
 // in your client initializer:
-if (FabricLoader.getInstance().isModLoaded("schemarray")) {
-    SchematicArrayApi.registerObjectType(new AreaType());
+if (FabricLoader.getInstance().isModLoaded("vitruvius")) {
+    VitruviusApi.registerObjectType(new AreaType());
 }
 
 // in your export:
-for (SceneObjectView v : SchematicArrayApi.objectsOfType("heavymatica:area")) {
+for (SceneObjectView v : VitruviusApi.objectsOfType("heavymatica:area")) {
     if (v.hidden()) continue;
     Box world = new AreaType().bounds(v.data()).transformed(v.world());   // one per array copy
     exportArea(v.name(), world);

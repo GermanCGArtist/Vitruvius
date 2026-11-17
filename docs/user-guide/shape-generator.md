@@ -74,7 +74,7 @@ Each of **Outline** and **Fill** takes blocks:
 
 **Load** a preset, or type a name and **Save** the current settings. **Delete** needs **Shift**.
 
-Presets and your last settings are kept in `config/schemarray/shapes.json`. The last settings return when you reopen the
+Presets and your last settings are kept in `config/vitruvius/shapes.json`. The last settings return when you reopen the
 screen.
 
 ## Using shapes in the editor

@@ -1,8 +1,8 @@
 <meta charset="utf-8">
-<title>Litematica Array Editor v2</title>
+<title>Vitruvius Editor v2</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <style>
-/* Mockup v2 of the Litematica Array 2.0 editor. The game viewport fills the frame; ImGui-style windows float over it.
+/* Mockup v2 of the Vitruvius 2.0 editor. The game viewport fills the frame; ImGui-style windows float over it.
    Single dark look on purpose: it mocks an in-game UI. Drawn at ~0.87x of the DESIGN.md px values (13px body text vs 15px). */
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Barlow+Condensed:wght@600&display=swap");
 :root {
@@ -1190,7 +1190,7 @@ function act(a, arg) {
     case 'to-proj': return toast(`Mockup: <b>${esc(n.name)}</b> becomes a project in schematics/Projects/; its files are copied into it`);
     case 'push': pendingSync = 0; renderAll(); return toast('Pushed to Syncmatica: flat placements and the project manifest');
     case 'export': return toast(`Exported <b>${esc(sel.length > 1 ? sel.length + ' objects' : n.name)}</b> to schematics/exports/`);
-    case 'bake': return toast(`Baked <b>${esc(n.name)}</b> into one .litematic, for players without Litematica Array`);
+    case 'bake': return toast(`Baked <b>${esc(n.name)}</b> into one .litematic, for players without Vitruvius`);
     default: return toast('Mockup: this opens a picker or a dialog in the real editor');
   }
 }

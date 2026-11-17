@@ -1,5 +1,5 @@
 @echo off
-rem Builds the mod. Output: build\libs\litematica-array-<version>+mc<minecraft>.jar
+rem Builds the mod. Output: build\libs\vitruvius-<version>+mc<minecraft>.jar
 rem Needs JDK 25: uses a portable jdk-25* folder in tools\ (or ..\Manhattan\tools) if there is one, otherwise JAVA_HOME.
 set "ROOT=%~dp0"
 cd /d "%ROOT%"

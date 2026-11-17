@@ -1,4 +1,4 @@
-<title>Litematica Array Editor</title>
+<title>Vitruvius Editor</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Barlow+Condensed:wght@600&display=swap">
@@ -767,7 +767,7 @@ function act(a) {
     case 'set-active': tree.forEach(p => p.active = p === n); renderAll(); return toast(`New objects now go into <b>${esc(n.name)}</b>`);
     case 'push': pendingSync = 0; renderAll(); return toast('Pushed to Syncmatica: flat placements and the project manifest');
     case 'export': return toast(`Exported <b>${esc(n.name)}</b> to schematics/exports/`);
-    case 'bake': return toast(`Baked <b>${esc(n.name)}</b> into one .litematic, for players without Litematica Array`);
+    case 'bake': return toast(`Baked <b>${esc(n.name)}</b> into one .litematic, for players without Vitruvius`);
     default: return toast('Mockup: this opens a picker or a dialog in the real editor');
   }
 }

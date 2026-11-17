@@ -9,5 +9,5 @@ pluginManagement {
 	}
 }
 
-rootProject.name = 'litematica-array'
+rootProject.name = 'vitruvius'
 include 'ui-host'

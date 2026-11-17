@@ -16,7 +16,7 @@ Requirements: **JDK 25**. The Gradle wrapper is included, so you do not need Gra
 On Windows, `build.bat` does the same. It also looks for a portable JDK in `tools\jdk-25*` (or `..\Manhattan\tools\jdk-25*`),
 falls back to `JAVA_HOME`, and keeps Gradle's temporary files in `tmp\` inside the repository.
 
-The jar is written to `build/libs/litematica-array-<mod_version>+mc<minecraft_version>.jar`.
+The jar is written to `build/libs/vitruvius-<mod_version>+mc<minecraft_version>.jar`.
 
 ### Versions
 
@@ -36,7 +36,7 @@ unobfuscated, so no mappings are used.
 
 | Project | Mod id | Role |
 |---|---|---|
-| root | `schemarray` | The mod. |
+| root | `vitruvius` | The mod. |
 | `ui-host/` | `cg-uihost` | The shared Dear ImGui host: ImGui context, natives for Windows, Linux and macOS (x64 and arm64), GLFW input routing, the font atlas and a frame hook. It is nested into the main jar (jar-in-jar), so players install one file. |
 
 Other mods register UI with `UiHost.register(UiLayer)`. Only one mod can own the ImGui context in a game; the host exists so
@@ -45,8 +45,8 @@ that two mods can share it.
 ## Source layout
 
 ```
-src/main/java/dev/schemarray/
-  SchemArrayMod.java        client entry point
+src/main/java/dev/vitruvius/
+  VitruviusMod.java        client entry point
   ArrayStore / ArraySync    1.x arrays: model and the placement synchroniser
   ArrayScreen, MoveScreen, ColorMenu, ...   classic Litematica-screen UI
   Folders, DragDrop, WidgetFolderRow, ...   placement-list folders
@@ -60,7 +60,7 @@ ui-host/                    the cg-uihost subproject
 docs/                       documentation
 ```
 
-### The editor, `dev.schemarray.editor`
+### The editor, `dev.vitruvius.editor`
 
 | Package | Contents | Needs Minecraft? |
 |---|---|---|

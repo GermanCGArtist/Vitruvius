@@ -44,7 +44,7 @@ scrolls when there are more modifiers than fit on the screen. Every edit applies
 - The copies are ordinary Litematica placements of the same schematic, so they render, print and verify like any placement.
 - They follow the original live (move, nudge, rotate, mirror, enable or disable, rendering, sub-regions on or off), are
   hidden from Litematica's placement list, and are removed together with the original.
-- Arrays are kept across restarts. In 1.x they are in `config/schemarray/arrays.json`; once an object is managed by the
+- Arrays are kept across restarts. In 1.x they are in `config/vitruvius/arrays.json`; once an object is managed by the
   2.0 editor, its array is part of that object in the project instead (see [File formats](../reference/file-formats.md)).
 - Arrays saved by older versions (counts and gaps per axis) are converted on first load.
 
@@ -65,7 +65,7 @@ the whole array.
 ## Placement folders
 
 Litematica's placement list (`M` → **Schematic placements**) can be sorted into folders. Folders are global (all worlds
-and servers) and are kept in `config/schemarray/folders.json`.
+and servers) and are kept in `config/vitruvius/folders.json`.
 
 **New folder** (bottom left) makes a top-level folder. A folder row shows `v` or `>` (open or closed), its name, and how
 many placements are inside it (subfolders included). A click anywhere on the row opens or closes it.

@@ -1,9 +1,9 @@
-# Litematica Array 2.0: Blender-style editor, decisions
+# Vitruvius 2.0: Blender-style editor, decisions
 
 Settled with the user on 2026-11-15. The full architecture (EDITOR-2.0.md) builds on these. Mockup: `mockup.html` (published as an artifact).
 
 ## Scope and home
-- Lives in Litematica Array as **2.0**. The mod id stays `schemarray`, so Heavymatica keeps working.
+- Lives in Vitruvius as **2.0**. The mod id stays `vitruvius`, so Heavymatica keeps working.
 - Litematica stays the backend (storage, rendering, printing, material list). The editor is its own layer: its own windows and its own data model, touching Litematica through one thin adapter.
 - Built on **26.1.1** first, then ported to 26.1.2 → 26.2 → 26.3. One 2.0 release per branch at the end.
 

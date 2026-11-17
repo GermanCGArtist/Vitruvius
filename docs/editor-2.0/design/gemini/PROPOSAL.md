@@ -1,4 +1,4 @@
-# Litematica Array 2.0 — Independent UI/UX Design Proposal (Gemini)
+# Vitruvius 2.0 — Independent UI/UX Design Proposal (Gemini)
 
 **Scope:** Independent second design proposal for the Dear ImGui 1.90 (`imgui-java`) placement editor, grounded in [`DECISIONS.md`](../../DECISIONS.md), the baseline [`mockup.html`](../../mockup.html), and the existing Manhattan theme tokens and `ImDrawList` primitives in [`UiTheme.java`](../../../../Manhattan/src/main/java/dev/baritonequeue/UiTheme.java) and [`Widgets.java`](../../../../Manhattan/src/main/java/dev/baritonequeue/Widgets.java).  
 **Constraint check:** Every idea below uses standard Dear ImGui 1.90 widgets, `ImGuiTable`, `ImGui::BeginMenu`, `ImDrawList` vector primitives (lines, rounded rects, circles, polygons), and Minecraft's existing world-space line/quad renderer—**zero custom shaders**.  

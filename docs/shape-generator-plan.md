@@ -1,4 +1,4 @@
-# Shape Generator — implementation plan (Litematica Array 1.4.0, MC 26.1.1 only)
+# Shape Generator — implementation plan (Vitruvius 1.4.0, MC 26.1.1 only)
 
 ## What the user gets
 
@@ -16,12 +16,12 @@
   in the screen (drag = orbit, scroll = zoom). A **Peek** button/hold-key hides the panel so you see the ghost.
 - **Generate**: writes `<name>.litematic` into Litematica's schematics folder, then replaces the temporary
   placement by a normal placement of that file at the same spot. **Cancel**/Esc removes the ghost.
-- **Presets**: last settings remembered; named presets in `config/schemarray/shapes.json` (save / load / delete).
+- **Presets**: last settings remembered; named presets in `config/vitruvius/shapes.json` (save / load / delete).
 
 ## Architecture
 
 ```
-dev.schemarray.shape            (pure Java, NO Minecraft imports, unit tested)
+dev.vitruvius.shape            (pure Java, NO Minecraft imports, unit tested)
   ShapeType        enum, with per-type parameter labels/visibility
   Axis             enum X, Y, Z
   ShapeSpec        record: type, sizeX/Y/Z, axis, thickness, param1, param2 (torus minor radius, grid
@@ -39,7 +39,7 @@ dev.schemarray.shape            (pure Java, NO Minecraft imports, unit tested)
                    (6-neighbour erosion, cells outside the box count as outside) -> fill = the rest
   GeneratorSettings record: ShapeSpec, outline, fill, name     (what presets store, Gson friendly)
 
-dev.schemarray.shape.mc        (Minecraft / Litematica glue)
+dev.vitruvius.shape.mc        (Minecraft / Litematica glue)
   BlockParsing     String -> BlockState (BlockStateParser), validation message, block id list for autocomplete,
                    main-hand item -> block state string, "a%b,c%d" mix syntax -> List<BlockEntry>
   ShapeSchematics  VoxelResult -> LitematicaSchematic: createEmptySchematic(AreaSelection with one Box named
@@ -49,11 +49,11 @@ dev.schemarray.shape.mc        (Minecraft / Litematica glue)
                    world leave. Must be invisible to Folders/ArraySync/placement list (check by identity).
   ShapeSaver       writeToFile(schematics dir, name, override?) -> load file -> SchematicPlacement.createFor(...)
                    at the preview's origin -> add to manager -> ShapePreview.clear()
-  ShapePresets     Gson load/save of config/schemarray/shapes.json: { "last": settings, "presets": {name: settings} }
+  ShapePresets     Gson load/save of config/vitruvius/shapes.json: { "last": settings, "presets": {name: settings} }
   PreviewWorker    single-thread executor; debounce 250 ms; cancels the running job when a new one starts;
                    hands the VoxelResult to the render thread (Minecraft.execute)
 
-dev.schemarray.shape.gui
+dev.vitruvius.shape.gui
   ShapeGeneratorScreen  malilib GuiBase. Left column: shape dropdown, size fields (± buttons like Litematica's),
                    axis, thickness, shape-specific params (only those the type uses), anchor, Outline + Fill slot
                    editors, name field, preset row, Generate / Cancel / Peek. Right: the 3D thumbnail. Status line
@@ -76,14 +76,14 @@ Rules for everyone:
 
 ## Work packages
 
-Base branch `26.1.1`. Phase 0 (architect) commits the contract: all `dev.schemarray.shape` records/enums with
+Base branch `26.1.1`. Phase 0 (architect) commits the contract: all `dev.vitruvius.shape` records/enums with
 signatures and `UnsupportedOperationException` stubs, the JUnit test dependency, `mod_version=1.4.0`, on branch
 `shapes`. Then each agent works in its own git worktree on its own branch off `shapes`, touching only its files.
 
 | WP | Agent | Files | Done when |
 |----|-------|-------|-----------|
 | A Core | Sonnet | `shape/*` (Shapes, Patterns, ShapeGenerator) + `src/test/...` | all 12 shapes + 7 patterns implemented, unit tests for sizes 1, odd/even, thickness, hollow fill, cancel; 256³ box generates < 2 s |
-| B Litematica glue | Sonnet | `shape/mc/*`, `GuiMainMenuMixin`, mixins json, `SchemArrayMod` | button in `M` opens a placeholder screen; preview/save/presets/parsing work through a tiny debug command or called from the placeholder; builds |
+| B Litematica glue | Sonnet | `shape/mc/*`, `GuiMainMenuMixin`, mixins json, `VitruviusMod` | button in `M` opens a placeholder screen; preview/save/presets/parsing work through a tiny debug command or called from the placeholder; builds |
 | C Screen | Sonnet | `shape/gui/ShapeGeneratorScreen`, `BlockSlotEditor` | full screen wired to B's API and A's generator, thumbnail area left as a box |
 | D Thumbnail | Sonnet | `shape/gui/ShapeThumbnail` (+ Compat bits) | textured surface render, orbit/zoom, fallback above the face cap |
 | E Docs | Haiku | `README.md` section "Shape Generator" | written from the merged code |

@@ -28,7 +28,7 @@ Rotation is limited to steps of 90° around the Y axis, because that is what Lit
 
 ## Opening the editor
 
-Press **F6** (rebindable under *Controls → Key Binds → Litematica Array → Toggle editor mode*). On entering:
+Press **F6** (rebindable under *Controls → Key Binds → Vitruvius → Toggle editor mode*). On entering:
 
 - the mouse is released and the crosshair and hand disappear,
 - the camera starts exactly where your eyes are, then moves independently of your player,
@@ -313,11 +313,11 @@ not rebuilt on the other side.
 
 | Problem | Try |
 |---|---|
-| Nothing happens on F6 | Check *Controls → Key Binds → Litematica Array*. Make sure a world is loaded. |
+| Nothing happens on F6 | Check *Controls → Key Binds → Vitruvius*. Make sure a world is loaded. |
 | An object is greyed out with `!` | Its Litematica placement was deleted. Right-click → **Delete**, or re-create the placement. |
 | A shape or object looks cut off | It is being trimmed by something in front of it. Check front order and Booleans, and the Issues list. |
 | A Boolean or trim does not show yet | The derived file is still being written. Watch the status bar. |
 | A node has a **MOD** badge and is grey | It belongs to another mod that is not installed. It keeps its data and can still be moved, hidden and deleted. |
 | "Placement not found" | See above. |
-| The editor UI vanished after an error | The log has a line starting with `[schemarray] editor UI failed`. Restart the game and report it with that log. |
+| The editor UI vanished after an error | The log has a line starting with `[vitruvius] editor UI failed`. Restart the game and report it with that log. |
 | The old copy shows after editing a file on disk | Litematica caches loaded schematics. Reload it in Litematica. |

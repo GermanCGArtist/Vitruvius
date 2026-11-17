@@ -1,8 +1,8 @@
 # M1 in-game checks: Litematica adapter, reconciler, project manager (WP 1.3)
 
-Build the jar, install it as the architect does, then start Minecraft 26.1.1 with Litematica 0.27.14. There is no UI for projects yet (WP 1.4), so steps that need a project use a hand-written `project.json` and a debug call (`Reconciler.projects().open(path)`). Watch the game log for lines starting with `[SchematicArray]`.
+Build the jar, install it as the architect does, then start Minecraft 26.1.1 with Litematica 0.27.14. There is no UI for projects yet (WP 1.4), so steps that need a project use a hand-written `project.json` and a debug call (`Reconciler.projects().open(path)`). Watch the game log for lines starting with `[Vitruvius]`.
 
-Keep a copy of `config/schemarray/` (folders.json, arrays.json) and of the world before the first run.
+Keep a copy of `config/vitruvius/` (folders.json, arrays.json) and of the world before the first run.
 
 ## A. Old behaviour with the editor unused
 1. Join a world that has several placements, one of them with a 1.x array (for example 3 x 1 x 1) and one in a folder. Wait 3 seconds.
@@ -11,10 +11,10 @@ Keep a copy of `config/schemarray/` (folders.json, arrays.json) and of the world
 3. Open the array config of the original and change the count from 3 to 4. Expect a 4th copy appears, and no error in the log.
 4. Hide a folder in the list and show it again. Expect the placements stop rendering and render again (copies too).
 5. Delete the original in the list. Expect its copies disappear too and the entry leaves the list.
-6. Check `config/schemarray/arrays.json` and `folders.json`: the editor never writes them (edits made through the 1.x screens are fine).
+6. Check `config/vitruvius/arrays.json` and `folders.json`: the editor never writes them (edits made through the 1.x screens are fine).
 
 ## B. First-run migration
-1. Delete `config/schemarray/editor-session.json` (and the `editor-loose` folder) and join the world from step A.
+1. Delete `config/vitruvius/editor-session.json` (and the `editor-loose` folder) and join the world from step A.
    - Expect: after about 2 seconds, `editor-session.json` has `"migrated": true` for this world, and `editor-loose/<world>-<hash>.lasm` exists with one object per placement (the array as modifiers).
    - Expect: no copies are created twice, nothing is removed, the picture is the same.
 2. Move the original of the array in Litematica. Expect the copies follow (now done by the reconciler, not ArraySync).

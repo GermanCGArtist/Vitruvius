@@ -2,7 +2,7 @@
 
 Everything here applies in **editor mode** (F6) unless noted. Shortcuts do not fire while you type in a text field, while a
 menu is open, or while you fly (right mouse held). `Ctrl` also means `Cmd` on macOS. The editor toggle can be rebound
-under *Controls → Key Binds → Litematica Array*; the other keys are fixed.
+under *Controls → Key Binds → Vitruvius*; the other keys are fixed.
 
 ## Mode
 
