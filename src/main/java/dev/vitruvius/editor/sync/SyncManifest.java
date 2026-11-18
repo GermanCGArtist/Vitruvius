@@ -37,6 +37,14 @@ public final class SyncManifest {
         return PREFIX + project;
     }
 
+    /**
+     * The placement name of one cell: {@code [<project>] <object>}. A server-side access mod (vitruvius-access) reads the
+     * project out of it, as it does out of the manifest name. A ']' in the project name would end the bracket early, so it is written ')'.
+     */
+    public static String cellName(String project, String object) {
+        return "[" + project.replace(']', ')') + "] " + object;
+    }
+
     public static boolean isManifest(String placementName) {
         return placementName != null && placementName.startsWith(PREFIX);
     }

@@ -219,8 +219,9 @@ public final class SyncService implements MenuModel.SyncHook {
             if (st == null || st.file() == null) continue;
             long m = mt.computeIfAbsent(st.file(), SyncService::mtime);
             String sig = st.file().toAbsolutePath().normalize() + "|" + m + "|" + canon(st);
-            String name = r.object().name() + (ObjectNode.BASE_CELL.equals(r.cell()) ? "" : " #" + r.cell());
-            cells.add(new Cell(r.slot(), name, sig, id));
+            String name = SyncManifest.cellName(p.name(), r.object().name() + (ObjectNode.BASE_CELL.equals(r.cell()) ? "" : " #" + r.cell()));
+            // the name is part of the signature: cells pushed under an older name are pushed again under the new one
+            cells.add(new Cell(r.slot(), name, sig + "|" + name, id));
         }
         JsonObject project = ProjectMerge.withoutLocal(JsonParser.parseString(ProjectIo.toJson(p)).getAsJsonObject());
         project.remove(SyncPlan.KEY);
