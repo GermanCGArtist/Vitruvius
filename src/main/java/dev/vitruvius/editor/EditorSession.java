@@ -115,7 +115,7 @@ public final class EditorSession {
     private Tool tool = Tool.SELECT;
 
     public boolean windowsHidden;
-    public boolean showScene = true, showProperties = true, showTopView = true, showShape, showChat;
+    public boolean showScene = true, showProperties = true, showTopView = true, showShape, showChat, showHistory;
     /** Snapping toolbar toggle (Ctrl inverts it while dragging). Saved in the UI config. */
     public boolean snap;
     /** Local view is on (see {@link #toggleLocalView()}); runtime only. */

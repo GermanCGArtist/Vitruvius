@@ -20,7 +20,7 @@ public final class ManifestFile {
      *
      * @return the file, or null when Litematica could not write it
      */
-    public static Path write(Path dir, String stem, String projectName, String description, String author) {
+    public static Path write(Path dir, String stem, String placementName, String description, String author) {
         AreaSelection area = new AreaSelection();
         area.setName(stem);
         area.addSubRegionBox(new fi.dy.masa.litematica.selection.Box(BlockPos.ZERO, BlockPos.ZERO, "manifest"), false);
@@ -29,7 +29,7 @@ public final class ManifestFile {
         if (s == null) return null;
         long now = System.currentTimeMillis();
         SchematicMetadata m = s.getMetadata();
-        m.setName(SyncManifest.nameFor(projectName));
+        m.setName(placementName);
         m.setDescription(description);
         m.setTotalBlocks(0);
         m.setTimeCreated(now);

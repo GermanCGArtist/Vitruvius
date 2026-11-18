@@ -338,6 +338,7 @@ public final class EditorChrome {
             if (s.showChat) s.showChat = false;
             else ChatWindow.open(s, false);
         }
+        if (ImGui.menuItem("History", "", s.showHistory)) s.showHistory = !s.showHistory;
         ImGui.separator();
         if (ImGui.menuItem("Hide all windows", "Tab")) s.windowsHidden = !s.windowsHidden;
         ImGui.separator();

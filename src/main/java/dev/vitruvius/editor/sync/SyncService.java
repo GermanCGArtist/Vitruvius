@@ -16,6 +16,10 @@ import dev.vitruvius.editor.mc.LitematicaAdapter;
 import dev.vitruvius.editor.mc.PlacementState;
 import dev.vitruvius.editor.mc.ProjectManager;
 import dev.vitruvius.editor.mc.ReconcileCore;
+import dev.vitruvius.editor.sync.history.Commit;
+import dev.vitruvius.editor.sync.history.CommitGraph;
+import dev.vitruvius.editor.sync.history.CommitMeta;
+import dev.vitruvius.editor.sync.history.Retention;
 import dev.vitruvius.editor.sync.SyncPlan.Cell;
 import dev.vitruvius.editor.sync.SyncPlan.Pushed;
 import dev.vitruvius.editor.ui.MenuModel;
@@ -111,6 +115,13 @@ public final class SyncService implements MenuModel.SyncHook {
     private final Set<UUID> scanned = new HashSet<>();
     private int lastPoll = -POLL_EVERY;
 
+    /** Branches, commits and the operations on them (merge, restore, checkout). */
+    final SyncHistory history = new SyncHistory(this);
+
+    public SyncHistory history() {
+        return history;
+    }
+
     private SyncService() {
         MenuModel.setSyncHook(this);
     }
@@ -176,7 +187,7 @@ public final class SyncService implements MenuModel.SyncHook {
 
     // ------------------------------------------------------------------------------------------ what is wanted
 
-    private record Desired(List<Cell> cells, JsonObject project, String manifestSig, String stateSig, String contentSig) {}
+    record Desired(List<Cell> cells, JsonObject project, String manifestSig, String stateSig, String contentSig) {}
 
     private static String canon(PlacementState st) {
         var t = st.transform();
@@ -202,7 +213,7 @@ public final class SyncService implements MenuModel.SyncHook {
         }
     }
 
-    private Desired desired(ProjectNode p, ReconcileCore core) {
+    Desired desired(ProjectNode p, ReconcileCore core) {
         LitematicaAdapter ad = LitematicaAdapter.shared();
         Map<Path, Long> mt = new HashMap<>();
         List<Cell> cells = new ArrayList<>();
@@ -272,6 +283,7 @@ public final class SyncService implements MenuModel.SyncHook {
             if (job == null && !queue.isEmpty()) startNext(scene, core);
             if (job != null) advance(scene, core, pm);
             if (receive != null) receive.tick(pm);
+            history.tick(scene, core);
             if (tick - lastPoll >= POLL_EVERY && job == null && receive == null && sharedProjects > 0) {
                 lastPoll = tick;
                 poll(scene, core, world, dim);
@@ -323,6 +335,10 @@ public final class SyncService implements MenuModel.SyncHook {
         Active manifest;
         String manifestPlacement;
         String manifestSigNow;
+        /** The history fields of the manifest this push writes. */
+        String branch = CommitMeta.MAIN, commitId = "", message = "";
+        List<String> parents = List.of();
+        boolean seal;
 
         Job(ProjectNode p, Path dir, SyncPlan.Plan plan, Desired want) {
             this.project = p;
@@ -365,11 +381,66 @@ public final class SyncService implements MenuModel.SyncHook {
         }
         Desired d = desired(p, core);
         SyncPlan.Plan plan = SyncPlan.diff(d.cells(), SyncPlan.recordedCells(p.extra()));
-        // the gone cells are removed up front; the recorded ids of changed cells are removed when their replacement is shared
-        for (String gone : plan.gone()) removeQuietly(gone);
+        // the history of the project: branch, the draft this push replaces and its parent
+        String branch = history.branchOf(p);
+        String commitId = SyncPlan.draft(p.extra());
+        if (commitId == null) {
+            commitId = Commit.newId();
+            SyncPlan.setDraft(p.extra(), commitId);
+        }
+        // the gone cells are removed up front (unless a commit still lists them); the recorded ids of changed cells are removed
+        // when their replacement is shared
+        for (String gone : plan.gone()) removeUnlessKept(gone, p, commitId);
         job = new Job(p, dir, plan, d);
         job.manifestSigNow = d.manifestSig();
+        job.branch = branch;
+        job.commitId = commitId;
+        String parent = SyncPlan.parent(p.extra());
+        job.parents = parent == null || parent.isEmpty() ? List.of() : List.of(parent.split(","));
+        String msg = history.takeCommitMessage(p);
+        job.seal = msg != null;
+        job.message = msg == null ? "" : msg;
         status = new Status(State.PUSHING, 0, job.total, null);
+    }
+
+    /** Removes a placement unless another commit of the project still lists it (history keeps what it needs). */
+    private void removeUnlessKept(String id, ProjectNode p, String commitId) {
+        if (Retention.referenced(graph(p), commitId).contains(id)) return;
+        removeQuietly(id);
+    }
+
+    /** Removes a placement without looking at the history (cleanup of commits the player chose to drop). */
+    void removePlacement(String id) {
+        removeQuietly(id);
+    }
+
+    /** Every commit of the project that the server lists (own and others'), as read so far. */
+    CommitGraph graph(ProjectNode p) {
+        List<Commit> out = new ArrayList<>();
+        for (RemoteInfo ri : matching(p)) out.add(Commit.of(ri.payload, ri.remote.id().toString()));
+        return new CommitGraph(out);
+    }
+
+    /** The name of this player. */
+    static String me() {
+        try {
+            return Minecraft.getInstance().getUser().getName();
+        } catch (RuntimeException e) {
+            return "";
+        }
+    }
+
+    /** The placement on the server with this id, or null. */
+    SyncmaticaBridge.Remote remoteOf(String id) {
+        try {
+            return SyncmaticaBridge.find(UUID.fromString(id));
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    boolean startDownload(SyncmaticaBridge.Remote r) {
+        return download(r);
     }
 
     private void removeQuietly(String id) {
@@ -405,7 +476,7 @@ public final class SyncService implements MenuModel.SyncHook {
                 return;
             }
             String old = j.plan.replaced().get(a.cell().key());
-            if (old != null) removeQuietly(old);
+            if (old != null) removeUnlessKept(old, j.project, j.commitId);
             j.result.put(a.cell().key(), new Pushed(a.handle().id().toString(), a.cell().sig()));
             j.done++;
             status = new Status(State.PUSHING, j.done, j.total, null);
@@ -466,7 +537,8 @@ public final class SyncService implements MenuModel.SyncHook {
         // the old manifest goes, the new one is recorded
         SyncPlan.Manifest old = SyncPlan.recordedManifest(j.project.extra());
         if (old != null) {
-            if (!old.id().isEmpty()) removeQuietly(old.id());
+            // a sealed commit stays on the server; only the draft is replaced
+            if (!old.id().isEmpty() && !SyncPlan.manifestSealed(j.project.extra())) removeQuietly(old.id());
             if (!old.placement().isEmpty() && !old.placement().equals(j.manifestPlacement)) LitematicaAdapter.shared().remove(old.placement());
         }
         j.done++;
@@ -474,17 +546,26 @@ public final class SyncService implements MenuModel.SyncHook {
                 System.currentTimeMillis());
         writeBase(j.dir, j.want.project());
         SyncPlan.setContent(j.project.extra(), j.want.contentSig());
+        SyncPlan.setBranch(j.project.extra(), j.branch);
+        SyncPlan.setManifestSealed(j.project.extra(), j.seal);
+        if (j.seal) {
+            // the next change starts a new draft on top of this commit
+            SyncPlan.setParent(j.project.extra(), j.commitId);
+            SyncPlan.setDraft(j.project.extra(), null);
+        }
         int shared = j.result.size();
         job = null;
         lastStats = -STATS_EVERY;
         status = new Status(queue.isEmpty() ? State.IDLE : State.PUSHING, 0, 0, null);
-        toast(ToastQueue.Level.INFO, "Pushed \"" + j.project.name() + "\" to Syncmatica (" + shared + " placement" + (shared == 1 ? "" : "s") + " and the manifest)");
+        toast(ToastQueue.Level.INFO, (j.seal ? "Committed \"" + j.project.name() + "\" on " + j.branch + ": " + j.message
+                : "Pushed \"" + j.project.name() + "\" to " + j.branch) + " (" + shared + " placement" + (shared == 1 ? "" : "s") + " and the manifest)");
     }
 
     private void startManifest(Job j, LitematicaAdapter ad, ReconcileCore core) {
         Map<String, String> ids = new LinkedHashMap<>();
         for (var e : j.result.entrySet()) ids.put(e.getKey(), e.getValue().id());
-        String description = SyncManifest.encode(SyncManifest.payloadJson(j.want.project(), ids, System.currentTimeMillis(), Minecraft.getInstance().getUser().getName()));
+        CommitMeta meta = new CommitMeta(j.commitId, j.parents, j.branch, !j.seal, j.message);
+        String description = SyncManifest.encode(SyncManifest.payloadJson(j.want.project(), ids, System.currentTimeMillis(), Minecraft.getInstance().getUser().getName(), meta));
         if (!SyncManifest.fits(description)) {
             record(j, false);
             fail("The project is too big for one manifest (" + description.length() + " characters; the limit is " + SyncManifest.MAX_DESCRIPTION
@@ -500,14 +581,14 @@ public final class SyncService implements MenuModel.SyncHook {
             return;
         }
         String stem = "manifest_" + sha(description).substring(0, 10);
-        Path file = ManifestFile.write(dir, stem, j.project.name(), description, Minecraft.getInstance().getUser().getName());
+        Path file = ManifestFile.write(dir, stem, SyncManifest.nameFor(j.project.name(), j.branch), description, Minecraft.getInstance().getUser().getName());
         if (file == null) {
             record(j, false);
             fail("Litematica could not write the manifest file");
             return;
         }
         var origin = j.project.origin();
-        String placement = ad.create(file, origin, Rot.NONE, Mirror.NONE, SyncManifest.nameFor(j.project.name()), true, false);
+        String placement = ad.create(file, origin, Rot.NONE, Mirror.NONE, SyncManifest.nameFor(j.project.name(), j.branch), true, false);
         Object obj = placement == null ? null : ad.placementObject(placement);
         if (obj == null) {
             record(j, false);
@@ -563,7 +644,7 @@ public final class SyncService implements MenuModel.SyncHook {
         }
         String prev = lastState.put(p.id(), d.stateSig());
         if (!d.stateSig().equals(prev)) return;
-        if (!SyncPlan.auto(p.extra()) || status.state() == State.FAILED || busy() || receive != null) return;
+        if (!SyncPlan.auto(p.extra()) || status.state() == State.FAILED || busy() || receive != null || history.holds(p)) return;
         if (!scanned.contains(p.id()) || !unapplied(p).isEmpty()) return;
         // only a real edit starts a push: the scene differs from what this computer last sent or merged, or one of the cells
         // it holds changed. Bookkeeping that differs (file times, which cells exist) must not, or two players keep answering
@@ -639,11 +720,9 @@ public final class SyncService implements MenuModel.SyncHook {
 
     /** Reads the manifests of other players that are named like this project (downloading them when asked). */
     private void readRemotes(ProjectNode p, List<SyncmaticaBridge.Remote> all, boolean download) {
-        SyncPlan.Manifest own = SyncPlan.recordedManifest(p.extra());
-        String ownId = own == null ? "" : own.id();
-        String name = SyncManifest.nameFor(p.name());
+        // every manifest of the project is read, own ones too: they are the commits of the history
         for (SyncmaticaBridge.Remote m : all) {
-            if (m.id().toString().equals(ownId) || !name.equals(m.name())) continue;
+            if (!SyncManifest.isManifest(m.name()) || !p.name().equals(SyncManifest.projectName(m.name()))) continue;
             RemoteInfo ri = remotes.computeIfAbsent(m.id(), id -> new RemoteInfo(m));
             if (ri.ignore || ri.payload != null) continue;
             if (!readManifest(ri) && download && ri.tries++ % 3 == 0) download(m);
@@ -658,12 +737,31 @@ public final class SyncService implements MenuModel.SyncHook {
         return out;
     }
 
-    /** The manifests of others that this project has not merged yet and that are not older than what it already holds. */
+    /** Whether a manifest is this player's own push (it is history, never merged back). */
+    private boolean own(ProjectNode p, RemoteInfo ri) {
+        SyncPlan.Manifest m = SyncPlan.recordedManifest(p.extra());
+        return m != null && m.id().equals(ri.remote.id().toString()) || !ri.payload.by().isEmpty() && ri.payload.by().equals(me());
+    }
+
+    /** The branch a manifest is on (a version 1 manifest is main). */
+    private static String branchOf(RemoteInfo ri) {
+        return ri.payload.meta() == null ? CommitMeta.MAIN : ri.payload.meta().branch();
+    }
+
+    /** The manifests of others on the branch this copy is on: what live sharing merges. */
+    private List<RemoteInfo> sameBranch(ProjectNode p) {
+        String b = history.branchOf(p);
+        List<RemoteInfo> out = new ArrayList<>();
+        for (RemoteInfo ri : matching(p)) if (!own(p, ri) && branchOf(ri).equals(b)) out.add(ri);
+        return out;
+    }
+
+    /** The manifests of others on this branch that this project has not merged yet and that are not older than what it already holds. */
     private List<RemoteInfo> unapplied(ProjectNode p) {
         Set<String> done = SyncPlan.applied(p.extra());
         long floor = SyncPlan.syncedAt(p.extra()) - SLACK_MS;
         List<RemoteInfo> out = new ArrayList<>();
-        for (RemoteInfo ri : matching(p)) {
+        for (RemoteInfo ri : sameBranch(p)) {
             if (done.contains(ri.remote.id().toString()) || ri.payload.at() <= floor) continue;
             out.add(ri);
         }
@@ -674,7 +772,7 @@ public final class SyncService implements MenuModel.SyncHook {
     /** Cell keys that another player's manifest lists with a placement that is still on the server. */
     private Set<String> foreignCells(ProjectNode p) {
         Set<String> out = new HashSet<>();
-        List<RemoteInfo> ms = matching(p);
+        List<RemoteInfo> ms = sameBranch(p);
         if (ms.isEmpty() || !SyncmaticaBridge.available()) return out;
         Set<String> alive = new HashSet<>();
         for (SyncmaticaBridge.Remote r : SyncmaticaBridge.list()) alive.add(r.id().toString());
@@ -812,7 +910,10 @@ public final class SyncService implements MenuModel.SyncHook {
         if (s != null) for (ProjectNode p : s.scene().projects()) if (p.sync() == ProjectNode.Sync.SHARED) open.add(SyncManifest.nameFor(p.name()));
         // every player who pushed has a manifest of the same name: one entry per name (opening takes the newest)
         Map<String, SyncmaticaBridge.Remote> byName = new LinkedHashMap<>();
-        for (SyncmaticaBridge.Remote r : SyncmaticaBridge.manifests()) if (!open.contains(r.name())) byName.putIfAbsent(r.name(), r);
+        // only main is offered: the other branches are checked out from the History window
+        for (SyncmaticaBridge.Remote r : SyncmaticaBridge.manifests()) {
+            if (CommitMeta.MAIN.equals(SyncManifest.branchOf(r.name())) && !open.contains(r.name())) byName.putIfAbsent(r.name(), r);
+        }
         return new ArrayList<>(byName.values());
     }
 
@@ -1016,6 +1117,7 @@ public final class SyncService implements MenuModel.SyncHook {
             tree.setWorld("");                       // bound to this world when it is opened
             tree.setSync(ProjectNode.Sync.SHARED);          // it stays linked: the next changes of the others come in by themselves
             tree.extra().remove(SyncPlan.KEY);
+            history.startOnBranch(tree, payload);
             for (SyncmaticaBridge.Remote m : mark) SyncPlan.markApplied(tree.extra(), m.id().toString(), payload.at());
             ProjectIo.write(tree, ProjectLayout.projectFile(dir));
             writeBase(dir, payload.project());

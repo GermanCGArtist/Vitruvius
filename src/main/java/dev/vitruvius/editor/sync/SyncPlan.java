@@ -114,7 +114,7 @@ public final class SyncPlan {
     public static void write(JsonObject extra, Map<String, Pushed> cells, Manifest manifest, long pushedAt) {
         JsonObject old = record(extra);
         JsonObject rec = new JsonObject();
-        if (old != null) for (String k : new String[]{"applied", "syncedAt", "auto", "content"}) if (old.has(k)) rec.add(k, old.get(k).deepCopy());
+        if (old != null) for (String k : new String[]{"applied", "syncedAt", "auto", "content", "branch", "draft", "parent"}) if (old.has(k)) rec.add(k, old.get(k).deepCopy());
         JsonObject pl = new JsonObject();
         for (var e : cells.entrySet()) {
             JsonObject o = new JsonObject();
@@ -217,6 +217,74 @@ public final class SyncPlan {
         o.addProperty("sig", sig);
         o.addProperty("placement", m == null ? "" : m.placement());
         rec.add("manifest", o);
+    }
+
+    /** Forgets the manifest this copy pushed (after a branch switch: the next push must not remove the other branch's draft). */
+    public static void clearManifest(JsonObject extra) {
+        JsonObject rec = record(extra);
+        if (rec != null) {
+            rec.remove("manifest");
+            rec.remove("sealed");
+        }
+    }
+
+    // ------------------------------------------------------------------------------------------ branch and draft
+
+    /** The branch this copy of the project is on, or null before the first push or checkout (the service then picks one). */
+    public static String branch(JsonObject extra) {
+        return str(extra, "branch");
+    }
+
+    public static void setBranch(JsonObject extra, String branch) {
+        put(extra, "branch", branch);
+    }
+
+    /** The id of the draft commit this copy keeps replacing (null: the next push starts a new one). */
+    public static String draft(JsonObject extra) {
+        return str(extra, "draft");
+    }
+
+    public static void setDraft(JsonObject extra, String id) {
+        put(extra, "draft", id);
+    }
+
+    /** The commit the draft is based on (its parent), or null on a branch without commits. */
+    public static String parent(JsonObject extra) {
+        return str(extra, "parent");
+    }
+
+    public static void setParent(JsonObject extra, String id) {
+        put(extra, "parent", id);
+    }
+
+    /** Whether the manifest this copy pushed last is a sealed commit (a push then must not remove it). */
+    public static boolean manifestSealed(JsonObject extra) {
+        JsonObject rec = record(extra);
+        return rec != null && rec.has("sealed") && rec.get("sealed").getAsBoolean();
+    }
+
+    public static void setManifestSealed(JsonObject extra, boolean sealed) {
+        JsonObject rec = record(extra);
+        if (rec == null) {
+            rec = new JsonObject();
+            extra.add(KEY, rec);
+        }
+        rec.addProperty("sealed", sealed);
+    }
+
+    private static String str(JsonObject extra, String key) {
+        JsonObject rec = record(extra);
+        return rec != null && rec.has(key) && rec.get(key).isJsonPrimitive() ? rec.get(key).getAsString() : null;
+    }
+
+    private static void put(JsonObject extra, String key, String value) {
+        JsonObject rec = record(extra);
+        if (rec == null) {
+            rec = new JsonObject();
+            extra.add(KEY, rec);
+        }
+        if (value == null) rec.remove(key);
+        else rec.addProperty(key, value);
     }
 
     private static JsonObject record(JsonObject extra) {
