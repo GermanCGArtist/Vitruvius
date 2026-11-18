@@ -334,7 +334,24 @@ public final class SyncService implements MenuModel.SyncHook {
         }
     }
 
-    private record Active(Cell cell, SyncmaticaBridge.Handle handle) {}
+    /** One upload; {@code copyId} is the hidden Litematica placement that is shared in place of the cell's own (null for the manifest). */
+    private record Active(Cell cell, SyncmaticaBridge.Handle handle, String copyId) {
+        Active(Cell cell, SyncmaticaBridge.Handle handle) {
+            this(cell, handle, null);
+        }
+    }
+
+    /**
+     * Takes the finished share's clone out of Litematica again. Syncmatica keeps what it shares: it locks the placement and
+     * follows it, so sharing the cell's own placement made the editor's moves of it fail until the next push. A clone is
+     * shared instead and dropped; the cell's placement is never touched by Syncmatica.
+     */
+    private void dropClone(Active a) {
+        if (a.copyId() == null) return;
+        SyncmaticaBridge.Remote r = SyncmaticaBridge.find(a.handle().id());
+        if (r != null && SyncmaticaBridge.rendered(r)) SyncmaticaBridge.unrender(r);
+        LitematicaAdapter.shared().remove(a.copyId());
+    }
 
     private void startNext(Scene scene, ReconcileCore core) {
         UUID id = queue.poll();
@@ -380,6 +397,7 @@ public final class SyncService implements MenuModel.SyncHook {
             if (!SyncmaticaBridge.finished(a.handle())) continue;
             it.remove();
             if (a == j.manifest) continue;
+            dropClone(a);
             if (!SyncmaticaBridge.successful(a.handle())) {
                 record(j, false);
                 fail("Syncmatica could not share \"" + a.cell().name() + "\". Push again to retry");
@@ -396,19 +414,36 @@ public final class SyncService implements MenuModel.SyncHook {
         int polls = j.todo.size();
         while (polls-- > 0 && j.active.size() < MAX_ACTIVE && !j.todo.isEmpty() && !j.manifestStarted) {
             Cell c = j.todo.poll();
-            Object placement = ad.placementObject(c.placementId());
-            boolean redo = placement == null || SyncmaticaBridge.isSyncmatic(placement);
-            if (redo) {
-                // a placement Syncmatica tracks already cannot be shared again: drop it, the reconciler puts a fresh one back
-                // (same hash id) within a tick or two, and that one is shared. A placement that never comes back is skipped.
-                if (placement != null) ad.remove(c.placementId());
-                if (j.retries.merge(c.key(), 1, Integer::sum) < 200) j.todo.addLast(c);
-                else j.done++;
+            PlacementState st = ad.read(c.placementId());
+            if (st == null || st.file() == null) {
+                // the cell's placement is not there (yet): the reconciler is putting it back; one that never comes is skipped
+                if (j.retries.merge(c.key(), 1, Integer::sum) < 200) {
+                    j.todo.addLast(c);
+                } else {
+                    record(j, false);
+                    fail("Timed out waiting for placement \"" + c.name() + "\"");
+                    return;
+                }
                 continue;
             }
+            // a hidden clone of the cell is shared, not the cell's own placement (see dropClone)
+            String clone = ad.create(st.file(), st.origin(), st.rot(), st.mirror(), c.name(), true, false, null);
+            Object placement = clone == null ? null : ad.placementObject(clone);
+            if (placement == null) {
+                if (j.retries.merge(c.key(), 1, Integer::sum) < 200) {
+                    j.todo.addLast(c);
+                } else {
+                    record(j, false);
+                    fail("Timed out waiting for placement \"" + c.name() + "\"");
+                    return;
+                }
+                continue;
+            }
+            ad.copySubRegions(c.placementId(), clone);
             try {
-                j.active.add(new Active(c, SyncmaticaBridge.share(placement)));
+                j.active.add(new Active(c, SyncmaticaBridge.share(placement), clone));
             } catch (ReflectiveOperationException | RuntimeException e) {
+                ad.remove(clone);
                 record(j, false);
                 fail("Syncmatica could not share \"" + c.name() + "\": " + cause(e));
                 return;
@@ -495,6 +530,7 @@ public final class SyncService implements MenuModel.SyncHook {
     }
 
     private void fail(String text) {
+        if (job != null) for (Active a : job.active) dropClone(a);
         job = null;
         queue.clear();
         status = new Status(State.FAILED, 0, 0, text);
