@@ -192,7 +192,7 @@ public final class Gizmo {
         List<UUID> ids = s.selection.ids();
         if (ids.isEmpty()) return false;
         if (s.selectionLocked()) {
-            if (toast) s.toast(ToastQueue.Level.WARN, "The selection is part of a linked assembly and cannot be moved");
+            if (toast) s.toast(ToastQueue.Level.WARN, "Cannot move the selection: " + s.selectionLockReason());
             return false;
         }
         WorldBoxes wb = s.boxes();
@@ -319,7 +319,9 @@ public final class Gizmo {
             if (Math.floorMod(q, 4) != 0) s.actions.transaction("Rotate", List.of(new Rotate(ids, gPivot, q)));
         } else if (d.x() != 0 || d.y() != 0 || d.z() != 0) {
             gIds = ids;
-            s.actions.transaction(label("Move"), List.of(new Move(ids, d)));
+            String moveLabel = label("Move");
+            gIds = List.of();
+            s.actions.transaction(moveLabel, List.of(new Move(ids, d)));
         }
     }
 
@@ -779,7 +781,7 @@ public final class Gizmo {
         dl.addCircleFilled(ox, oy, 4.5f * sc, Ui.c(locked ? Theme.GUTTER : Theme.FG));
         if (locked) {
             Theme.push(UiHost.theme().small());
-            String t = "Locked";
+            String t = lockLabel();
             dl.addText(ox - ImGui.calcTextSizeX(t) * 0.5f, oy + 10 * sc, Ui.c(Theme.DIM), t);
             ImGui.popFont();
         }
@@ -848,9 +850,17 @@ public final class Gizmo {
         dl.addCircleFilled((float) g.ox, (float) g.oy, 4.5f * sc, Ui.c(locked ? Theme.GUTTER : Theme.FG));
         if (locked) {
             Theme.push(UiHost.theme().small());
-            dl.addText((float) g.ox - ImGui.calcTextSizeX("Locked") * 0.5f, (float) g.oy + 10 * sc, Ui.c(Theme.DIM), "Locked");
+            String t = lockLabel();
+            dl.addText((float) g.ox - ImGui.calcTextSizeX(t) * 0.5f, (float) g.oy + 10 * sc, Ui.c(Theme.DIM), t);
             ImGui.popFont();
         }
+    }
+
+    /** "Locked" and the reason, shortened, so it is clear why the selection does not move. */
+    private String lockLabel() {
+        String why = s.selectionLockReason();
+        if (why == null || why.isEmpty()) return "Locked";
+        return "Locked: " + (why.length() > 60 ? why.substring(0, 57) + "..." : why);
     }
 
     private void drawBoxRect(ImDrawList dl, float sc) {

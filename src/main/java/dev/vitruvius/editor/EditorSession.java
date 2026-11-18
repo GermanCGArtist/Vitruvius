@@ -183,9 +183,14 @@ public final class EditorSession {
 
     /** True when the selection cannot be moved (it is, or holds, a part of a linked assembly): the gizmo shows disabled. */
     public boolean selectionLocked() {
+        return selectionLockReason() != null;
+    }
+
+    /** Why the selection cannot be moved (the command's own refusal), or null when it can. */
+    public String selectionLockReason() {
         List<UUID> ids = selection.ids();
-        if (ids.isEmpty()) return false;
-        return new Move(ids, new Vec3i(1, 0, 0)).check(context()).isPresent();
+        if (ids.isEmpty()) return null;
+        return new Move(ids, new Vec3i(1, 0, 0)).check(context()).map(r -> r.reason()).orElse(null);
     }
 
     /**
