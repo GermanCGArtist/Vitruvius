@@ -287,20 +287,32 @@ not rotated). Entities and scheduled ticks are not baked.
 
 ## Sharing with Syncmatica
 
-If [Syncmatica](https://modrinth.com/mod/syncmatica) is installed, a project can be shared:
+If [Syncmatica](https://modrinth.com/mod/syncmatica) is installed (on the server and on every client), a project can be
+shared and edited by several players at once.
 
 1. *Project menu → Share on Syncmatica* (or **Share** in Properties).
-2. Edits are **not** uploaded as you drag. The toolbar's **Push** button shows how many changes are pending.
-3. **Push** shares every visible cell as a flat placement (the trimmed file where one applies), plus one small
-   *manifest* placement, `[LA2] <project>`, a 1×1×1 air schematic whose description holds the scene graph.
-4. A second client with 2.0 sees the manifest under *Open project... → Shared projects (Syncmatica)*. Opening it
-   downloads the files and builds a project from them. Clients without 2.0 just see the flat placements.
+2. With **Auto** ticked (the default) edits are pushed by themselves about two seconds after you stop changing things.
+   Without it, the toolbar's **Push** button shows how many changes are pending and pushes when you press it.
+3. A push shares one flat placement per visible cell (the trimmed file where one applies), plus one small *manifest*
+   placement, `[LA2] <project>`, a 1×1×1 air schematic whose description holds the scene graph, the time and your name.
+4. A second player with 2.0 opens it under *Open project... → Shared projects (Syncmatica)*. The project stays linked:
+   from then on, every manifest another player pushes is merged into the open project about a second after it arrives
+   ("Merged changes of Alex into ..."). The merge is per object, so two players editing different objects both keep their
+   work. If both edit the same object, one version wins (the same one on both computers); an edit beats a delete.
+5. Each flat placement is pushed by one player only: whoever has it on the server keeps it up to date, and the others push
+   a manifest only (plus the cells of objects they added themselves). Players without 2.0 see the flat placements.
 
-Without Syncmatica there is no Push button and no sharing menu entries. Linked assemblies are not shared, so they are
-not rebuilt on the other side.
+Merged changes are not an undo step. Undo only covers your own edits.
 
-> **Not yet verified in a real session.** The Syncmatica bridge uses reflection against Syncmatica 0.3.20 and has only
-> been tested with unit tests. See the [M6 test sheet](../editor-2.0/testing/M6.md).
+Limits:
+- A trimmed object (overlap or Boolean) is shared as its trimmed file, so a player who receives it for the first time gets
+  the trimmed blocks as the object's file. The others already have the original.
+- Linked assemblies are not shared. Renaming a shared project on one side is not followed by the others.
+- Clocks of the players may differ by up to a minute; manifests older than what a project already holds are ignored.
+- Files of objects are fetched once. Editing the blocks of a file in place is not synchronised.
+
+> **Not yet verified with two players on a real server.** The bridge's reflection calls match Syncmatica 0.3.20 (checked
+> with `javap`), and the merge has unit tests. See the [M6 test sheet](../editor-2.0/testing/M6.md).
 
 ## Undo and saving
 

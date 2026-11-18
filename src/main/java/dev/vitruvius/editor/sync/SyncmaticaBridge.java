@@ -42,7 +42,7 @@ public final class SyncmaticaBridge {
     private static String failure;
 
     private static Method litematicGetInstance, activeContext, comMan, getServer, syncFromSchematic, startExchange, sendPacket, synMan, getAll,
-            spId, spName, spFileName, spHash, download, fileStorage, localState, localLitematic, isFinished, isSuccessful, fileReady, isSyncmatic;
+            spId, spName, spFileName, spHash, download, fileStorage, localState, localLitematic, isFinished, isSuccessful, fileReady, isSyncmatic, isRendered, unrender;
     private static java.lang.reflect.Constructor<?> shareCtor;
     private static Class<?> clientComManClass, packetTypeClass;
     private static Object removePacket;
@@ -83,6 +83,8 @@ public final class SyncmaticaBridge {
             activeContext = manager.getMethod("getActiveContext");
             syncFromSchematic = manager.getMethod("syncmaticFromSchematic", placement);
             isSyncmatic = manager.getMethod("isSyncmatic", placement);
+            isRendered = manager.getMethod("isRendered", serverPlacement);
+            unrender = manager.getMethod("unrenderSyncmatic", serverPlacement);
             comMan = context.getMethod("getCommunicationManager");
             synMan = context.getMethod("getSyncmaticManager");
             fileStorage = context.getMethod("getFileStorage");
@@ -239,6 +241,27 @@ public final class SyncmaticaBridge {
             return p instanceof Path path && Files.isRegularFile(path) ? path : null;
         } catch (ReflectiveOperationException | RuntimeException e) {
             return null;
+        }
+    }
+
+    /** Whether Syncmatica has put this server placement into Litematica's list (it does so by itself when a download ends). */
+    public static boolean rendered(Remote r) {
+        try {
+            return (Boolean) isRendered.invoke(litematicGetInstance.invoke(null), r.placement());
+        } catch (ReflectiveOperationException | RuntimeException e) {
+            return false;
+        }
+    }
+
+    /**
+     * Takes a downloaded placement out of Litematica's list again, here only (the server keeps it). Used for files that were
+     * downloaded to be read or copied, not to be shown: the project's own placements show the same blocks.
+     */
+    public static void unrender(Remote r) {
+        try {
+            unrender.invoke(litematicGetInstance.invoke(null), r.placement());
+        } catch (ReflectiveOperationException | RuntimeException e) {
+            System.out.println("[Vitruvius] cannot hide the downloaded placement " + r.name() + ": " + e);
         }
     }
 

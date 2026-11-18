@@ -110,9 +110,11 @@ public final class SyncPlan {
         return new Manifest(m.get("id").getAsString(), m.get("sig").getAsString(), m.has("placement") ? m.get("placement").getAsString() : "");
     }
 
-    /** Writes the record into {@code extra} (replacing the old one). */
+    /** Writes the record into {@code extra} (replacing the old one, but keeping what live sharing recorded). */
     public static void write(JsonObject extra, Map<String, Pushed> cells, Manifest manifest, long pushedAt) {
+        JsonObject old = record(extra);
         JsonObject rec = new JsonObject();
+        if (old != null) for (String k : new String[]{"applied", "syncedAt", "auto"}) if (old.has(k)) rec.add(k, old.get(k).deepCopy());
         JsonObject pl = new JsonObject();
         for (var e : cells.entrySet()) {
             JsonObject o = new JsonObject();
@@ -130,6 +132,76 @@ public final class SyncPlan {
         }
         rec.addProperty("pushedAt", pushedAt);
         extra.add(KEY, rec);
+    }
+
+    // ------------------------------------------------------------------------------------------ live sharing record
+
+    private static final int KEEP_APPLIED = 48;
+
+    /** Ids of the other players' manifests this project has merged (or decided to ignore). */
+    public static java.util.Set<String> applied(JsonObject extra) {
+        java.util.Set<String> out = new java.util.LinkedHashSet<>();
+        JsonObject rec = record(extra);
+        if (rec != null && rec.has("applied") && rec.get("applied").isJsonArray()) {
+            for (JsonElement e : rec.getAsJsonArray("applied")) if (e.isJsonPrimitive()) out.add(e.getAsString());
+        }
+        return out;
+    }
+
+    /** Remembers a merged manifest and the time (its push time) the project is in step with. */
+    public static void markApplied(JsonObject extra, String manifestId, long at) {
+        JsonObject rec = record(extra);
+        if (rec == null) {
+            rec = new JsonObject();
+            extra.add(KEY, rec);
+        }
+        java.util.List<String> ids = new ArrayList<>(applied(extra));
+        ids.remove(manifestId);
+        ids.add(manifestId);
+        while (ids.size() > KEEP_APPLIED) ids.remove(0);
+        com.google.gson.JsonArray a = new com.google.gson.JsonArray();
+        for (String id : ids) a.add(id);
+        rec.add("applied", a);
+        if (at > syncedAt(extra)) rec.addProperty("syncedAt", at);
+    }
+
+    /** The newest push time this project is known to contain: its own last push or the newest merged manifest. */
+    public static long syncedAt(JsonObject extra) {
+        JsonObject rec = record(extra);
+        if (rec == null) return 0;
+        long a = rec.has("syncedAt") ? rec.get("syncedAt").getAsLong() : 0;
+        long b = rec.has("pushedAt") ? rec.get("pushedAt").getAsLong() : 0;
+        return Math.max(a, b);
+    }
+
+    /** Whether edits are pushed by themselves (default true). */
+    public static boolean auto(JsonObject extra) {
+        JsonObject rec = record(extra);
+        return rec == null || !rec.has("auto") || rec.get("auto").getAsBoolean();
+    }
+
+    public static void setAuto(JsonObject extra, boolean on) {
+        JsonObject rec = record(extra);
+        if (rec == null) {
+            rec = new JsonObject();
+            extra.add(KEY, rec);
+        }
+        rec.addProperty("auto", on);
+    }
+
+    /** Records that the manifest content with this signature is already in step with the server (nothing to push). */
+    public static void markManifestSynced(JsonObject extra, String sig) {
+        Manifest m = recordedManifest(extra);
+        JsonObject rec = record(extra);
+        if (rec == null) {
+            rec = new JsonObject();
+            extra.add(KEY, rec);
+        }
+        JsonObject o = new JsonObject();
+        o.addProperty("id", m == null ? "" : m.id());
+        o.addProperty("sig", sig);
+        o.addProperty("placement", m == null ? "" : m.placement());
+        rec.add("manifest", o);
     }
 
     private static JsonObject record(JsonObject extra) {

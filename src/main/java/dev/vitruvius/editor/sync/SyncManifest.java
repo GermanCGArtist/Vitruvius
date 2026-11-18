@@ -79,12 +79,24 @@ public final class SyncManifest {
     }
 
     /** What a manifest carries: the project.json text and the Syncmatica placement id of each cell (by cell key). */
-    public record Payload(JsonObject project, Map<String, String> cells) {}
+    public record Payload(JsonObject project, Map<String, String> cells, long at, String by) {
+        /** The id of the project inside (empty when the manifest has none). */
+        public String projectId() {
+            return project.has("id") && project.get("id").isJsonPrimitive() ? project.get("id").getAsString() : "";
+        }
+    }
 
     /** The JSON text of a payload. {@code project} is the project.json object (without the sync record). */
     public static String payloadJson(JsonObject project, Map<String, String> cells) {
+        return payloadJson(project, cells, 0, "");
+    }
+
+    /** As above, with the time of the push (milliseconds) and the name of the player who pushed. */
+    public static String payloadJson(JsonObject project, Map<String, String> cells, long at, String by) {
         JsonObject o = new JsonObject();
         o.addProperty("v", VERSION);
+        o.addProperty("at", at);
+        o.addProperty("by", by == null ? "" : by);
         o.add("project", project);
         JsonObject c = new JsonObject();
         for (var e : cells.entrySet()) c.addProperty(e.getKey(), e.getValue());
@@ -108,6 +120,8 @@ public final class SyncManifest {
         if (o.has("cells") && o.get("cells").isJsonObject()) {
             for (var en : o.getAsJsonObject("cells").entrySet()) if (en.getValue().isJsonPrimitive()) cells.put(en.getKey(), en.getValue().getAsString());
         }
-        return new Payload(o.getAsJsonObject("project"), cells);
+        long at = o.has("at") && o.get("at").isJsonPrimitive() ? o.get("at").getAsLong() : 0;
+        String by = o.has("by") && o.get("by").isJsonPrimitive() ? o.get("by").getAsString() : "";
+        return new Payload(o.getAsJsonObject("project"), cells, at, by);
     }
 }

@@ -695,6 +695,10 @@ public final class PropertiesWindow {
                 if (Ui.button(pend > 0 ? "Push (" + pend + ")" : "Push", false, sync.usable() && sync.connected() && !sync.busy(),
                         0, sync.busy() ? "A push is running" : sync.reason())) s.actions.run("proj.push");
                 ImGui.sameLine();
+                boolean auto = sync.autoPush(p);
+                if (ImGui.checkbox("Auto##syncauto", auto)) sync.setAutoPush(p, !auto);
+                if (ImGui.isItemHovered()) ImGui.setTooltip("Push by itself a moment after you stop editing, and merge the changes of other players as they arrive");
+                ImGui.sameLine();
             }
             if (Ui.button(shared ? "Stop sharing" : "Share", false, shared || sync.usable(), 0, sync.reason())) s.actions.run("proj.share");
         }
