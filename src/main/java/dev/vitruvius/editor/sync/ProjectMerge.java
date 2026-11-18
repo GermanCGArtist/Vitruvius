@@ -30,15 +30,16 @@ import java.util.TreeSet;
  * Sibling order follows the one side that reordered, else the base order, with new nodes last in id order. A parent that
  * was deleted sends its remaining children to the project root, and a move cycle is broken at the smallest id.
  *
- * <p>Fields of the project itself that belong to one computer ({@code world}, {@code dim}, {@code sync}, the sync record) are
- * always taken from {@code ours}.
+ * <p>Fields of the project itself that belong to one computer ({@code world}, {@code dim}, {@code sync}, the sync record,
+ * {@code hidden}) are always taken from {@code ours}. Visibility is the same: each player decides what he sees, so a node's
+ * {@code hidden} flag is neither compared nor taken from the other copy (a node new to us comes with the other copy's flag).
  */
 public final class ProjectMerge {
     private ProjectMerge() {}
 
     public record Result(JsonObject project, int conflicts, boolean changed) {}
 
-    private static final Set<String> LOCAL_FIELDS = Set.of("world", "dim", "sync", SyncPlan.KEY, "nodes");
+    private static final Set<String> LOCAL_FIELDS = Set.of("world", "dim", "sync", "hidden", SyncPlan.KEY, "nodes");
     private static final String ROOT = "";
 
     /** One node as merged: its fields without children, and its parent id ({@link #ROOT} for the project). */
@@ -55,6 +56,7 @@ public final class ProjectMerge {
     private static final class Tree {
         final Map<String, Flat> nodes = new LinkedHashMap<>();
         final Map<String, List<String>> order = new HashMap<>();
+        final Map<String, JsonElement> hidden = new HashMap<>();
         Flat root;
     }
 
@@ -78,7 +80,10 @@ public final class ProjectMerge {
             if (!n.has("id")) continue;
             String id = n.get("id").getAsString();
             JsonObject fields = new JsonObject();
-            for (var e : n.entrySet()) if (!e.getKey().equals("children")) fields.add(e.getKey(), e.getValue().deepCopy());
+            for (var e : n.entrySet()) {
+                if (e.getKey().equals("hidden")) t.hidden.put(id, e.getValue().deepCopy());
+                else if (!e.getKey().equals("children")) fields.add(e.getKey(), e.getValue().deepCopy());
+            }
             t.nodes.put(id, new Flat(fields, parent, n.has("children")));
             ids.add(id);
             walk(n.get("children"), id, t);
@@ -108,7 +113,12 @@ public final class ProjectMerge {
                 conflicts++;
                 r = fo == null ? ft : ft == null ? fo : pick(fo, ft);
             }
-            if (r != null) out.put(id, r);
+            if (r != null) {
+                JsonObject f = r.fields.deepCopy();
+                JsonElement h = o.nodes.containsKey(id) ? o.hidden.get(id) : t.hidden.get(id);
+                if (h != null) f.add("hidden", h);
+                out.put(id, new Flat(f, r.parent, r.container));
+            }
         }
         // a node whose side deleted it while the other did not touch it is gone: it is not in `ids` from the deleting side,
         // and `same(fo, fb)`/`same(ft, fb)` above already dropped it. Nodes only the base knew are gone on both sides.
@@ -145,6 +155,23 @@ public final class ProjectMerge {
 
         boolean changed = !result.equals(ours);
         return new Result(result, conflicts, changed);
+    }
+
+    /** A copy of the project without what stays per computer or player: {@link #LOCAL_FIELDS} on the project, {@code hidden} on every node. */
+    public static JsonObject withoutLocal(JsonObject project) {
+        JsonObject copy = project.deepCopy();
+        for (String k : LOCAL_FIELDS) if (!k.equals("nodes")) copy.remove(k);
+        strip(copy.get("nodes"));
+        return copy;
+    }
+
+    private static void strip(JsonElement list) {
+        if (list == null || !list.isJsonArray()) return;
+        for (JsonElement e : list.getAsJsonArray()) {
+            if (!e.isJsonObject()) continue;
+            e.getAsJsonObject().remove("hidden");
+            strip(e.getAsJsonObject().get("children"));
+        }
     }
 
     /** Whether two copies of a project hold the same scene (the fields that belong to one computer are not compared). */

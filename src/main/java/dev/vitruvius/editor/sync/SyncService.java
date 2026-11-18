@@ -104,6 +104,9 @@ public final class SyncService implements MenuModel.SyncHook {
     private final Map<UUID, Integer> hide = new HashMap<>();
     private int nowTick;
     private final Map<UUID, String> lastState = new HashMap<>();
+    private final Map<UUID, Integer> lastAutoPush = new HashMap<>();
+    /** Ticks between two automatic pushes of one project (a damper against two clients answering each other). */
+    private static final int AUTO_COOLDOWN = 100;
     private final Map<UUID, Integer> fileWait = new HashMap<>();
     private final Set<UUID> scanned = new HashSet<>();
     private int lastPoll = -POLL_EVERY;
@@ -173,7 +176,7 @@ public final class SyncService implements MenuModel.SyncHook {
 
     // ------------------------------------------------------------------------------------------ what is wanted
 
-    private record Desired(List<Cell> cells, JsonObject project, String manifestSig, String stateSig) {}
+    private record Desired(List<Cell> cells, JsonObject project, String manifestSig, String stateSig, String contentSig) {}
 
     private static String canon(PlacementState st) {
         var t = st.transform();
@@ -219,7 +222,7 @@ public final class SyncService implements MenuModel.SyncHook {
             String name = r.object().name() + (ObjectNode.BASE_CELL.equals(r.cell()) ? "" : " #" + r.cell());
             cells.add(new Cell(r.slot(), name, sig, id));
         }
-        JsonObject project = JsonParser.parseString(ProjectIo.toJson(p)).getAsJsonObject();
+        JsonObject project = ProjectMerge.withoutLocal(JsonParser.parseString(ProjectIo.toJson(p)).getAsJsonObject());
         project.remove(SyncPlan.KEY);
         List<String> keys = new ArrayList<>();
         for (Cell c : cells) keys.add(c.key());
@@ -227,7 +230,7 @@ public final class SyncService implements MenuModel.SyncHook {
         List<String> sigs = new ArrayList<>();
         for (Cell c : cells) sigs.add(c.key() + "=" + c.sig());
         sigs.sort(null);
-        return new Desired(cells, project, sha(project + "|" + keys), sha(project + "|" + sigs));
+        return new Desired(cells, project, sha(project + "|" + keys), sha(project + "|" + sigs), sha(project.toString()));
     }
 
     // ------------------------------------------------------------------------------------------ tick
@@ -251,6 +254,7 @@ public final class SyncService implements MenuModel.SyncHook {
                         // received from someone else and not pushed yet: what it holds now is what the server holds
                         SyncPlan.markManifestSynced(p.extra(), d.manifestSig());
                         rec = SyncPlan.recordedManifest(p.extra());
+                        if (SyncPlan.content(p.extra()) == null) SyncPlan.setContent(p.extra(), d.contentSig());
                     }
                     int n = SyncPlan.pending(SyncPlan.diff(d.cells(), SyncPlan.recordedCells(p.extra())), d.manifestSig(), rec);
                     pendingBy.put(p.id(), n);
@@ -433,6 +437,7 @@ public final class SyncService implements MenuModel.SyncHook {
         SyncPlan.write(j.project.extra(), j.result, new SyncPlan.Manifest(j.manifest.handle().id().toString(), j.manifestSigNow, j.manifestPlacement),
                 System.currentTimeMillis());
         writeBase(j.dir, j.want.project());
+        SyncPlan.setContent(j.project.extra(), j.want.contentSig());
         int shared = j.result.size();
         job = null;
         lastStats = -STATS_EVERY;
@@ -523,6 +528,17 @@ public final class SyncService implements MenuModel.SyncHook {
         if (!d.stateSig().equals(prev)) return;
         if (!SyncPlan.auto(p.extra()) || status.state() == State.FAILED || busy() || receive != null) return;
         if (!scanned.contains(p.id()) || !unapplied(p).isEmpty()) return;
+        // only a real edit starts a push: the scene differs from what this computer last sent or merged, or one of the cells
+        // it holds changed. Bookkeeping that differs (file times, which cells exist) must not, or two players keep answering
+        // each other's manifests forever.
+        int cellChanges = SyncPlan.diff(d.cells(), SyncPlan.recordedCells(p.extra())).changes();
+        if (cellChanges == 0 && d.contentSig().equals(SyncPlan.content(p.extra()))) {
+            SyncPlan.markManifestSynced(p.extra(), d.manifestSig());
+            lastState.remove(p.id());
+            return;
+        }
+        if (nowTick - lastAutoPush.getOrDefault(p.id(), -AUTO_COOLDOWN) < AUTO_COOLDOWN) return;
+        lastAutoPush.put(p.id(), nowTick);
         if (!SyncmaticaBridge.available() || !SyncmaticaBridge.connected()) return;
         push(p);
         lastState.remove(p.id());
@@ -679,7 +695,7 @@ public final class SyncService implements MenuModel.SyncHook {
      */
     private void applyRemote(ProjectNode p, Path dir, RemoteInfo ri, ReconcileCore core) {
         SyncManifest.Payload pl = ri.payload;
-        JsonObject ours = JsonParser.parseString(ProjectIo.toJson(p)).getAsJsonObject();
+        JsonObject ours = JsonParser.parseString(ProjectIo.toJson(p)).getAsJsonObject();   // with this player's visibility
         JsonObject base = readBase(dir);
         if (base == null) {
             base = new JsonObject();
@@ -730,7 +746,9 @@ public final class SyncService implements MenuModel.SyncHook {
         writeBase(dir, r.project());
         if (ProjectMerge.equivalent(r.project(), pl.project())) {
             // nothing of ours is missing on the server: no push is due
-            SyncPlan.markManifestSynced(p.extra(), desired(p, core).manifestSig());
+            Desired now = desired(p, core);
+            SyncPlan.markManifestSynced(p.extra(), now.manifestSig());
+            SyncPlan.setContent(p.extra(), now.contentSig());
         }
         EditorSession s = EditorSession.get();
         if (s != null) s.invalidateBoxes();
@@ -752,7 +770,13 @@ public final class SyncService implements MenuModel.SyncHook {
     /** The manifests the server lists, for the "Shared projects" part of the Open project picker. */
     public List<SyncmaticaBridge.Remote> sharedProjectList() {
         if (!SyncmaticaBridge.available()) return List.of();
-        return SyncmaticaBridge.manifests();
+        Set<String> open = new HashSet<>();
+        EditorSession s = EditorSession.get();
+        if (s != null) for (ProjectNode p : s.scene().projects()) if (p.sync() == ProjectNode.Sync.SHARED) open.add(SyncManifest.nameFor(p.name()));
+        // every player who pushed has a manifest of the same name: one entry per name (opening takes the newest)
+        Map<String, SyncmaticaBridge.Remote> byName = new LinkedHashMap<>();
+        for (SyncmaticaBridge.Remote r : SyncmaticaBridge.manifests()) if (!open.contains(r.name())) byName.putIfAbsent(r.name(), r);
+        return new ArrayList<>(byName.values());
     }
 
     public boolean receiving() {

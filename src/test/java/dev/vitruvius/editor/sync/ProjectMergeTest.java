@@ -133,6 +133,23 @@ class ProjectMergeTest {
     }
 
     @Test
+    void visibilityStaysPerPlayer() {
+        String shown = "{\"id\":\"a\",\"type\":\"object\",\"name\":\"a\",\"pos\":[0,0,0]}";
+        String hidden = "{\"id\":\"a\",\"type\":\"object\",\"name\":\"a\",\"pos\":[0,0,0],\"hidden\":true}";
+        JsonObject base = project("[" + shown + "]");
+        JsonObject ours = project("[" + shown + "]");
+        JsonObject theirs = project("[" + hidden + "]");
+        var r = ProjectMerge.merge(base, ours, theirs);
+        assertFalse(r.changed());                                   // their hiding is not ours
+        var back = ProjectMerge.merge(base, theirs, ours);          // and ours is not theirs
+        assertTrue(back.project().getAsJsonArray("nodes").get(0).getAsJsonObject().get("hidden").getAsBoolean());
+        JsonObject stripped = ProjectMerge.withoutLocal(theirs);
+        assertFalse(stripped.getAsJsonArray("nodes").get(0).getAsJsonObject().has("hidden"));
+        assertFalse(stripped.has("world"));
+        assertTrue(ProjectMerge.equivalent(ours, theirs));
+    }
+
+    @Test
     void worldAndSyncStayOurs() {
         JsonObject base = project("[" + obj("a", 0) + "]");
         JsonObject ours = project("[" + obj("a", 0) + "]");

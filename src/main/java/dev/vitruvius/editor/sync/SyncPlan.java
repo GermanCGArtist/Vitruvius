@@ -114,7 +114,7 @@ public final class SyncPlan {
     public static void write(JsonObject extra, Map<String, Pushed> cells, Manifest manifest, long pushedAt) {
         JsonObject old = record(extra);
         JsonObject rec = new JsonObject();
-        if (old != null) for (String k : new String[]{"applied", "syncedAt", "auto"}) if (old.has(k)) rec.add(k, old.get(k).deepCopy());
+        if (old != null) for (String k : new String[]{"applied", "syncedAt", "auto", "content"}) if (old.has(k)) rec.add(k, old.get(k).deepCopy());
         JsonObject pl = new JsonObject();
         for (var e : cells.entrySet()) {
             JsonObject o = new JsonObject();
@@ -172,6 +172,21 @@ public final class SyncPlan {
         long a = rec.has("syncedAt") ? rec.get("syncedAt").getAsLong() : 0;
         long b = rec.has("pushedAt") ? rec.get("pushedAt").getAsLong() : 0;
         return Math.max(a, b);
+    }
+
+    /** The signature of the scene (without what stays per player) that the server holds from this computer, or null. */
+    public static String content(JsonObject extra) {
+        JsonObject rec = record(extra);
+        return rec != null && rec.has("content") ? rec.get("content").getAsString() : null;
+    }
+
+    public static void setContent(JsonObject extra, String sig) {
+        JsonObject rec = record(extra);
+        if (rec == null) {
+            rec = new JsonObject();
+            extra.add(KEY, rec);
+        }
+        rec.addProperty("content", sig);
     }
 
     /** Whether edits are pushed by themselves (default true). */
