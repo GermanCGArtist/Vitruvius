@@ -12,6 +12,7 @@ import dev.vitruvius.editor.core.Vec3i;
 import dev.vitruvius.editor.gizmo.AxisProjection;
 import dev.vitruvius.editor.gizmo.BoxSelect;
 import dev.vitruvius.editor.gizmo.FaceSnap;
+import dev.vitruvius.editor.gizmo.GizmoAnchor;
 import dev.vitruvius.editor.gizmo.GizmoLayout;
 import dev.vitruvius.editor.gizmo.GizmoLayout.Part;
 import dev.vitruvius.editor.gizmo.TurnMath;
@@ -71,6 +72,8 @@ public final class Gizmo {
     private List<UUID> gIds = List.of();
     private int gVersion;
     private Vec3i gPivot = Vec3i.ZERO;
+    /** Where the move gizmo sits during a drag (see {@link GizmoAnchor}); the pivot is only for rotating. */
+    private Vec3i gAnchor = Vec3i.ZERO;
     private List<Box> gBoxes = List.of();
     private Box gUnion;
     private List<FaceSnap.Target> gTargets = List.of();
@@ -173,6 +176,11 @@ public final class Gizmo {
         var p = cam.position();
         return new View(ViewMath.Basis.of(cam.yaw(), cam.pitch()), new double[] {p.x, p.y, p.z}, mc.options.fov().get(),
                 Math.max(1, mc.getWindow().getScreenWidth()), Math.max(1, mc.getWindow().getScreenHeight()));
+    }
+
+    /** The block the move gizmo is drawn on: the pivot, or a block of a big selection that is close to the camera. */
+    private static Vec3i moveAnchor(View v, Vec3i pivot, Box union) {
+        return GizmoAnchor.choose(v.basis(), v.cam(), v.fov(), v.w(), v.h(), pivot, union);
     }
 
     private static double[] centre(Vec3i pivot) {
@@ -346,7 +354,8 @@ public final class Gizmo {
         Tool tool = s.tool();
         if ((tool == Tool.MOVE || tool == Tool.ROTATE) && !s.selection.isEmpty() && !s.selectionLocked() && snapshot(false)) {
             View v = view(mc);
-            GizmoLayout g = GizmoLayout.of(v.basis(), v.cam(), v.fov(), v.w(), v.h(), centre(gPivot), UiHost.scale());
+            gAnchor = tool == Tool.MOVE ? moveAnchor(v, gPivot, gUnion) : gPivot;
+            GizmoLayout g = GizmoLayout.of(v.basis(), v.cam(), v.fov(), v.w(), v.h(), centre(gAnchor), UiHost.scale());
             if (g != null) {
                 if (tool == Tool.MOVE) {
                     Part p = g.hit(c[0], c[1], true);
@@ -370,7 +379,7 @@ public final class Gizmo {
     private boolean beginMoveDrag(Minecraft mc, Part part, double[] c) {
         double[] ray = Picking.rayAt(mc, c[0], c[1]);
         double[] o = {ray[0], ray[1], ray[2]}, d = {ray[3], ray[4], ray[5]};
-        p0 = centre(gPivot);
+        p0 = centre(gAnchor);
         delta = Vec3i.ZERO;
         snapX = snapZ = null;
         if (part == Part.PLANE) {
@@ -585,7 +594,11 @@ public final class Gizmo {
         boolean drawTool = haveSel && (mode == Mode.IDLE || mode == Mode.AXIS || mode == Mode.PLANE || mode == Mode.RING) && !armed;
         if (drawTool && (tool == Tool.MOVE || tool == Tool.ROTATE)) {
             Vec3i pv = mode == Mode.IDLE ? s.pivotOf(s.selection.ids()) : gPivot;      // null: nothing visible to move
-            GizmoLayout g = pv == null ? null : GizmoLayout.of(v.basis(), v.cam(), v.fov(), v.w(), v.h(), centre(pv), sc);
+            Vec3i origin = pv;
+            if (tool == Tool.MOVE && pv != null) {
+                origin = mode == Mode.IDLE ? moveAnchor(v, pv, s.boxes().unionOf(s.scene(), s.selection.ids())) : gAnchor;
+            }
+            GizmoLayout g = origin == null ? null : GizmoLayout.of(v.basis(), v.cam(), v.fov(), v.w(), v.h(), centre(origin), sc);
             if (g != null) {
                 if (tool == Tool.MOVE && mode != Mode.RING) {
                     if (mode == Mode.IDLE && !over && !locked) hover = g.hit(c[0], c[1], true);
