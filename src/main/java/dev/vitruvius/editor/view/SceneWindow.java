@@ -62,6 +62,7 @@ public final class SceneWindow {
     private static final ImString SEARCH = new ImString(128);
     private static final ImString RENAME = new ImString(128);
     private static final ImString NEW_NAME = new ImString("New project", 64);
+    private static boolean focusNewName;
 
     private static UUID renaming;
     private static boolean renameFocus;
@@ -189,6 +190,7 @@ public final class SceneWindow {
         if (ImGui.button("New project", bw, 0) || s.newProjectRequest) {
             s.newProjectRequest = false;
             NEW_NAME.set("New project");
+            focusNewName = true;
             ImGui.openPopup("New project##modal");
         }
         ImGui.sameLine();
@@ -796,8 +798,11 @@ public final class SceneWindow {
             any = true;
             Ui.label("Name");
             ImGui.setNextItemWidth(-1);
-            if (ImGui.isWindowAppearing()) ImGui.setKeyboardFocusHere();
-            boolean enter = ImGui.inputText("##pname", NEW_NAME, ImGuiInputTextFlags.EnterReturnsTrue);
+            // focus the field until it is active (the first frame of a modal is hidden and swallows a one-shot request),
+            // and select the proposed name so typing replaces it instead of appending to "New project"
+            if (focusNewName) ImGui.setKeyboardFocusHere();
+            boolean enter = ImGui.inputText("##pname", NEW_NAME, ImGuiInputTextFlags.EnterReturnsTrue | ImGuiInputTextFlags.AutoSelectAll);
+            if (ImGui.isItemActive()) focusNewName = false;
             Ui.smallDim("The project is created in schematics/Projects and becomes the active project.");
             if (Ui.button("Create", true, !NEW_NAME.get().isBlank(), 100 * sc, "Give it a name") || (enter && !NEW_NAME.get().isBlank())) {
                 try {
