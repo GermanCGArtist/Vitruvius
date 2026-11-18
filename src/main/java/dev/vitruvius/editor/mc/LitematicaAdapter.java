@@ -171,9 +171,18 @@ public final class LitematicaAdapter implements PlacementPort {
         Rotation r = toMc(rot);
         net.minecraft.world.level.block.Mirror m = toMc(mirror);
         BlockPos at = new BlockPos(origin.x(), origin.y(), origin.z());
-        if (p.getRotation() != r) p.setRotation(r, QUIET);
-        if (p.getMirror() != m) p.setMirror(m, QUIET);
-        if (!p.getOrigin().equals(at)) p.setOrigin(at, QUIET_STR);
+        // Litematica ignores a move or turn of a locked placement. Syncmatica locks every placement it shares or renders, so
+        // after a share the editor's moves would silently do nothing and the object would jump back. The lock is lifted for
+        // the change and put back (Syncmatica's own updates do the same).
+        boolean locked = p.isLocked();
+        if (locked) p.toggleLocked();
+        try {
+            if (p.getRotation() != r) p.setRotation(r, QUIET);
+            if (p.getMirror() != m) p.setMirror(m, QUIET);
+            if (!p.getOrigin().equals(at)) p.setOrigin(at, QUIET_STR);
+        } finally {
+            if (locked && !p.isLocked()) p.toggleLocked();
+        }
         if (p.isEnabled() != enabled) p.setEnabled(enabled);
         if (p.isRenderingEnabled() != render) p.setRenderSchematic(render);
     }
