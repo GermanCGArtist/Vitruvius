@@ -74,6 +74,7 @@ public final class EditorInputLayer implements UiLayer {
             if (s.showScene) SceneWindow.draw(s);
             if (s.showProperties) PropertiesWindow.draw(s);
             if (s.showTopView) TopViewWindow.draw(s);
+            if (s.showHistory) dev.vitruvius.editor.view.HistoryWindow.draw(s);
         }
         s.resetLayout = false;
         EditorChrome.draw(s);

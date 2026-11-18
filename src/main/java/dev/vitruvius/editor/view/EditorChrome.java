@@ -330,6 +330,7 @@ public final class EditorChrome {
         if (ImGui.menuItem("Scene", "", s.showScene)) s.showScene = !s.showScene;
         if (ImGui.menuItem("Properties", "", s.showProperties)) s.showProperties = !s.showProperties;
         if (ImGui.menuItem("Top view", "", s.showTopView)) s.showTopView = !s.showTopView;
+        if (ImGui.menuItem("History", "", s.showHistory)) s.showHistory = !s.showHistory;
         ImGui.separator();
         if (ImGui.menuItem("Hide all windows", "Tab")) s.windowsHidden = !s.windowsHidden;
         ImGui.separator();

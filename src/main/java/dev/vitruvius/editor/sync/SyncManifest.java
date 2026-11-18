@@ -8,6 +8,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import dev.vitruvius.editor.sync.history.CommitMeta;
 import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -30,6 +31,10 @@ public final class SyncManifest {
     public static final int GZIP_ABOVE = 30_000;
     public static final int MAX_DESCRIPTION = 60_000;
     public static final int VERSION = 1;
+    /** Version 2 adds the history fields ({@link CommitMeta}); old clients ignore such manifests, so they never merge another branch by accident. */
+    public static final int VERSION_HISTORY = 2;
+    /** Prefix of a manifest placement of a branch other than main: {@code [LA2:<branch>] <project>}. */
+    public static final String BRANCH_OPEN = "[LA2:";
 
     private static final String PLAIN = "la2:", ZIPPED = "la2z:";
 
@@ -45,13 +50,37 @@ public final class SyncManifest {
         return "[" + project.replace(']', ')') + "] " + object;
     }
 
-    public static boolean isManifest(String placementName) {
-        return placementName != null && placementName.startsWith(PREFIX);
+    /**
+     * The manifest name of a commit on a branch: main keeps {@code [LA2] <project>} (what version 1 wrote), any other branch is
+     * {@code [LA2:<branch>] <project>}. The server-side access mod tells the two apart: main is written by the owner and
+     * operators, branches by everybody with edit access.
+     */
+    public static String nameFor(String project, String branch) {
+        return CommitMeta.isMain(branch) ? nameFor(project) : BRANCH_OPEN + CommitMeta.cleanBranch(branch) + "] " + project;
     }
 
-    /** The project name in a manifest placement name ("[LA2] Metro" gives "Metro"). */
+    public static boolean isManifest(String placementName) {
+        return placementName != null && (placementName.startsWith(PREFIX) || branchEnd(placementName) > 0);
+    }
+
+    private static int branchEnd(String n) {
+        return n != null && n.startsWith(BRANCH_OPEN) ? n.indexOf("] ", BRANCH_OPEN.length()) : -1;
+    }
+
+    /** The project name in a manifest placement name ("[LA2] Metro" and "[LA2:alex] Metro" give "Metro"). */
     public static String projectName(String placementName) {
-        return isManifest(placementName) ? placementName.substring(PREFIX.length()) : placementName;
+        if (placementName == null) return null;
+        if (placementName.startsWith(PREFIX)) return placementName.substring(PREFIX.length());
+        int e = branchEnd(placementName);
+        return e > 0 ? placementName.substring(e + 2) : placementName;
+    }
+
+    /** The branch a manifest name says ("[LA2:alex] Metro" gives "alex", "[LA2] Metro" gives "main"), or null when it is no manifest name. */
+    public static String branchOf(String placementName) {
+        if (placementName == null) return null;
+        if (placementName.startsWith(PREFIX)) return CommitMeta.MAIN;
+        int e = branchEnd(placementName);
+        return e > 0 ? placementName.substring(BRANCH_OPEN.length(), e) : null;
     }
 
     /** The description text for a JSON text. */
@@ -87,7 +116,11 @@ public final class SyncManifest {
     }
 
     /** What a manifest carries: the project.json text and the Syncmatica placement id of each cell (by cell key). */
-    public record Payload(JsonObject project, Map<String, String> cells, long at, String by) {
+    public record Payload(JsonObject project, Map<String, String> cells, long at, String by, CommitMeta meta) {
+        public Payload(JsonObject project, Map<String, String> cells, long at, String by) {
+            this(project, cells, at, by, null);
+        }
+
         /** The id of the project inside (empty when the manifest has none). */
         public String projectId() {
             return project.has("id") && project.get("id").isJsonPrimitive() ? project.get("id").getAsString() : "";
@@ -101,8 +134,14 @@ public final class SyncManifest {
 
     /** As above, with the time of the push (milliseconds) and the name of the player who pushed. */
     public static String payloadJson(JsonObject project, Map<String, String> cells, long at, String by) {
+        return payloadJson(project, cells, at, by, null);
+    }
+
+    /** As above, with the history fields (null writes a version 1 manifest, which is a commit of main to every reader). */
+    public static String payloadJson(JsonObject project, Map<String, String> cells, long at, String by, CommitMeta meta) {
         JsonObject o = new JsonObject();
-        o.addProperty("v", VERSION);
+        o.addProperty("v", meta == null ? VERSION : VERSION_HISTORY);
+        if (meta != null) meta.write(o);
         o.addProperty("at", at);
         o.addProperty("by", by == null ? "" : by);
         o.add("project", project);
@@ -122,7 +161,7 @@ public final class SyncManifest {
         if (!e.isJsonObject()) throw new IllegalArgumentException("the manifest is not an object");
         JsonObject o = e.getAsJsonObject();
         int v = o.has("v") && o.get("v").isJsonPrimitive() ? o.get("v").getAsInt() : 0;
-        if (v != VERSION) throw new IllegalArgumentException("unknown manifest version " + v);
+        if (v != VERSION && v != VERSION_HISTORY) throw new IllegalArgumentException("unknown manifest version " + v);
         if (!o.has("project") || !o.get("project").isJsonObject()) throw new IllegalArgumentException("the manifest has no project");
         Map<String, String> cells = new LinkedHashMap<>();
         if (o.has("cells") && o.get("cells").isJsonObject()) {
@@ -130,6 +169,6 @@ public final class SyncManifest {
         }
         long at = o.has("at") && o.get("at").isJsonPrimitive() ? o.get("at").getAsLong() : 0;
         String by = o.has("by") && o.get("by").isJsonPrimitive() ? o.get("by").getAsString() : "";
-        return new Payload(o.getAsJsonObject("project"), cells, at, by);
+        return new Payload(o.getAsJsonObject("project"), cells, at, by, v == VERSION_HISTORY ? CommitMeta.read(o) : null);
     }
 }
