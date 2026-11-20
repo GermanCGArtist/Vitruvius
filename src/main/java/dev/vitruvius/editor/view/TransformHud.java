@@ -27,7 +27,9 @@ public final class TransformHud {
     private static final String[] AX_NAME = {"X", "Y", "Z"};
 
     public static void draw(EditorSession s) {
-        Gizmo.Hud h = s.gizmo.hud();
+        Gizmo.Hud boxHud = s.boxEdit.hud();
+        boolean fromBox = boxHud != null;
+        Gizmo.Hud h = fromBox ? boxHud : s.gizmo.hud();
         if (h == null) return;
         float sc = UiHost.scale();
         ImGuiViewport vp = ImGui.getMainViewport();
@@ -71,8 +73,11 @@ public final class TransformHud {
                     dl.addText(tx + (chip - lw) * 0.5f, cy + (chip - fh) * 0.5f, Theme.u32(lit ? AX[a] : Theme.DIM), AX_NAME[a]);
                     if (h.typed()) {
                         ImGui.setCursorScreenPos(tx, cy);
-                        if (ImGui.invisibleButton("##hudaxis" + a, chip, chip)) s.gizmo.clickAxis(1 << a);
-                        if (ImGui.isItemHovered()) ImGui.setTooltip("Move along " + AX_NAME[a]);
+                        if (ImGui.invisibleButton("##hudaxis" + a, chip, chip)) {
+                            if (fromBox) s.boxEdit.clickAxis(1 << a);
+                            else s.gizmo.clickAxis(1 << a);
+                        }
+                        if (ImGui.isItemHovered()) ImGui.setTooltip((fromBox ? "Edit side along " : "Move along ") + AX_NAME[a]);
                     }
                     tx += chip + 3 * sc;
                 }

@@ -449,12 +449,135 @@ public final class PropertiesWindow {
                 Ui.colored(Theme.ERR, "The properties of " + e.typeId() + " failed: " + ex.getClass().getSimpleName());
             }
             if (ui.changed()) s.actions.execute(new dev.vitruvius.editor.ops.SetExternalData(e.id(), work));
+            if (!locked && dev.vitruvius.editor.world.BoxEdit.canEdit(e)) {
+                boxesSection(s, e);
+            }
         }
         modifiersSection(s, e, e.mods(), true, false, locked);
         ImGui.dummy(0, 6);
         ImGui.pushStyleColor(ImGuiCol.Text, Ui.c(Ui.AREA));
         ImGui.textWrapped("This kind of object never changes schematic blocks and takes no part in Booleans or the front order.");
         ImGui.popStyleColor();
+    }
+
+    private static void boxesSection(EditorSession s, ExternalNode e) {
+        float sc = Ui.s();
+        Ui.section("Boxes");
+        boolean on = s.boxEdit.active();
+        if (ImGui.button(on ? "Done editing boxes (E)" : "Edit boxes (E)")) {
+            if (on) s.boxEdit.exit();
+            else s.boxEdit.enter();
+        }
+        Ui.smallDim("Drag or click/hover a side in 3D and type a length (or ±delta). Shift + drag adds a box, X deletes.");
+        List<Box> boxes = dev.vitruvius.editor.world.BoxEdit.boxesOf(e);
+        if (boxes.isEmpty()) return;
+        Transform world = s.scene().worldTransform(e);
+        int activeIdx = s.boxEdit.selectedBox();
+        ImDrawList dl = ImGui.getWindowDrawList();
+        for (int i = 0; i < boxes.size(); i++) {
+            Box local = boxes.get(i);
+            Vec3i wSize = local.transformed(world).size();
+            boolean isSel = on && i == activeIdx;
+            ImGui.pushID("box_" + i);
+            ImGui.dummy(0, 2 * sc);
+            float y0 = ImGui.getCursorScreenPosY();
+            float x0 = ImGui.getCursorScreenPosX();
+            int rgb = dev.vitruvius.editor.world.BoxEdit.boxColor(e, i);
+            dl.addCircleFilled(x0 + 6 * sc, y0 + 10 * sc, 4 * sc, Ui.c(isSel ? Theme.ACCENT : rgb));
+            ImGui.setCursorScreenPos(x0 + 16 * sc, y0);
+            String title = "Box #" + (i + 1) + "  (" + wSize.x() + "×" + wSize.y() + "×" + wSize.z() + ")";
+            boolean open;
+            if (boxes.size() <= 3) {
+                if (isSel) ImGui.pushStyleColor(ImGuiCol.Text, Ui.c(Theme.ACCENT));
+                if (ImGui.selectable(title + "##hdr", isSel, 0, ImGui.getContentRegionAvailX() - (boxes.size() > 1 ? 26 * sc : 0), 20 * sc)) {
+                    if (on) s.boxEdit.selectBox(i);
+                }
+                if (isSel) ImGui.popStyleColor();
+                open = true;
+            } else {
+                String key = "box:" + e.id() + ":" + i;
+                boolean expanded = isSel || !COLLAPSED.contains(key);
+                if (isSel) ImGui.pushStyleColor(ImGuiCol.Text, Ui.c(Theme.ACCENT));
+                if (ImGui.selectable((expanded ? "▾ " : "▸ ") + title + "##hdr", isSel, 0, ImGui.getContentRegionAvailX() - 26 * sc, 20 * sc)) {
+                    if (on) s.boxEdit.selectBox(i);
+                    if (COLLAPSED.contains(key)) COLLAPSED.remove(key);
+                    else COLLAPSED.add(key);
+                }
+                if (isSel) ImGui.popStyleColor();
+                open = expanded;
+            }
+            if (boxes.size() > 1) {
+                ImGui.sameLine();
+                if (ImGui.smallButton("×")) {
+                    s.boxEdit.deleteBox(e, i);
+                    ImGui.popID();
+                    break;
+                }
+                Ui.tooltip("Delete Box #" + (i + 1));
+            }
+            if (open) {
+                int[] lens = {wSize.x(), wSize.y(), wSize.z()};
+                for (int a = 0; a < 3; a++) {
+                    ImGui.pushID(a);
+                    int next = boxLengthRow(e.id() + ":" + i + ":" + a, a, lens[a]);
+                    if (next != lens[a] && next >= 1) {
+                        int[] side = dev.vitruvius.editor.gizmo.FaceEdit.localSide(world, a, 1);
+                        Box resized = dev.vitruvius.editor.gizmo.FaceEdit.withLength(local, side[0], side[1], next);
+                        s.boxEdit.resizeBox(e, i, resized);
+                        ImGui.popID();
+                        ImGui.popID();
+                        return;
+                    }
+                    ImGui.popID();
+                }
+            }
+            ImGui.popID();
+        }
+    }
+
+    private static String boxEditKey;
+    private static final imgui.type.ImInt BOX_EDIT_VAL = new imgui.type.ImInt();
+
+    /** One side-length row: [X/Y/Z tag][typed integer field][-][+]. Commits on Enter, blur, or stepper click. */
+    private static int boxLengthRow(String key, int axis, int current) {
+        float sc = Ui.s();
+        float btn = 25 * sc, tag = 18 * sc, gap = ImGui.getStyle().getItemSpacingX();
+        float fieldW = Math.max(60 * sc, ImGui.getContentRegionAvailX() - tag - 2 * btn - 3 * gap);
+        ImDrawList dl = ImGui.getWindowDrawList();
+        float x = ImGui.getCursorScreenPosX(), y = ImGui.getCursorScreenPosY(), h = 25 * sc;
+        dl.addRectFilled(x, y, x + tag, y + h, Ui.c(AXIS_COL[axis], 0.13f), 4 * sc);
+        Theme.push(UiHost.theme().monoS());
+        dl.addText(x + (tag - ImGui.calcTextSizeX(AXES[axis])) * 0.5f, y + (h - ImGui.getFontSize()) * 0.5f, Ui.c(AXIS_COL[axis]), AXES[axis]);
+        ImGui.popFont();
+        ImGui.dummy(tag, h);
+        ImGui.sameLine();
+        ImGui.setNextItemWidth(fieldW);
+        boolean editing = key.equals(boxEditKey);
+        imgui.type.ImInt v = editing ? BOX_EDIT_VAL : new imgui.type.ImInt(current);
+        Theme.push(UiHost.theme().mono());
+        ImGui.inputInt("##len", v, 0, 0, ImGuiInputTextFlags.AutoSelectAll);
+        ImGui.popFont();
+        if (ImGui.isItemActivated()) {
+            boxEditKey = key;
+            BOX_EDIT_VAL.set(v.get());
+        }
+        int out = current;
+        if (ImGui.isItemDeactivatedAfterEdit()) {
+            out = Math.max(1, v.get());
+            boxEditKey = null;
+        } else if (ImGui.isItemDeactivated()) {
+            boxEditKey = null;
+        }
+        ImGui.sameLine();
+        ImGui.pushButtonRepeat(true);
+        boolean minus = ImGui.button("−", btn, 0);
+        ImGui.sameLine();
+        boolean plus = ImGui.button("+", btn, 0);
+        ImGui.popButtonRepeat();
+        int step = ImGui.getIO().getKeyShift() ? 16 : 1;
+        if (minus) out = Math.max(1, current - step);
+        if (plus) out = current + step;
+        return out;
     }
 
     /** The widgets of {@link dev.vitruvius.api.PropertyUi} with ImGui. */

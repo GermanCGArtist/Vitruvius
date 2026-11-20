@@ -231,4 +231,29 @@ class HistoryTest {
         assertFalse(d.placements().contains("X1"));   // main still lists it
         assertTrue(Retention.deleteBranch(g, "main").isEmpty());
     }
+
+    @Test
+    void graphLayoutOrdersChildrenBeforeParentsAndAssignsLanes() {
+        JsonObject p = project();
+        CommitGraph g = new CommitGraph(List.of(
+                c("m1", "main", 10, false, p, Map.of()),
+                c("m2", "main", 20, false, p, Map.of(), "m1"),
+                c("a1", "alex", 25, false, p, Map.of(), "m1"),
+                c("m3", "main", 30, false, p, Map.of(), "m2", "a1")));
+        GraphLayout.Layout lay = GraphLayout.build(g);
+        assertEquals(4, lay.rows().size());
+        assertEquals("m3", lay.rows().get(0).commit().id());
+        assertEquals("m1", lay.rows().get(3).commit().id());
+        assertTrue(lay.laneCount() >= 2);
+        for (GraphLayout.Edge e : lay.edges()) {
+            assertTrue(e.fromRow() < e.toRow());
+        }
+        assertEquals(1, lay.edges().stream().filter(GraphLayout.Edge::merge).count());
+        assertEquals(List.of("main"), lay.rows().get(0).heads());
+        assertTrue(lay.rows().stream().filter(r -> r.commit().id().equals("a1")).findFirst().orElseThrow().heads().contains("alex"));
+
+        GraphLayout.Layout alexOnly = GraphLayout.build(g, "alex");
+        assertEquals(List.of("a1", "m1"), alexOnly.rows().stream().map(r -> r.commit().id()).toList());
+        assertEquals(1, alexOnly.laneCount());
+    }
 }
