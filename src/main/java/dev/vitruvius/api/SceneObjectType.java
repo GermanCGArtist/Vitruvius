@@ -3,6 +3,9 @@ package dev.vitruvius.api;
 import com.google.gson.JsonObject;
 import dev.vitruvius.editor.core.Box;
 import dev.vitruvius.editor.core.Transform;
+import dev.vitruvius.editor.core.Vec3i;
+
+import java.util.List;
 
 /**
  * A kind of scene object another mod owns (Heavymatica areas, for example). The editor stores it as an external node
@@ -50,4 +53,48 @@ public interface SceneObjectType {
      * call this: the objects are only put away.
      */
     default void onRemoved(JsonObject data) {}
+
+    // ---- edit mode (optional): the editor lets the user drag the sides of the object's boxes ----
+
+    /**
+     * What an edit returns: the new data, and {@code shift}, how far the type moved its local origin. Every local
+     * coordinate afterwards is the old one minus {@code shift} (a type that keeps its bounds starting at 0,0,0 gets a
+     * shift when a box grows toward negative coordinates). The editor moves the node by the same amount, so nothing
+     * else in the world moves. Use {@link Vec3i#ZERO} when the origin stays.
+     */
+    record EditResult(JsonObject data, Vec3i shift) {}
+
+    /**
+     * The boxes the user can drag in edit mode (E), in the object's local blocks, in a stable order (the index is what
+     * the other edit methods get). An empty list (the default) means the type has no edit mode.
+     */
+    default List<Box> editBoxes(JsonObject data) {
+        return List.of();
+    }
+
+    /** The color (0xRRGGBB) of the handles of box {@code index}. */
+    default int editColor(JsonObject data, int index) {
+        return 0xf2b35e;
+    }
+
+    /**
+     * The user dragged a side of box {@code index}: it is {@code box} now (local blocks, at least 1 x 1 x 1). Return
+     * the new data, or null to refuse. Do not change {@code data}; return a copy.
+     */
+    default EditResult resizeBox(JsonObject data, int index, Box box) {
+        return null;
+    }
+
+    /**
+     * The user pulled a new box out of a side of box {@code from} (Shift + drag): add {@code box} (local blocks) and
+     * return the new data, or null to refuse. Do not change {@code data}; return a copy.
+     */
+    default EditResult addBox(JsonObject data, int from, Box box) {
+        return null;
+    }
+
+    /** The user deleted box {@code index}. Return the new data, or null to refuse (for example for the last box). */
+    default EditResult removeBox(JsonObject data, int index) {
+        return null;
+    }
 }

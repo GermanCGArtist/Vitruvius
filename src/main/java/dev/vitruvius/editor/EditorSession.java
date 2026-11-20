@@ -124,6 +124,8 @@ public final class EditorSession {
     public Pivots.Mode pivotMode = Pivots.Mode.MEDIAN;
     /** The move gizmo, ring, typed transforms and box select. */
     public final Gizmo gizmo = new Gizmo(this);
+    /** Edit mode for the boxes of objects of other mods (E). */
+    public final dev.vitruvius.editor.world.BoxEdit boxEdit = new dev.vitruvius.editor.world.BoxEdit(this);
     private Set<UUID> localOwners;
 
     /** UI requests the windows pick up on their next frame. */
@@ -730,6 +732,7 @@ public final class EditorSession {
         boolean ctrl = (mods & (GLFW.GLFW_MOD_CONTROL | GLFW.GLFW_MOD_SUPER)) != 0;
         boolean shift = (mods & GLFW.GLFW_MOD_SHIFT) != 0, alt = (mods & GLFW.GLFW_MOD_ALT) != 0;
         if (dev.vitruvius.editor.view.SketchPad.onKey(key, ctrl, shift, alt)) return true;   // the sketchpad's own keys while it is in use
+        if (boxEdit.active() && !ctrl && boxEdit.onKey(key, mods)) return true;   // edit mode: Esc, Enter, E, X, typed length
         if (gizmo.modal()) {                       // a gesture is running: its keys only (DESIGN 12.4)
             gizmo.onKey(key, mods);
             return true;
@@ -776,6 +779,7 @@ public final class EditorSession {
             }
             case GLFW.GLFW_KEY_M -> actions.run("t.mirror");
             case GLFW.GLFW_KEY_B -> gizmo.armBox();
+            case GLFW.GLFW_KEY_E -> boxEdit.toggle();
             case GLFW.GLFW_KEY_A -> {
                 if (shift) addMenuRequest = true;
                 else actions.run(alt ? "select.none" : "select.all");

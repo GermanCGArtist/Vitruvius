@@ -16,6 +16,11 @@ public record Vec3i(int x, int y, int z) {
         return new Vec3i(-x, -y, -z);
     }
 
+    /** This vector with the component on an axis replaced. */
+    public Vec3i with(int axis, int v) {
+        return new Vec3i(axis == 0 ? v : x, axis == 1 ? v : y, axis == 2 ? v : z);
+    }
+
     /** The component on an axis: 0 = x, 1 = y, 2 = z. */
     public int get(int axis) {
         return switch (axis) {

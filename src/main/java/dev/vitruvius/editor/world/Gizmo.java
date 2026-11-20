@@ -575,7 +575,7 @@ public final class Gizmo {
         float sc = UiHost.scale();
         boolean over = UiHost.imguiWantsMouse();
         Tool tool = s.tool();
-        boolean haveSel = !s.selection.isEmpty() && !cam.isNavigating();
+        boolean haveSel = !s.selection.isEmpty() && !cam.isNavigating() && !s.boxEdit.active();
         boolean locked = haveSel && s.selectionLocked();
         boolean snapOn = s.snap != ctrlHeld(mc);
 

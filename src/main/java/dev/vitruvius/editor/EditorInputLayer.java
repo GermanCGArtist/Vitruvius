@@ -83,6 +83,7 @@ public final class EditorInputLayer implements UiLayer {
         s.resetLayout = false;
         EditorChrome.draw(s);
         s.gizmo.frame(mc);
+        s.boxEdit.frame(mc);
         TransformHud.draw(s);
 
         // viewport right click: a short RMB press opens the menu for what is under the pointer
@@ -97,7 +98,7 @@ public final class EditorInputLayer implements UiLayer {
         }
         ContextMenus.draw(s);
 
-        if ((++frame & 1) == 0) Picking.updateHover(mc, UiHost.imguiWantsMouse() || s.gizmo.owningMouse());
+        if ((++frame & 1) == 0) Picking.updateHover(mc, UiHost.imguiWantsMouse() || s.gizmo.owningMouse() || s.boxEdit.owningMouse());
         WorldOverlay.drawTags();
         WorldOverlay.drawOverlapLabels();
         Toasts.draw(s);
@@ -138,7 +139,7 @@ public final class EditorInputLayer implements UiLayer {
             return;
         }
         if (s.popupOpen) return;                                          // menus own arrows, Enter and Esc
-        if (action == GLFW.GLFW_REPEAT && !s.gizmo.typedActive()) return;
+        if (action == GLFW.GLFW_REPEAT && !s.gizmo.typedActive() && !s.boxEdit.typedActive()) return;
         s.onKey(key, mods);
     }
 
@@ -164,16 +165,19 @@ public final class EditorInputLayer implements UiLayer {
         if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
             if (action == GLFW.GLFW_PRESS) {
                 if (!overUi && !EditorCamera.get().isNavigating()) {
-                    if (s == null || !s.gizmo.onLeftPress(mc)) {           // the gizmo, the ring and box select come first
+                    if (s != null && s.boxEdit.onLeftPress(mc)) {
+                        // edit mode grabbed a side of a box
+                    } else if (s == null || s.boxEdit.active() || !s.gizmo.onLeftPress(mc)) {           // the gizmo, the ring and box select come first
                         Picking.onLeftPress(mc);
                         if (s != null) s.gizmo.onEmptyPress(mc);
                     }
                 }
             } else if (action == GLFW.GLFW_RELEASE) {
-                if (s != null && s.gizmo.onLeftRelease(mc, mods)) Picking.cancelPress();
+                if (s != null && s.boxEdit.onLeftRelease()) Picking.cancelPress();
+                else if (s != null && s.gizmo.onLeftRelease(mc, mods)) Picking.cancelPress();
                 else Picking.onLeftRelease(mc, mods);
             }
-        } else if (button == GLFW.GLFW_MOUSE_BUTTON_RIGHT && action == GLFW.GLFW_PRESS && s != null && s.gizmo.onRightPress()) {
+        } else if (button == GLFW.GLFW_MOUSE_BUTTON_RIGHT && action == GLFW.GLFW_PRESS && s != null && (s.boxEdit.onRightPress() || s.gizmo.onRightPress())) {
             return;                                                         // a right click cancels the gesture and never starts a fly
         }
         EditorCamera.get().onMouseButton(mc, button, action, overUi);
