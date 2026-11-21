@@ -334,6 +334,10 @@ public final class EditorChrome {
             if (s.showShape) s.showShape = false;
             else ShapeWindow.open(s, null);
         }
+        if (ImGui.menuItem("Chat", "T", s.showChat)) {
+            if (s.showChat) s.showChat = false;
+            else ChatWindow.open(s, false);
+        }
         ImGui.separator();
         if (ImGui.menuItem("Hide all windows", "Tab")) s.windowsHidden = !s.windowsHidden;
         ImGui.separator();

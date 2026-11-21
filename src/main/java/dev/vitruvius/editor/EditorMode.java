@@ -141,7 +141,25 @@ public final class EditorMode {
     public static boolean passesToVanilla(Minecraft mc, int key, int scancode, int mods) {
         if (scancode >= InputConstants.KEY_F1 && scancode <= InputConstants.KEY_F12) return true;
         var event = new net.minecraft.client.input.KeyEvent(scancode, 0, 0);
-        return TOGGLE.matches(event) || mc.options.keyChat.matches(event) || mc.options.keyCommand.matches(event);
+        if (TOGGLE.matches(event)) return true;
+        // with the editor's session the chat keys open the chat window instead (see chatKeyKind)
+        return !chatInWindow() && (mc.options.keyChat.matches(event) || mc.options.keyCommand.matches(event));
+    }
+
+    private static boolean chatInWindow() {
+        try {
+            return EditorSession.get() != null;
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
+    /** 1 for the chat key, 2 for the command key, else 0; only when the chat goes to the editor's window. */
+    public static int chatKeyKind(Minecraft mc, int scancode) {
+        if (!chatInWindow()) return 0;
+        var event = new net.minecraft.client.input.KeyEvent(scancode, 0, 0);
+        if (mc.options.keyChat.matches(event)) return 1;
+        return mc.options.keyCommand.matches(event) ? 2 : 0;
     }
 
     /** Lets go of every vanilla key mapping that is blocked in editor mode and drops its pending clicks. */

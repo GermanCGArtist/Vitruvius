@@ -4,6 +4,7 @@ import dev.cg.uihost.UiHost;
 import dev.cg.uihost.UiLayer;
 import dev.vitruvius.editor.cam.EditorCamera;
 import dev.vitruvius.editor.mc.Picking;
+import dev.vitruvius.editor.view.ChatWindow;
 import dev.vitruvius.editor.view.ContextMenus;
 import dev.vitruvius.editor.view.EditorChrome;
 import dev.vitruvius.editor.view.PropertiesWindow;
@@ -76,6 +77,7 @@ public final class EditorInputLayer implements UiLayer {
             if (s.showProperties) PropertiesWindow.draw(s);
             if (s.showTopView) TopViewWindow.draw(s);
             if (s.showShape) ShapeWindow.draw(s);
+            if (s.showChat) ChatWindow.draw(s);
         }
         s.resetLayout = false;
         EditorChrome.draw(s);
@@ -118,13 +120,18 @@ public final class EditorInputLayer implements UiLayer {
         if (action != GLFW.GLFW_PRESS && !(action == GLFW.GLFW_REPEAT && key == GLFW.GLFW_KEY_BACKSPACE)) return;   // Backspace repeats in a typed transform
         if (UiHost.imguiWantsTextInput()) return;                         // typing in a field: no shortcut fires
         if (EditorCamera.get().isFlying()) return;                        // fly keys only
-        if (EditorMode.passesToVanilla(mc, key, scancode, mods)) return;  // F-keys, chat, the toggle
         EditorSession s = null;
         try {
             s = EditorSession.get();
         } catch (Throwable ignored) {
             // no session: no shortcuts
         }
+        int chatKey = s == null ? 0 : EditorMode.chatKeyKind(mc, scancode);
+        if (chatKey != 0) {                                               // T and / open the chat window, not the vanilla chat screen
+            ChatWindow.open(s, chatKey == 2);
+            return;
+        }
+        if (EditorMode.passesToVanilla(mc, key, scancode, mods)) return;  // F-keys, the toggle
         if (s == null) {
             if (key == GLFW.GLFW_KEY_F || key == GLFW.GLFW_KEY_KP_DECIMAL) EditorCamera.get().frame(mc.player.getBoundingBox());
             return;
