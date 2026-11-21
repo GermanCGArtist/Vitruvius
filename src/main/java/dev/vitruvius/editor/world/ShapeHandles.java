@@ -83,7 +83,6 @@ public final class ShapeHandles {
     /** The shape settings stored in the object's file, or null when it is not a generated shape or cannot be resized. */
     public static GeneratorSettings settingsOf(EditorSession s, ObjectNode o) {
         if (o.transform().rot() != Rot.NONE || o.transform().mirror() != Mirror.NONE) return null;
-        if (s.scene().projectOf(o) == null) return null;
         Path f = s.fileOf(o);
         if (f == null) return null;
         long now = System.currentTimeMillis();
@@ -118,38 +117,45 @@ public final class ShapeHandles {
         return !(g.spec().type() == ShapeType.PLANE && g.spec().clamped().axis().ordinal() == axis);
     }
 
-    /**
-     * Regenerates the shape of the object at the new size and applies it as one undo step. {@code newPos} is the new low
-     * corner. Returns false (with a toast) when it cannot be done.
-     */
+    /** Regenerates the shape at a new size and applies it as one undo step; {@code newPos} is the new low corner. */
     public static boolean resize(EditorSession s, ObjectNode o, GeneratorSettings g, Vec3i newSize, Vec3i newPos) {
         ShapeSpec sp = g.spec();
         ShapeSpec ns = new ShapeSpec(sp.type(), newSize.x(), newSize.y(), newSize.z(), sp.axis(), sp.thickness(),
                 sp.param1(), sp.param2(), sp.anchorCenter()).clamped();
         GeneratorSettings ng = new GeneratorSettings(ns, g.outline(), g.fill(), g.name());
         VoxelResult r = ShapeGenerator.generate(ng, () -> false);
+        return regenerate(s, o, ng, r, newPos);
+    }
+
+    /**
+     * Writes the generated {@code r} for the settings {@code ng} (they are stored in the file) and makes the object use
+     * it, as one undo step. Returns false (with a toast) when it cannot be done.
+     */
+    public static boolean regenerate(EditorSession s, ObjectNode o, GeneratorSettings ng, VoxelResult r, Vec3i newPos) {
         if (r == null || r.blockCount() == 0) {
-            s.toast(ToastQueue.Level.WARN, "That size makes an empty shape");
+            s.toast(ToastQueue.Level.WARN, "That makes an empty shape");
             return false;
         }
-        var ctx = s.undoStack().context();
-        String baseDir = ctx.baseDir(o);
-        String tmpRel = (baseDir.isEmpty() ? "" : baseDir + "/") + ".cache/shape";
-        String tmpName = o.id().toString();
+        String tmpRel = ResizeShape.CACHE_DIR;
+        String baseDir = s.undoStack().context().baseDir(o);
+        if (s.scene().projectOf(o) != null && !baseDir.isEmpty()) tmpRel = baseDir + "/" + ResizeShape.CACHE_DIR;
+        String tmpName = Integer.toHexString(o.id().hashCode()) + "-" + Integer.toHexString(java.util.concurrent.ThreadLocalRandom.current().nextInt());
         Path dir = s.schematicsDir().resolve(tmpRel).normalize();
         try {
             Files.createDirectories(dir);
             if (!ShapeSchematics.build(r, o.name(), ShapePresets.toJson(ng)).writeToFile(dir, tmpName, true)) {
-                s.toast(ToastQueue.Level.WARN, "Could not write the resized shape");
+                s.toast(ToastQueue.Level.WARN, "Could not write the shape");
                 return false;
             }
         } catch (IOException | RuntimeException e) {
-            s.toast(ToastQueue.Level.WARN, "Could not write the resized shape: " + e.getMessage());
+            s.toast(ToastQueue.Level.WARN, "Could not write the shape: " + e.getMessage());
             return false;
         }
+        ShapeSpec ns = ng.spec();
         String size = ns.sizeX() + "x" + ns.sizeY() + "x" + ns.sizeZ();
-        boolean ok = s.actions.execute(new ResizeShape(o.id(), tmpRel + "/" + tmpName + ".litematic", newPos, size));
-        if (ok) CACHE.remove(s.fileOf(o));
+        Path before = s.fileOf(o);
+        boolean ok = s.actions.execute(new ResizeShape(o.id(), tmpRel + "/" + tmpName + ".litematic", newPos, size, true));
+        if (before != null) CACHE.remove(before);
         return ok;
     }
 

@@ -120,6 +120,20 @@ public final class VitruviusApi {
         ListRefresh.later();
     }
 
+    /** A file type that the editor's Add > Schematic picker lists next to .litematic; picking one calls place. */
+    public record AssetType(String extension, String label, java.util.function.BiConsumer<java.nio.file.Path, net.minecraft.core.BlockPos> place) {}
+
+    private static final List<AssetType> ASSET_TYPES = new CopyOnWriteArrayList<>();
+
+    /** Lists files ending in {@code extension} (".heavymatic") in the Add schematic picker; place gets the file and the camera target. */
+    public static void registerAssetType(String extension, String label, java.util.function.BiConsumer<java.nio.file.Path, net.minecraft.core.BlockPos> place) {
+        if (extension != null && place != null) ASSET_TYPES.add(new AssetType(extension.toLowerCase(java.util.Locale.ROOT), label == null ? extension : label, place));
+    }
+
+    public static List<AssetType> assetTypes() {
+        return ASSET_TYPES;
+    }
+
     /** Adds an output to the editor's Shape generator window (live preview and a create button). */
     public static void registerShapeOutput(ShapeOutput output) {
         if (output != null && !SHAPE_OUTPUTS.contains(output)) SHAPE_OUTPUTS.add(output);

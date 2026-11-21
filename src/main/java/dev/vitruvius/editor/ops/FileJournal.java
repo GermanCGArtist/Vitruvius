@@ -39,6 +39,16 @@ final class FileJournal {
         undos.add(p -> p.move(to, from));
     }
 
+    /** Moves the file to the trash; undo brings it back. */
+    void trash(String path) {
+        try {
+            String token = fs.moveToTrash(path);
+            undos.add(p -> p.restoreFromTrash(token));
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
     /** Writes a file that must not exist yet. */
     void create(String path, String text) {
         try {

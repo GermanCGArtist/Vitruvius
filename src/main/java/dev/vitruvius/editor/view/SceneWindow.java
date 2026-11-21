@@ -971,7 +971,26 @@ public final class SceneWindow {
         return out;
     }
 
+    /** A schematic, or a file type another mod registered (Heavymatica: .heavymatic). */
+    private static boolean isAddable(String lowerName) {
+        if (lowerName.endsWith(".litematic")) return true;
+        for (var a : dev.vitruvius.api.VitruviusApi.assetTypes()) if (lowerName.endsWith(a.extension())) return true;
+        return false;
+    }
+
     private static void addSchematic(EditorSession s, String path) {
+        String lower = path.toLowerCase(Locale.ROOT);
+        for (var a : dev.vitruvius.api.VitruviusApi.assetTypes()) {
+            if (!lower.endsWith(a.extension())) continue;
+            var tg = dev.vitruvius.editor.cam.EditorCamera.get().target();
+            try {
+                a.place().accept(s.schematicsDir().resolve(path).normalize(), new net.minecraft.core.BlockPos((int) Math.floor(tg.x), (int) Math.floor(tg.y), (int) Math.floor(tg.z)));
+                s.toast(ToastQueue.Level.INFO, "Placed \"" + dev.vitruvius.editor.ops.FileSystemPort.nameOf(path) + "\" at the camera target (" + a.label() + ")");
+            } catch (RuntimeException e) {
+                s.toast(ToastQueue.Level.WARN, "Could not place " + path + ": " + e.getMessage());
+            }
+            return;
+        }
         var pos = dev.vitruvius.editor.cam.EditorCamera.get().target();
         dev.vitruvius.editor.core.Vec3i p = new dev.vitruvius.editor.core.Vec3i((int) Math.floor(pos.x), (int) Math.floor(pos.y), (int) Math.floor(pos.z));
         UUID parent = addParent != null && s.scene().byId(addParent) != null ? addParent : (s.scene().activeProject() != null ? s.scene().activeProject().id() : s.scene().loose().id());
@@ -1081,7 +1100,7 @@ public final class SceneWindow {
         List<String> out = new ArrayList<>();
         Path root = s.schematicsDir();
         try (Stream<Path> st = Files.walk(root, 16)) {
-            st.filter(p -> p.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".litematic")).forEach(p -> {
+            st.filter(p -> isAddable(p.getFileName().toString().toLowerCase(Locale.ROOT))).forEach(p -> {
                 String rel = root.relativize(p).toString().replace(java.io.File.separatorChar, '/');
                 if (!rel.startsWith("Projects/") && !rel.contains("/.")) out.add(rel);
             });

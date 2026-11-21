@@ -3,6 +3,7 @@ package dev.vitruvius.editor.view;
 import dev.cg.uihost.Theme;
 import dev.vitruvius.editor.EditorSession;
 import dev.vitruvius.editor.core.Node;
+import dev.vitruvius.editor.core.ObjectNode;
 import dev.vitruvius.editor.core.Vec3i;
 import dev.vitruvius.editor.ops.AddObject;
 import dev.vitruvius.editor.ui.ToastQueue;
@@ -17,7 +18,7 @@ import dev.vitruvius.shape.VoxelResult;
 import dev.vitruvius.shape.mc.BlockParsing;
 import dev.vitruvius.shape.mc.PreviewWorker;
 import dev.vitruvius.shape.mc.ShapePresets;
-import dev.vitruvius.shape.mc.ShapePreview;
+import dev.vitruvius.shape.mc.ShapeSchematics;
 import dev.vitruvius.shape.mc.ShapeSaver;
 import imgui.ImGui;
 import imgui.flag.ImGuiCond;
@@ -45,8 +46,6 @@ public final class ShapeWindow {
     private static final String FOLDER = "Shapes";
     private static final ImBoolean OPEN = new ImBoolean(true);
 
-    private static boolean initialised;
-    private static UUID parent;
 
     // spec
     private static final ShapeType[] TYPES = ShapeType.values();
@@ -63,22 +62,26 @@ public final class ShapeWindow {
     private static final ImInt sx = new ImInt(9), sy = new ImInt(9), sz = new ImInt(9);
     private static final ImInt axis = new ImInt(1);
     private static final ImInt thickness = new ImInt(1), param1 = new ImInt(3), param2 = new ImInt(1);
-    private static boolean anchorCenter;
     private static final ImString name = new ImString("shape", 64);
     private static final SlotState outline = new SlotState(), fill = new SlotState();
 
-    // preview
-    private static BlockPos target = BlockPos.ZERO;     // the point the shape is anchored at
-    private static GeneratorSettings requested;
-    private static VoxelResult result;
+    // the bound shape object and what the controls and the object's file have in common
+    private static boolean initialised;
+    private static UUID boundId;
+    private static String syncedJson = "";      // the settings the controls had when a regeneration was last asked for
+    private static String storedJson = "";      // the settings the object's file holds (as far as we know)
+    private static String lastFileRaw = "";     // the file's settings as last read back
+    private static boolean expectApply;         // our own apply is about to change the file: do not reload the controls
+    private static String requestedJson = "";
+    private static VoxelResult result;          // the newest generated result and the settings it is for
+    private static String resultJson = "";
     private static String error;
-    private static String lastShownKey = "";
     private static final ImString folder = new ImString("Shapes", 128);
     private static final ImInt output = new ImInt(0);      // 0 = schematic, n = shapeOutputs().get(n - 1)
     private static final ImInt option = new ImInt(0);
     private static String outputStatus;
     private static int activeOutput = -1;                  // the output whose ghost is up (index into shapeOutputs()), or -1
-    private static boolean blockGhost;
+    private static String lastOutKey = "";
     private static String listFolder;                      // chosen 1.x list folder id, null = top level
 
     /** One Outline/Fill editor: pattern mode, the block text and the mode's extra numbers. */
@@ -120,43 +123,35 @@ public final class ShapeWindow {
 
     // ------------------------------------------------------------------ open / close
 
-    /** Opens the window; the Add menu passes the parent the shape should end up in. */
+    /**
+     * Add > Shape generator (parentId = where the object goes) makes a new shape object at the camera target and binds
+     * the window to it; the Windows menu (parentId null) just shows the window, bound to the selected generated shape.
+     */
     public static void open(EditorSession s, UUID parentId) {
-        parent = parentId;
         s.showShape = true;
         s.windowsHidden = false;
-        if (!initialised) {
-            initialised = true;
-            GeneratorSettings g = ShapePresets.last();
-            ShapeSpec sp = g.spec();
-            type.set(sp.type().ordinal());
-            sx.set(sp.sizeX());
-            sy.set(sp.sizeY());
-            sz.set(sp.sizeZ());
-            axis.set(sp.axis().ordinal());
-            thickness.set(sp.thickness());
-            param1.set(sp.param1());
-            param2.set(sp.param2());
-            anchorCenter = sp.anchorCenter();
-            outline.load(g.outline());
-            fill.load(g.fill());
-            String f = ShapePresets.folder();
-            folder.set(f == null || f.isBlank() ? FOLDER : f);
-            name.set(g.name() == null || g.name().isBlank() ? "shape" : g.name());
-        }
-        moveHere();
-        requested = null;     // force a fresh preview
+        init();
+        if (parentId != null) createDraft(s, parentId);
     }
 
-    /** Removes the ghost and drops pending work; safe to call at any time (editor exit, window closed). */
+    private static void init() {
+        if (initialised) return;
+        initialised = true;
+        GeneratorSettings g = ShapePresets.last();
+        loadControls(g);
+        name.set(g.name() == null || g.name().isBlank() ? "shape" : g.name());
+        String f = ShapePresets.folder();
+        folder.set(f == null || f.isBlank() ? FOLDER : f);
+    }
+
+    /** Removes the output ghost and drops pending work; safe to call at any time (editor exit, window closed). */
     public static void close() {
         PreviewWorker.cancel();
-        ShapePreview.clear();
-        blockGhost = false;
         clearOutputGhost();
-        requested = null;
+        boundId = null;
         result = null;
-        lastShownKey = "";
+        resultJson = "";
+        requestedJson = "";
     }
 
     private static void clearOutputGhost() {
@@ -169,13 +164,72 @@ public final class ShapeWindow {
             }
         }
         activeOutput = -1;
+        lastOutKey = "";
         outputStatus = null;
     }
 
-    private static void moveHere() {
+    private static void loadControls(GeneratorSettings g) {
+        ShapeSpec sp = g.spec();
+        type.set(sp.type().ordinal());
+        sx.set(sp.sizeX());
+        sy.set(sp.sizeY());
+        sz.set(sp.sizeZ());
+        axis.set(sp.axis().ordinal());
+        thickness.set(sp.thickness());
+        param1.set(sp.param1());
+        param2.set(sp.param2());
+        outline.load(g.outline());
+        fill.load(g.fill());
+    }
+
+    private static ObjectNode bound(EditorSession s) {
+        Node n = boundId == null ? null : s.scene().byId(boundId);
+        return n instanceof ObjectNode o ? o : null;
+    }
+
+    /** Makes the new shape object from the current controls, at the camera target (centered on X and Z, standing on Y). */
+    private static void createDraft(EditorSession s, UUID parentId) {
+        GeneratorSettings g = settings(TYPES[type.get()]);
+        if (outline.error() != null || fill.error() != null) {
+            s.toast(ToastQueue.Level.WARN, "Fix the blocks first: " + (outline.error() != null ? outline.error() : fill.error()));
+            return;
+        }
+        VoxelResult r = dev.vitruvius.shape.ShapeGenerator.generate(g, () -> false);
+        if (r == null || r.blockCount() == 0) {
+            s.toast(ToastQueue.Level.WARN, "That makes an empty shape");
+            return;
+        }
         var t = dev.vitruvius.editor.cam.EditorCamera.get().target();
-        target = new BlockPos((int) Math.floor(t.x), (int) Math.floor(t.y), (int) Math.floor(t.z));
-        lastShownKey = "";
+        ShapeSpec sp = g.spec();
+        Vec3i pos = new Vec3i((int) Math.floor(t.x) - sp.sizeX() / 2, (int) Math.floor(t.y), (int) Math.floor(t.z) - sp.sizeZ() / 2);
+        String base = name.get().isBlank() ? "shape" : name.get().trim();
+        String tmpName = Integer.toHexString(java.util.concurrent.ThreadLocalRandom.current().nextInt());
+        Path dir = s.schematicsDir().resolve(dev.vitruvius.editor.ops.ResizeShape.CACHE_DIR).normalize();
+        try {
+            Files.createDirectories(dir);
+            if (!ShapeSchematics.build(r, base, ShapePresets.toJson(g)).writeToFile(dir, tmpName, true)) {
+                s.toast(ToastQueue.Level.WARN, "Could not write the shape");
+                return;
+            }
+        } catch (java.io.IOException | RuntimeException e) {
+            s.toast(ToastQueue.Level.WARN, "Could not write the shape: " + e.getMessage());
+            return;
+        }
+        UUID parent = parentId != null && s.scene().byId(parentId) != null ? parentId
+                : (s.scene().activeProject() != null ? s.scene().activeProject().id() : s.scene().loose().id());
+        AddObject cmd = new AddObject(parent, -1, base, dev.vitruvius.editor.ops.ResizeShape.CACHE_DIR + "/" + tmpName + ".litematic", pos);
+        if (!s.actions.execute(cmd)) return;
+        s.selection.set(cmd.objectId());
+        Node n = s.scene().byId(cmd.objectId());
+        if (n != null) s.tree.reveal(n);
+        s.scrollToRow = cmd.objectId();
+        boundId = cmd.objectId();
+        String json = ShapePresets.toJson(g);
+        syncedJson = storedJson = resultJson = json;
+        result = r;
+        lastFileRaw = "";
+        expectApply = true;       // the first read of the file is what the controls already show
+        ShapePresets.setLast(g);
     }
 
     // ------------------------------------------------------------------ window
@@ -188,15 +242,67 @@ public final class ShapeWindow {
         ImGui.setNextWindowSize(330 * sc, Math.max(300 * sc, vp.getSizeY() * 0.7f), s.resetLayout ? ImGuiCond.Always : ImGuiCond.FirstUseEver);
         ImGui.setNextWindowSizeConstraints(280 * sc, 200 * sc, 4000, 4000);
         boolean visible = Ui.beginWindow("Shape generator", OPEN, 0, 0.96f);
-        if (visible) drawContent(s, sc);
+        if (visible) {
+            init();
+            sync(s);
+            drawContent(s, sc);
+        }
         Ui.endWindow();
-        s.showShape = OPEN.get();
+        if (!OPEN.get()) s.showShape = false;        // the X button; the Close button sets showShape itself
         if (!s.showShape) close();
+    }
+
+    /** Follows the selection (a generated shape rebinds the window) and picks up changes made outside (handles, Properties). */
+    private static void sync(EditorSession s) {
+        List<UUID> ids = s.selection.ids();
+        if (ids.size() == 1 && !ids.get(0).equals(boundId)) {
+            Node n = s.scene().byId(ids.get(0));
+            if (n instanceof ObjectNode o && dev.vitruvius.editor.world.ShapeHandles.settingsOf(s, o) != null) {
+                boundId = o.id();
+                lastFileRaw = "";
+                expectApply = false;
+                result = null;
+                resultJson = "";
+            }
+        }
+        ObjectNode o = bound(s);
+        if (o == null) {
+            boundId = null;
+            return;
+        }
+        GeneratorSettings fg = dev.vitruvius.editor.world.ShapeHandles.settingsOf(s, o);
+        if (fg == null) {
+            boundId = null;
+            return;
+        }
+        String raw = ShapePresets.toJson(fg);
+        if (!raw.equals(lastFileRaw)) {
+            lastFileRaw = raw;
+            if (expectApply) {
+                expectApply = false;
+            } else {
+                loadControls(fg);
+                name.set(o.name());
+                String json = ShapePresets.toJson(settings(TYPES[type.get()]));
+                syncedJson = storedJson = json;
+                result = null;
+                resultJson = "";
+                requestedJson = "";
+            }
+        }
     }
 
     private static void drawContent(EditorSession s, float sc) {
         ShapeType t = TYPES[type.get()];
         float w = -1;
+        ObjectNode o = bound(s);
+
+        if (o == null) {
+            Ui.smallDim("Select a generated shape to edit it, or make a new one.");
+            if (Ui.button("New shape", true, true, 120 * sc, null)) createDraft(s, null);
+        } else {
+            Ui.smallDim("Editing \"" + o.name() + "\": move it with the gizmo, drag its round handles to resize.");
+        }
 
         Ui.section("Shape");
         ImGui.setNextItemWidth(w);
@@ -218,14 +324,6 @@ public final class ShapeWindow {
         Ui.section("Fill");
         slot("fill", fill, "empty = hollow", sc);
 
-        Ui.section("Placement");
-        if (ImGui.checkbox("Anchor at the center", anchorCenter)) anchorCenter = !anchorCenter;
-        Ui.tooltip("Off: the camera target is the shape's low corner. On: it is the middle of the box.");
-        if (ImGui.button("Move to camera target")) moveHere();
-        Ui.tooltip("Orbit or fly the camera, then click: the shape jumps to what the camera looks at.");
-        ImGui.sameLine();
-        Ui.smallDim(target.getX() + ", " + target.getY() + ", " + target.getZ());
-
         var outs = dev.vitruvius.api.VitruviusApi.shapeOutputs();
         if (output.get() > outs.size()) output.set(0);
         dev.vitruvius.api.ShapeOutput out = output.get() == 0 ? null : outs.get(output.get() - 1);
@@ -235,7 +333,10 @@ public final class ShapeWindow {
             names[0] = "Schematic";
             for (int i = 0; i < outs.size(); i++) names[i + 1] = outs.get(i).label();
             ImGui.setNextItemWidth(130 * sc);
-            if (ImGui.combo("##shapeoutput", output, names)) option.set(0);
+            if (ImGui.combo("##shapeoutput", output, names)) {
+                option.set(0);
+                clearOutputGhost();
+            }
             out = output.get() == 0 ? null : outs.get(output.get() - 1);
             if (out != null) {
                 var opts = out.options();
@@ -246,44 +347,40 @@ public final class ShapeWindow {
             }
         }
 
-        // build the settings and (re)generate when something changed
+        // the controls changed: regenerate off-thread, then the object takes the new file
         String blockError = outline.error() != null ? outline.error() : fill.error();
         GeneratorSettings g = settings(t);
-        BlockPos origin = originFor(g.spec());
-        if (blockError == null) {
-            if (!g.equals(requested)) {
-                requested = g;
-                PreviewWorker.request(g, r -> {
-                    result = r;
-                    lastShownKey = "";      // show it below with the current origin
-                });
+        String json = blockError == null ? ShapePresets.toJson(g) : null;
+        error = blockError;
+        if (json != null && o != null) {
+            boolean changed = !json.equals(syncedJson);
+            boolean needResult = out != null && !json.equals(resultJson);
+            if ((changed || needResult) && !json.equals(requestedJson)) {
+                requestedJson = json;
+                syncedJson = json;
+                PreviewWorker.request(g, r -> onResult(s, g, json, r));
             }
-            String key = origin.toString() + (result == null ? 0 : System.identityHashCode(result)) + "/" + output.get() + "/" + option.get();
-            if (result != null && !key.equals(lastShownKey)) {
-                lastShownKey = key;
-                if (out == null) {
-                    clearOutputGhost();
-                    ShapePreview.show(result, origin);
-                    blockGhost = true;
-                } else {
-                    if (blockGhost) {
-                        ShapePreview.clear();
-                        blockGhost = false;
-                    }
-                    int idx = output.get() - 1;
-                    if (activeOutput >= 0 && activeOutput != idx) clearOutputGhost();
-                    activeOutput = idx;
-                    try {
-                        outputStatus = out.preview(new dev.vitruvius.api.ShapeActionContext(result, name.get().trim(), origin), option.get());
-                    } catch (Throwable ex) {
-                        outputStatus = out.label() + " preview failed: " + ex.getMessage();
-                    }
+        }
+
+        // the ghost of an output (Heavymatic wireframes), at the object's position
+        if (out != null && o != null && result != null && json != null && json.equals(resultJson)) {
+            Vec3i p = o.transform().pos();
+            String key = System.identityHashCode(result) + "/" + p + "/" + output.get() + "/" + option.get();
+            if (!key.equals(lastOutKey)) {
+                lastOutKey = key;
+                int idx = output.get() - 1;
+                if (activeOutput >= 0 && activeOutput != idx) clearOutputGhost();
+                activeOutput = idx;
+                lastOutKey = key;
+                try {
+                    outputStatus = out.preview(new dev.vitruvius.api.ShapeActionContext(result, name.get().trim(), new BlockPos(p.x(), p.y(), p.z())), option.get());
+                } catch (Throwable ex) {
+                    outputStatus = out.label() + " preview failed: " + ex.getMessage();
                 }
             }
         }
-        error = blockError;
 
-        Ui.section("Create");
+        Ui.section(out == null ? "Save to the library" : "Create");
         ImGui.setNextItemWidth(w);
         ImGui.inputText("##shapename", name);
         if (out == null || out.usesSchematicFolder()) drawFolder(sc);
@@ -292,34 +389,36 @@ public final class ShapeWindow {
         if (error != null) Ui.colored(Theme.ERR, error);
         else if (busy) Ui.smallDim("Generating…");
         else if (out != null && outputStatus != null) Ui.smallDim(outputStatus);
-        else if (result != null) Ui.smallDim(result.blockCount() + " blocks, " + result.sizeX() + " x " + result.sizeY() + " x " + result.sizeZ()
-                + "  at " + origin.getX() + ", " + origin.getY() + ", " + origin.getZ());
-        boolean can = error == null && !busy && result != null && result.blockCount() > 0 && !name.get().isBlank();
-        String why = error != null ? error : busy ? "Still generating" : result == null || result.blockCount() == 0 ? "The shape is empty" : "Give it a name";
-        String create = out == null ? "Generate" : "Create " + out.label().toLowerCase(java.util.Locale.ROOT);
-        if (Ui.button(create, true, can, 150 * sc, why)) {
-            if (out == null) generate(s, g, origin);
-            else createOutput(s, out, origin);
+        else if (result != null && o != null) Ui.smallDim(result.blockCount() + " blocks, " + result.sizeX() + " x " + result.sizeY() + " x " + result.sizeZ());
+        boolean ready = error == null && !busy && o != null && result != null && json != null && json.equals(resultJson) && result.blockCount() > 0;
+        boolean can = ready && !name.get().isBlank();
+        String why = error != null ? error : o == null ? "Select or make a shape first" : !ready ? "Still generating" : "Give it a name";
+        String create = out == null ? "Save schematic file" : "Create " + out.label().toLowerCase(java.util.Locale.ROOT);
+        if (Ui.button(create, true, can, 170 * sc, why)) {
+            if (out == null) saveToLibrary(s, g, o);
+            else createOutput(s, out, o);
         }
         if (out != null && out.hover() != null && can) Ui.tooltip(out.hover());
         ImGui.sameLine();
         if (ImGui.button("Close", 80 * sc, 0)) s.showShape = false;
+        if (out == null) Ui.smallDim("The shape itself is already in the scene. This also saves a copy as a .litematic file for the library.");
+    }
 
-        // old-style buttons other mods registered (only when no output of theirs is there)
-        var actions = dev.vitruvius.api.VitruviusApi.shapeActions();
-        if (!actions.isEmpty() && outs.isEmpty()) {
-            Ui.section("Send the shape to");
-            for (var a : actions) {
-                if (Ui.button(a.label() + "##shapeaction", false, can, 0, why)) runAction(s, a, g, origin);
-                if (a.hover() != null && can) Ui.tooltip(a.hover());
-                ImGui.sameLine();
-            }
-            ImGui.newLine();
-            Ui.smallDim("These open their own dialog, which leaves the editor (press F6 to come back).");
+    /** A generated result arrived: remember it, and when it differs from the object's file, apply it as one undo step. */
+    private static void onResult(EditorSession s, GeneratorSettings g, String json, VoxelResult r) {
+        if (r == null) return;
+        result = r;
+        resultJson = json;
+        ObjectNode o = bound(s);
+        if (o == null || json.equals(storedJson)) return;
+        if (dev.vitruvius.editor.world.ShapeHandles.regenerate(s, o, g, r, o.transform().pos())) {
+            storedJson = json;
+            expectApply = true;
+            ShapePresets.setLast(g);
         }
     }
 
-    private static void createOutput(EditorSession s, dev.vitruvius.api.ShapeOutput out, BlockPos origin) {
+    private static void createOutput(EditorSession s, dev.vitruvius.api.ShapeOutput out, ObjectNode o) {
         String err;
         try {
             String folderId = out.usesListFolders() ? listFolder : null;
@@ -328,15 +427,16 @@ public final class ShapeWindow {
                 dir = schematicFolder(s);
                 if (dir == null) return;
             }
-            err = out.create(new dev.vitruvius.api.ShapeActionContext(result, name.get().trim(), origin), option.get(), folderId, dir);
+            Vec3i p = o.transform().pos();
+            err = out.create(new dev.vitruvius.api.ShapeActionContext(result, name.get().trim(), new BlockPos(p.x(), p.y(), p.z())), option.get(), folderId, dir);
         } catch (Throwable ex) {
             err = ex.getMessage() == null ? ex.toString() : ex.getMessage();
         }
         activeOutput = -1;           // create() removed its own ghost
-        lastShownKey = "";           // a new ghost for the next tweak
+        lastOutKey = "";             // a new ghost for the next tweak
         String what = out.label().toLowerCase(java.util.Locale.ROOT);
         if (err != null) s.toast(ToastQueue.Level.WARN, "Not created: " + err);
-        else s.toast(ToastQueue.Level.INFO, "Created " + what + " \"" + name.get().trim() + "\". Change the settings to make another.");
+        else s.toast(ToastQueue.Level.INFO, "Created " + what + " \"" + name.get().trim() + "\" at the shape's position.");
     }
 
     /** The schematics subfolder typed or chosen (made when missing), or null with a toast when it is not valid. */
@@ -446,23 +546,10 @@ public final class ShapeWindow {
         }
     }
 
-    private static void runAction(EditorSession s, dev.vitruvius.api.VitruviusApi.ShapeAction a, GeneratorSettings g, BlockPos origin) {
-        try {
-            a.action().accept(new dev.vitruvius.api.ShapeActionContext(result, name.get().trim(), origin));
-        } catch (Throwable t) {
-            s.toast(ToastQueue.Level.WARN, a.label() + " failed: " + t.getMessage());
-        }
-    }
-
     private static GeneratorSettings settings(ShapeType t) {
         ShapeSpec spec = new ShapeSpec(t, sx.get(), sy.get(), sz.get(), Axis.values()[axis.get()], thickness.get(),
-                param1.get(), param2.get(), anchorCenter).clamped();
+                param1.get(), param2.get(), false).clamped();
         return new GeneratorSettings(spec, outline.slot(), fill.slot(), name.get());
-    }
-
-    private static BlockPos originFor(ShapeSpec spec) {
-        if (!spec.anchorCenter()) return target;
-        return target.offset(-(spec.sizeX() / 2), -(spec.sizeY() / 2), -(spec.sizeZ() / 2));
     }
 
     // ------------------------------------------------------------------ controls
@@ -520,33 +607,18 @@ public final class ShapeWindow {
         }
     }
 
-    // ------------------------------------------------------------------ generate
+    // ------------------------------------------------------------------ library
 
-    private static void generate(EditorSession s, GeneratorSettings g, BlockPos origin) {
-        Path folder = schematicFolder(s);
-        if (folder == null) return;
-        ShapePresets.setFolder(ShapeSaver.relative(folder));
+    /** Writes the current shape as a .litematic file into the chosen schematics folder (a copy; the object stays). */
+    private static void saveToLibrary(EditorSession s, GeneratorSettings g, ObjectNode o) {
+        Path dir = schematicFolder(s);
+        if (dir == null) return;
+        ShapePresets.setFolder(ShapeSaver.relative(dir));
         String base = name.get().trim();
         String unique = base;
-        for (int i = 2; Files.exists(ShapeSaver.fileFor(folder, unique)); i++) unique = base + " " + i;
-        String err = ShapeSaver.write(result, folder, unique, ShapePresets.toJson(g));
-        if (err != null) {
-            s.toast(ToastQueue.Level.WARN, "Shape not saved: " + err);
-            return;
-        }
-        ShapePresets.setLast(new GeneratorSettings(g.spec(), g.outline(), g.fill(), base));
-        String rel = ShapeSaver.root().relativize(ShapeSaver.fileFor(folder, unique)).toString().replace(java.io.File.separatorChar, '/');
-        UUID target = parent != null && s.scene().byId(parent) != null ? parent
-                : (s.scene().activeProject() != null ? s.scene().activeProject().id() : s.scene().loose().id());
-        close();      // the ghost goes first: the new object takes its place
-        AddObject cmd = new AddObject(target, -1, unique, rel, new Vec3i(origin.getX(), origin.getY(), origin.getZ()));
-        if (s.actions.execute(cmd)) {
-            s.selection.set(cmd.objectId());
-            Node n = s.scene().byId(cmd.objectId());
-            if (n != null) s.tree.reveal(n);
-            s.scrollToRow = cmd.objectId();
-            s.toast(ToastQueue.Level.INFO, "Added \"" + unique + "\". Change the settings to make another.");
-        }
-        requested = null;
+        for (int i = 2; Files.exists(ShapeSaver.fileFor(dir, unique)); i++) unique = base + " " + i;
+        String err = ShapeSaver.write(result, dir, unique, ShapePresets.toJson(g));
+        if (err != null) s.toast(ToastQueue.Level.WARN, "Not saved: " + err);
+        else s.toast(ToastQueue.Level.INFO, "Saved \"" + unique + "\" in " + ShapeSaver.display(dir));
     }
 }
