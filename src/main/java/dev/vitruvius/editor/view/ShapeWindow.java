@@ -236,6 +236,27 @@ public final class ShapeWindow {
         if (ImGui.button("Close", 80 * sc, 0)) s.showShape = false;
         ImGui.sameLine();
         Ui.smallDim("into the project, folder \"" + FOLDER + "\"");
+
+        // buttons other mods registered for the generator (Heavymatica: "Save as Heavymatic")
+        var actions = dev.vitruvius.api.VitruviusApi.shapeActions();
+        if (!actions.isEmpty()) {
+            Ui.section("Send the shape to");
+            for (var a : actions) {
+                if (Ui.button(a.label() + "##shapeaction", false, can, 0, why)) runAction(s, a, g, origin);
+                if (a.hover() != null && can) Ui.tooltip(a.hover());
+                ImGui.sameLine();
+            }
+            ImGui.newLine();
+            Ui.smallDim("These open their own dialog, which leaves the editor (press F6 to come back).");
+        }
+    }
+
+    private static void runAction(EditorSession s, dev.vitruvius.api.VitruviusApi.ShapeAction a, GeneratorSettings g, BlockPos origin) {
+        try {
+            a.action().accept(new dev.vitruvius.api.ShapeActionContext(result, name.get().trim(), origin));
+        } catch (Throwable t) {
+            s.toast(ToastQueue.Level.WARN, a.label() + " failed: " + t.getMessage());
+        }
     }
 
     private static GeneratorSettings settings(ShapeType t) {
