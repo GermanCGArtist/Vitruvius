@@ -125,6 +125,14 @@ public final class LitematicaAdapter implements PlacementPort {
         return h;
     }
 
+    /** The description stored in the file's metadata ("" when none), read through the private cache; null when unreadable. */
+    public String description(Path file) {
+        Handle h = loadPrivate(file);
+        if (h == null) return null;
+        String d = h.schematic.getMetadata().getDescription();
+        return d == null ? "" : d;
+    }
+
     /** The enclosing size of the schematic (same rule as the 1.x arrays). */
     public Vec3i size(Handle h) {
         net.minecraft.core.Vec3i s = ArraySync.size(h.schematic);

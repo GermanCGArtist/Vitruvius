@@ -586,6 +586,45 @@ public final class PropertiesWindow {
         } else if (di != null && di.removed() > 0) {
             Ui.colored(Theme.ERR, String.format(Locale.ROOT, "−%,d removed by front objects and Booleans", di.removed()));
         }
+        shapeSection(s, o);
+    }
+
+    private static final imgui.type.ImInt[] SHAPE_SIZE = {new imgui.type.ImInt(1), new imgui.type.ImInt(1), new imgui.type.ImInt(1)};
+    private static String shapeKey = "";
+
+    /** Size fields of a generated shape (the same resize the viewport handles do). */
+    private static void shapeSection(EditorSession s, ObjectNode o) {
+        dev.vitruvius.shape.GeneratorSettings g = dev.vitruvius.editor.world.ShapeHandles.settingsOf(s, o);
+        if (g == null) return;
+        float sc = Ui.s();
+        Ui.section("Shape");
+        Vec3i size = dev.vitruvius.editor.world.ShapeHandles.sizeOf(g);
+        String key = o.id() + ":" + size + ":" + o.transform().pos();
+        if (!key.equals(shapeKey)) {
+            shapeKey = key;
+            SHAPE_SIZE[0].set(size.x());
+            SHAPE_SIZE[1].set(size.y());
+            SHAPE_SIZE[2].set(size.z());
+        }
+        Ui.smallDim(g.spec().type().displayName + " · drag the round handles in the viewport, or type a size");
+        String[] names = {"X", "Y", "Z"};
+        boolean commit = false;
+        for (int a = 0; a < 3; a++) {
+            boolean fixed = g.spec().type() == dev.vitruvius.shape.ShapeType.PLANE && g.spec().clamped().axis().ordinal() == a;
+            if (fixed) ImGui.beginDisabled();
+            ImGui.setNextItemWidth(130 * sc);
+            boolean edited = ImGui.inputInt(names[a] + "##shapesize" + a, SHAPE_SIZE[a], 1, 8);
+            if ((edited && !ImGui.isItemActive()) || ImGui.isItemDeactivatedAfterEdit()) commit = true;
+            if (fixed) ImGui.endDisabled();
+        }
+        if (commit) {
+            Vec3i ns = new Vec3i(clampSize(SHAPE_SIZE[0].get()), clampSize(SHAPE_SIZE[1].get()), clampSize(SHAPE_SIZE[2].get()));
+            if (!ns.equals(size) && !dev.vitruvius.editor.world.ShapeHandles.resize(s, o, g, ns, o.transform().pos())) shapeKey = "";
+        }
+    }
+
+    private static int clampSize(int v) {
+        return Math.max(1, Math.min(dev.vitruvius.shape.ShapeSpec.MAX_SIZE, v));
     }
 
     private static void frontSection(EditorSession s, Node n) {

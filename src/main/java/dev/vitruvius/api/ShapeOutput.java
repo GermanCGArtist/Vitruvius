@@ -32,6 +32,16 @@ public interface ShapeOutput {
         return false;
     }
 
+    /** Whether the result also saves a file into Litematica's schematics folder; the window then shows its folder picker. */
+    default boolean usesSchematicFolder() {
+        return false;
+    }
+
+    /** Like the 3-argument create, with the schematics folder chosen in the window (absolute, inside the schematics folder). */
+    default String create(ShapeActionContext ctx, int option, String listFolderId, java.nio.file.Path schematicFolder) {
+        return create(ctx, option, listFolderId);
+    }
+
     /** Like create, with the list folder id chosen in the window (null = top level). */
     default String create(ShapeActionContext ctx, int option, String folderId) {
         return create(ctx, option);

@@ -145,6 +145,20 @@ public final class ShapePresets {
 
     // --- JSON mapping ---
 
+    /** The settings as one JSON line (stored in the schematic's description so a generated shape can be resized later). */
+    public static String toJson(GeneratorSettings s) {
+        return writeSettings(s).toString();
+    }
+
+    /** Inverse of toJson; null when the text is not valid settings. */
+    public static GeneratorSettings fromJson(String text) {
+        try {
+            return readSettings(com.google.gson.JsonParser.parseString(text).getAsJsonObject());
+        } catch (RuntimeException e) {
+            return null;
+        }
+    }
+
     private static JsonObject writeSettings(GeneratorSettings s) {
         JsonObject o = new JsonObject();
         ShapeSpec sp = s.spec();

@@ -18,6 +18,11 @@ public final class ShapeSchematics {
 
     /** Builds the schematic; throws IllegalArgumentException naming the block when a palette entry does not parse. */
     public static LitematicaSchematic build(VoxelResult r, String name) {
+        return build(r, name, null);
+    }
+
+    /** Like build, and stores the shape's settings in the description (see ShapeMeta). */
+    public static LitematicaSchematic build(VoxelResult r, String name, String description) {
         BlockState[] states = states(r);
 
         AreaSelection area = new AreaSelection();
@@ -31,6 +36,7 @@ public final class ShapeSchematics {
         long now = System.currentTimeMillis();
         schematic.getMetadata().setTimeCreated(now);
         schematic.getMetadata().setTimeModified(now);
+        if (description != null) schematic.getMetadata().setDescription(description);
         return schematic;
     }
 

@@ -286,8 +286,8 @@ public final class ShapeWindow {
         Ui.section("Create");
         ImGui.setNextItemWidth(w);
         ImGui.inputText("##shapename", name);
-        if (out == null) drawFolder(sc);
-        else if (out.usesListFolders()) drawListFolder(sc);
+        if (out == null || out.usesSchematicFolder()) drawFolder(sc);
+        if (out != null && out.usesListFolders()) drawListFolder(sc);
         boolean busy = PreviewWorker.busy();
         if (error != null) Ui.colored(Theme.ERR, error);
         else if (busy) Ui.smallDim("Generating…");
@@ -323,7 +323,12 @@ public final class ShapeWindow {
         String err;
         try {
             String folderId = out.usesListFolders() ? listFolder : null;
-            err = out.create(new dev.vitruvius.api.ShapeActionContext(result, name.get().trim(), origin), option.get(), folderId);
+            Path dir = null;
+            if (out.usesSchematicFolder()) {
+                dir = schematicFolder(s);
+                if (dir == null) return;
+            }
+            err = out.create(new dev.vitruvius.api.ShapeActionContext(result, name.get().trim(), origin), option.get(), folderId, dir);
         } catch (Throwable ex) {
             err = ex.getMessage() == null ? ex.toString() : ex.getMessage();
         }
@@ -332,6 +337,23 @@ public final class ShapeWindow {
         String what = out.label().toLowerCase(java.util.Locale.ROOT);
         if (err != null) s.toast(ToastQueue.Level.WARN, "Not created: " + err);
         else s.toast(ToastQueue.Level.INFO, "Created " + what + " \"" + name.get().trim() + "\". Change the settings to make another.");
+    }
+
+    /** The schematics subfolder typed or chosen (made when missing), or null with a toast when it is not valid. */
+    private static Path schematicFolder(EditorSession s) {
+        Path root = ShapeSaver.root();
+        Path dir;
+        try {
+            dir = root.resolve(folder.get().trim()).normalize();
+        } catch (RuntimeException e) {
+            s.toast(ToastQueue.Level.WARN, "That is not a valid folder name");
+            return null;
+        }
+        if (!dir.startsWith(root)) {
+            s.toast(ToastQueue.Level.WARN, "The folder must be inside the schematics folder");
+            return null;
+        }
+        return dir;
     }
 
     private static final FolderPicker SCHEM_PICKER = new FolderPicker("schem");
@@ -501,23 +523,13 @@ public final class ShapeWindow {
     // ------------------------------------------------------------------ generate
 
     private static void generate(EditorSession s, GeneratorSettings g, BlockPos origin) {
-        Path root = ShapeSaver.root();
-        Path folder;
-        try {
-            folder = root.resolve(ShapeWindow.folder.get().trim()).normalize();
-        } catch (RuntimeException e) {
-            s.toast(ToastQueue.Level.WARN, "That is not a valid folder name");
-            return;
-        }
-        if (!folder.startsWith(root)) {
-            s.toast(ToastQueue.Level.WARN, "The folder must be inside the schematics folder");
-            return;
-        }
+        Path folder = schematicFolder(s);
+        if (folder == null) return;
         ShapePresets.setFolder(ShapeSaver.relative(folder));
         String base = name.get().trim();
         String unique = base;
         for (int i = 2; Files.exists(ShapeSaver.fileFor(folder, unique)); i++) unique = base + " " + i;
-        String err = ShapeSaver.write(result, folder, unique);
+        String err = ShapeSaver.write(result, folder, unique, ShapePresets.toJson(g));
         if (err != null) {
             s.toast(ToastQueue.Level.WARN, "Shape not saved: " + err);
             return;

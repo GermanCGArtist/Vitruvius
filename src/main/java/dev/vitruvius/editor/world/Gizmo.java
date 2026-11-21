@@ -66,6 +66,7 @@ public final class Gizmo {
     private static final double CLICK_PX = 5;
 
     private final EditorSession s;
+    private final ShapeHandles handles;
     private Mode mode = Mode.IDLE;
 
     // snapshot of the selection for the running gesture
@@ -107,18 +108,19 @@ public final class Gizmo {
 
     public Gizmo(EditorSession s) {
         this.s = s;
+        this.handles = new ShapeHandles(s);
     }
 
     // ------------------------------------------------------------------ queries
 
     /** True while any gesture runs or box select is armed: its keys are checked before the editor shortcuts. */
     public boolean modal() {
-        return mode != Mode.IDLE || armed || s.eyedropping();
+        return mode != Mode.IDLE || armed || s.eyedropping() || handles.active();
     }
 
     /** True when the gizmo owns the mouse (dragging or hovering a handle), so the pick hover outline stays off. */
     public boolean owningMouse() {
-        return mode != Mode.IDLE || armed || hover != Part.NONE || ringHover;
+        return mode != Mode.IDLE || armed || hover != Part.NONE || ringHover || handles.owning();
     }
 
     public Preview preview() {
@@ -242,6 +244,7 @@ public final class Gizmo {
 
     /** Esc, a right click, leaving the editor, a new world: drops the running gesture without changing anything. */
     public void cancel() {
+        handles.cancel();
         mode = Mode.IDLE;
         armed = false;
         s.cancelEyedrop();
@@ -349,6 +352,7 @@ public final class Gizmo {
         }
         EditorCamera cam = EditorCamera.get();
         if (cam.isNavigating()) return false;
+        if (handles.press(mc)) return true;
         Tool tool = s.tool();
         if ((tool == Tool.MOVE || tool == Tool.ROTATE) && !s.selection.isEmpty() && !s.selectionLocked() && snapshot(false)) {
             View v = view(mc);
@@ -433,6 +437,7 @@ public final class Gizmo {
     /** The left button went up. Returns true when it ended a gizmo or box gesture. */
     public boolean onLeftRelease(Minecraft mc, int mods) {
         pending = false;
+        if (handles.release()) return true;
         if (mode == Mode.AXIS || mode == Mode.PLANE) {
             commitDrag();
             return true;
@@ -588,6 +593,7 @@ public final class Gizmo {
             default -> { }
         }
 
+        handles.frame(mc, over);
         ImDrawList dl = ImGui.getBackgroundDrawList();
         boolean drawTool = haveSel && (mode == Mode.IDLE || mode == Mode.AXIS || mode == Mode.PLANE || mode == Mode.RING) && !armed;
         if (drawTool && (tool == Tool.MOVE || tool == Tool.ROTATE)) {
@@ -614,6 +620,10 @@ public final class Gizmo {
         if (cursorWanted != null && !over) UiHost.setCursor(cursorWanted);
 
         buildPreviewAndHud();
+        if (handles.active()) {
+            preview = handles.preview();
+            hud = handles.hud();
+        }
         if (preview != null && preview.face() != null) drawSnap(dl, v, sc);
     }
 

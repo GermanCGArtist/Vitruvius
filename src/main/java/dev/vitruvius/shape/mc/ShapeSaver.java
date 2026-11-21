@@ -69,6 +69,11 @@ public final class ShapeSaver {
      * files are never overwritten here. Returns null on success, else a message.
      */
     public static String write(VoxelResult result, Path folder, String name) {
+        return write(result, folder, name, null);
+    }
+
+    /** Like write, with a description stored in the file (the shape's settings). */
+    public static String write(VoxelResult result, Path folder, String name, String description) {
         if (name == null || name.isBlank()) return "Name is empty";
         Path dir = folder.toAbsolutePath().normalize();
         if (!dir.startsWith(root())) return "Folder is outside the schematics folder";
@@ -81,7 +86,7 @@ public final class ShapeSaver {
         if (Files.exists(file)) return "File exists";
         LitematicaSchematic schematic;
         try {
-            schematic = ShapeSchematics.build(result, name.trim());
+            schematic = ShapeSchematics.build(result, name.trim(), description);
         } catch (IllegalArgumentException e) {
             return e.getMessage();
         }
