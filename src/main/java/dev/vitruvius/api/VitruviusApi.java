@@ -59,6 +59,35 @@ public final class VitruviusApi {
         return ObjectTypes.viewsOf(typeId);
     }
 
+    // ---- (API 3) keeping scene objects of your own type in step with your own state; see ExternalBridge ----
+
+    /** True while the editor is running, so the calls below do something. */
+    public static boolean editorReady() {
+        return dev.vitruvius.editor.ExternalBridge.ready();
+    }
+
+    /** Adds an object of your type under Loose at a position; returns its id, or null. Not an undo step. */
+    public static java.util.UUID addObject(String typeId, String name, com.google.gson.JsonObject data, int x, int y, int z) {
+        return dev.vitruvius.editor.ExternalBridge.add(typeId, name, data, x, y, z);
+    }
+
+    public static boolean objectExists(java.util.UUID id) {
+        return dev.vitruvius.editor.ExternalBridge.exists(id);
+    }
+
+    /** Sets an object's pose (rotSteps clockwise quarter turns; mirror 0 none, 1 left-right, 2 front-back). Not an undo step. */
+    public static boolean setObjectPose(java.util.UUID id, int x, int y, int z, int rotSteps, int mirror) {
+        return dev.vitruvius.editor.ExternalBridge.setPose(id, x, y, z, rotSteps, mirror);
+    }
+
+    public static boolean setObjectData(java.util.UUID id, com.google.gson.JsonObject data) {
+        return dev.vitruvius.editor.ExternalBridge.setData(id, data);
+    }
+
+    public static boolean removeObject(java.util.UUID id) {
+        return dev.vitruvius.editor.ExternalBridge.remove(id);
+    }
+
     /** Rebuilds the placement list on the next tick (call after your entries changed). */
     public static void refreshList() {
         ListRefresh.later();

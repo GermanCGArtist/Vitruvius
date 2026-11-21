@@ -42,4 +42,9 @@ public interface ListEntry {
 
     /** Switches to the next cutaway state; called when the editor's cutaway button is clicked. */
     default void cycleCutaway() {}
+
+    /** False when the editor already shows this entry as a scene object, so the read-only 1.x row is left out there. */
+    default boolean shownInEditor() {
+        return true;
+    }
 }

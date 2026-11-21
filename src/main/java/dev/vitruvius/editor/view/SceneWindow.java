@@ -327,6 +327,7 @@ public final class SceneWindow {
         if (entries.isEmpty()) return;
         float sc = Ui.s();
         for (dev.vitruvius.api.ListEntry e : entries) {
+            if (!e.shownInEditor()) continue;
             float rowH = 24 * sc;
             float x0 = ImGui.getCursorScreenPosX(), y0 = ImGui.getCursorScreenPosY(), w = ImGui.getContentRegionAvailX();
             ImDrawList dl = ImGui.getWindowDrawList();
