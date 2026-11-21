@@ -99,6 +99,27 @@ public final class VitruviusApi {
         return out;
     }
 
+    /** One 1.x list folder, for pickers: its id, name and how deep it sits. */
+    public record FolderInfo(String id, String name, int depth) {}
+
+    /** Every 1.x list folder as a flattened tree (not the editor's project folders). */
+    public static List<FolderInfo> listFolders() {
+        List<FolderInfo> out = new ArrayList<>();
+        for (Folders.Node n : Folders.tree()) out.add(new FolderInfo(n.id, n.name, n.depth));
+        return out;
+    }
+
+    /** Makes a list folder (parent null = top level) and returns its id. */
+    public static String createFolder(String name, String parentId) {
+        return Folders.create(name, parentId);
+    }
+
+    /** Puts a list entry (or placement hash id) into a folder; null = top level. */
+    public static void moveEntryToFolder(String entryId, String folderId) {
+        Folders.moveId(entryId, folderId);
+        ListRefresh.later();
+    }
+
     /** Adds an output to the editor's Shape generator window (live preview and a create button). */
     public static void registerShapeOutput(ShapeOutput output) {
         if (output != null && !SHAPE_OUTPUTS.contains(output)) SHAPE_OUTPUTS.add(output);

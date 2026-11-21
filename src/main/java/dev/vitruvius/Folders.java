@@ -309,6 +309,17 @@ public final class Folders {
         save();
     }
 
+    /** Puts the list entry with this id into the folder (null = top level); for entries that are created after the fact. */
+    public static void moveId(String id, String folder) {
+        if (id == null || editorFolderOf(id) != null || isEditorFolder(folder)) return;
+        if (folder == null || !data().folders.containsKey(folder)) data().placements.remove(id);
+        else {
+            data().placements.put(id, folder);
+            data().folders.get(folder).open = true;
+        }
+        save();
+    }
+
     // ------------------------------------------------------------------ editor projects (2.0)
 
     /** Ids of the runtime folders that mirror the editor's tree start with this. */

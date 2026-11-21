@@ -27,6 +27,16 @@ public interface ShapeOutput {
      */
     String preview(ShapeActionContext ctx, int option);
 
+    /** Whether the result can go into a list folder; the window then shows a folder picker and passes its choice to create. */
+    default boolean usesListFolders() {
+        return false;
+    }
+
+    /** Like create, with the list folder id chosen in the window (null = top level). */
+    default String create(ShapeActionContext ctx, int option, String folderId) {
+        return create(ctx, option);
+    }
+
     /** Makes the real thing from the shape and removes the ghost. Returns an error message, or null on success. */
     String create(ShapeActionContext ctx, int option);
 }

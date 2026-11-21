@@ -80,6 +80,8 @@ public final class ShapeWindow {
     private static int activeOutput = -1;                  // the output whose ghost is up (index into shapeOutputs()), or -1
     private static boolean blockGhost;
     private static List<String> folderChoices = List.of();
+    private static String listFolder;                      // chosen 1.x list folder id, null = top level
+    private static final ImString newListFolder = new ImString("", 64);
 
     /** One Outline/Fill editor: pattern mode, the block text and the mode's extra numbers. */
     private static final class SlotState {
@@ -287,6 +289,7 @@ public final class ShapeWindow {
         ImGui.setNextItemWidth(w);
         ImGui.inputText("##shapename", name);
         if (out == null) drawFolder(sc);
+        else if (out.usesListFolders()) drawListFolder(sc);
         boolean busy = PreviewWorker.busy();
         if (error != null) Ui.colored(Theme.ERR, error);
         else if (busy) Ui.smallDim("Generating…");
@@ -321,7 +324,8 @@ public final class ShapeWindow {
     private static void createOutput(EditorSession s, dev.vitruvius.api.ShapeOutput out, BlockPos origin) {
         String err;
         try {
-            err = out.create(new dev.vitruvius.api.ShapeActionContext(result, name.get().trim(), origin), option.get());
+            String folderId = out.usesListFolders() ? resolveListFolder() : null;
+            err = out.create(new dev.vitruvius.api.ShapeActionContext(result, name.get().trim(), origin), option.get(), folderId);
         } catch (Throwable ex) {
             err = ex.getMessage() == null ? ex.toString() : ex.getMessage();
         }
@@ -330,6 +334,35 @@ public final class ShapeWindow {
         String what = out.label().toLowerCase(java.util.Locale.ROOT);
         if (err != null) s.toast(ToastQueue.Level.WARN, "Not created: " + err);
         else s.toast(ToastQueue.Level.INFO, "Created " + what + " \"" + name.get().trim() + "\". Change the settings to make another.");
+    }
+
+    /** The list folder row: where the new entry goes in the placement list (pick one, or type a name for a new one). */
+    private static void drawListFolder(float sc) {
+        var folders = dev.vitruvius.api.VitruviusApi.listFolders();
+        String shown = "(top level)";
+        for (var f : folders) if (f.id().equals(listFolder)) shown = f.name();
+        if (listFolder != null && shown.equals("(top level)")) listFolder = null;     // the folder was deleted
+        ImGui.setNextItemWidth(-1);
+        if (ImGui.beginCombo("##listfolder", "Folder: " + shown)) {
+            if (ImGui.selectable("(top level)", listFolder == null)) listFolder = null;
+            for (var f : folders) {
+                if (ImGui.selectable("  ".repeat(f.depth()) + f.name() + "##lf" + f.id(), f.id().equals(listFolder))) listFolder = f.id();
+            }
+            ImGui.endCombo();
+        }
+        Ui.tooltip("The folder of the placement list the new entry goes into.");
+        ImGui.setNextItemWidth(-1);
+        ImGui.inputTextWithHint("##newlistfolder", "or a new folder name (inside the one above)", newListFolder);
+    }
+
+    /** The folder id to use: a new folder when a name was typed (made now, inside the chosen one), else the chosen one. */
+    private static String resolveListFolder() {
+        String n = newListFolder.get().trim();
+        if (n.isEmpty()) return listFolder;
+        String id = dev.vitruvius.api.VitruviusApi.createFolder(n, listFolder);
+        listFolder = id;
+        newListFolder.set("");
+        return id;
     }
 
     /** The folder row: where the schematic file goes (inside Litematica's schematics folder). */
