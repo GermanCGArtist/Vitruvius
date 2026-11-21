@@ -114,6 +114,7 @@ public final class ShapeHandles {
 
     /** Whether this side can change: a plane keeps its thickness. */
     private static boolean resizable(GeneratorSettings g, int axis) {
+        if (g.spec().type() == ShapeType.CUSTOM) return false;       // its size comes from the drawing
         return !(g.spec().type() == ShapeType.PLANE && g.spec().clamped().axis().ordinal() == axis);
     }
 
@@ -122,7 +123,7 @@ public final class ShapeHandles {
         ShapeSpec sp = g.spec();
         ShapeSpec ns = new ShapeSpec(sp.type(), newSize.x(), newSize.y(), newSize.z(), sp.axis(), sp.thickness(),
                 sp.param1(), sp.param2(), sp.anchorCenter()).clamped();
-        GeneratorSettings ng = new GeneratorSettings(ns, g.outline(), g.fill(), g.name());
+        GeneratorSettings ng = new GeneratorSettings(ns, g.outline(), g.fill(), g.name(), g.sketch());
         VoxelResult r = ShapeGenerator.generate(ng, () -> false);
         return regenerate(s, o, ng, r, newPos);
     }

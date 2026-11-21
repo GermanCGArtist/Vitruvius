@@ -606,6 +606,10 @@ public final class PropertiesWindow {
             SHAPE_SIZE[1].set(size.y());
             SHAPE_SIZE[2].set(size.z());
         }
+        if (g.spec().type() == dev.vitruvius.shape.ShapeType.CUSTOM) {
+            Ui.smallDim("Custom 2D · " + size.x() + " x " + size.y() + " x " + size.z() + ". Change it in the Shape generator's sketchpad.");
+            return;
+        }
         Ui.smallDim(g.spec().type().displayName + " · drag the round handles in the viewport, or type a size");
         String[] names = {"X", "Y", "Z"};
         boolean commit = false;

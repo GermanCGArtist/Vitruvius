@@ -296,8 +296,16 @@ public final class ReconcileCore {
 
     // ------------------------------------------------------------------------------------------ the walk
 
+    /** Objects whose blocks are not shown for now (nothing is saved): the Shape generator hides the shape while an output previews it. */
+    private static final Set<UUID> SUPPRESSED = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+    public static void suppress(UUID objectId, boolean on) {
+        if (on) SUPPRESSED.add(objectId);
+        else SUPPRESSED.remove(objectId);
+    }
+
     private void visit(Node n, boolean off, ProjectNode proj, Run r) {
-        boolean o = off || n.hidden();
+        boolean o = off || n.hidden() || (n instanceof ObjectNode && SUPPRESSED.contains(n.id()));
         if (n instanceof ProjectNode p) proj = p;
         if (!o && localOnly != null && proj != null && (n instanceof ObjectNode || n instanceof AssemblyNode)
                 && !localOnly.contains(r.scene.ownerOf(n).id())) o = true;

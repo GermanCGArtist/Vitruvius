@@ -121,7 +121,7 @@ public class ShapeGeneratorScreen extends GuiBase {
 
     private void apply(GeneratorSettings s) {
         ShapeSpec spec = s.spec().clamped();
-        type = spec.type();
+        type = spec.type() == ShapeType.CUSTOM ? ShapeType.BOX : spec.type();     // Custom 2D is drawn in the editor only
         sizeX = spec.sizeX();
         sizeY = spec.sizeY();
         sizeZ = spec.sizeZ();
@@ -192,7 +192,7 @@ public class ShapeGeneratorScreen extends GuiBase {
 
         int y = top;
         addLabel(LEFT, y + 6, 70, 10, WHITE, "Shape");
-        typeBox = new ShapeDropDown<>(LEFT + 72, y, 100, List.of(ShapeType.values()), t -> t.displayName, h);
+        typeBox = new ShapeDropDown<>(LEFT + 72, y, 100, java.util.Arrays.stream(ShapeType.values()).filter(t -> t != ShapeType.CUSTOM).toList(), t -> t.displayName, h);
         typeBox.setSelectedEntry(type);
         addDropDown(typeBox);
         y += row;

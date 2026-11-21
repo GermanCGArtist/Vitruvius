@@ -60,6 +60,12 @@ final class RpRenderer {
         return b.build();
     }
 
+    /**
+     * Other textures an ImGui image may use (ImGui texture ids other than the font's 1): id to view, null = unknown.
+     * They are sampled with nearest filtering, so pixel art stays sharp.
+     */
+    static volatile java.util.function.LongFunction<GpuTextureView> extraTextures = id -> null;
+
     private GpuTexture fontTexture;
     private GpuTextureView fontView;
     private final Projection projection = new Projection();
@@ -162,6 +168,8 @@ final class RpRenderer {
         GpuDevice device = RenderSystem.getDevice();
         CommandEncoder encoder = device.createCommandEncoder();
         GpuSampler sampler = RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR);
+        GpuSampler nearest = RenderSystem.getSamplerCache().getClampToEdge(FilterMode.NEAREST);
+        long boundTex = 1L;
 
         RenderSystem.backupProjectionMatrix();
         try {
@@ -188,6 +196,13 @@ final class RpRenderer {
                         if (x1 <= x0 || y1 <= y0) continue;
                         int count = dd.getCmdListCmdBufferElemCount(n, c);
                         if (count <= 0) continue;
+                        long tex = dd.getCmdListCmdBufferTextureId(n, c);
+                        if (tex != boundTex) {
+                            GpuTextureView extra = tex == 1L ? null : extraTextures.apply(tex);
+                            if (tex == 1L || extra == null) pass.setUniform("Sampler0", fontView, sampler);
+                            else pass.setUniform("Sampler0", extra, nearest);
+                            boundTex = tex;
+                        }
                         pass.enableScissor(x0, fbH - y1, x1 - x0, y1 - y0);
                         pass.drawIndexed(count, 1, firstIndex[n] + dd.getCmdListCmdBufferIdxOffset(n, c),
                                 baseVertex[n] + dd.getCmdListCmdBufferVtxOffset(n, c), 0);

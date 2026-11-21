@@ -24,6 +24,14 @@ public final class UiHost {
         HostCore.setScale(scale);
     }
 
+    /**
+     * Lets ImGui images use textures of the game: {@code lookup} maps an ImGui texture id (any id but 1, the font) to
+     * the texture view to sample, or null. Called while drawing, on the render thread; sampled with nearest filtering.
+     */
+    public static void setTextureLookup(java.util.function.LongFunction<com.mojang.renderpearl.api.textures.GpuTextureView> lookup) {
+        RpRenderer.extraTextures = lookup == null ? id -> null : lookup;
+    }
+
     /** Whether ImGui is up (natives loaded, context created). False until the first frame with a visible layer. */
     public static boolean isInitialized() {
         return HostCore.isInitialized();

@@ -12,6 +12,7 @@ import dev.vitruvius.shape.GeneratorSettings;
 import dev.vitruvius.shape.PatternMode;
 import dev.vitruvius.shape.ShapeSpec;
 import dev.vitruvius.shape.ShapeType;
+import dev.vitruvius.shape.Sketch;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.io.Reader;
@@ -176,7 +177,70 @@ public final class ShapePresets {
         o.add("outline", writeSlot(s.outline()));
         o.add("fill", writeSlot(s.fill()));
         o.addProperty("name", s.name());
+        if (sp.type() == ShapeType.CUSTOM && s.sketch() != null) o.add("sketch", writeSketch(s.sketch()));
         return o;
+    }
+
+    /** Cells run-length coded: [count, value, ...] with value 0 = empty, 1 = shape, k + 2 = palette[k]. */
+    private static JsonObject writeSketch(Sketch sk) {
+        JsonObject o = new JsonObject();
+        o.addProperty("depth", sk.depth());
+        o.addProperty("x0", sk.x0());
+        o.addProperty("y0", sk.y0());
+        o.addProperty("w", sk.w());
+        o.addProperty("h", sk.h());
+        List<String> palette = new ArrayList<>();
+        JsonArray rle = new JsonArray();
+        int run = 0, prev = -1;
+        for (String c : sk.cells()) {
+            int v;
+            if (c == null) v = 0;
+            else if (c.isEmpty()) v = 1;
+            else {
+                int i = palette.indexOf(c);
+                if (i < 0) {
+                    palette.add(c);
+                    i = palette.size() - 1;
+                }
+                v = i + 2;
+            }
+            if (v == prev) {
+                run++;
+                continue;
+            }
+            if (run > 0) {
+                rle.add(run);
+                rle.add(prev);
+            }
+            prev = v;
+            run = 1;
+        }
+        if (run > 0) {
+            rle.add(run);
+            rle.add(prev);
+        }
+        JsonArray pal = new JsonArray();
+        for (String p : palette) pal.add(p);
+        o.add("palette", pal);
+        o.add("rle", rle);
+        return o;
+    }
+
+    private static Sketch readSketch(JsonObject o) {
+        int w = Math.max(0, num(o, "w", 0)), h = Math.max(0, num(o, "h", 0));
+        if ((long) w * h > 4_000_000L) return Sketch.EMPTY;
+        List<String> palette = new ArrayList<>();
+        if (o.get("palette") instanceof JsonArray a) for (JsonElement e : a) palette.add(e.getAsString());
+        String[] cells = new String[w * h];
+        if (o.get("rle") instanceof JsonArray a) {
+            int pos = 0;
+            for (int i = 0; i + 1 < a.size(); i += 2) {
+                int n = a.get(i).getAsInt(), v = a.get(i + 1).getAsInt();
+                String cell = v == 0 ? null : v == 1 ? "" : v - 2 < palette.size() ? palette.get(v - 2) : null;
+                for (int j = 0; j < n && pos < cells.length; j++) cells[pos++] = cell;
+            }
+        }
+        return new Sketch(num(o, "depth", 1), num(o, "x0", 0), num(o, "y0", 0), w, h, cells);
     }
 
     private static JsonObject writeSlot(BlockSlot b) {
@@ -206,7 +270,8 @@ public final class ShapePresets {
                 o.get("spec") instanceof JsonObject s ? readSpec(s, d.spec()) : d.spec(),
                 o.get("outline") instanceof JsonObject s ? readSlot(s, d.outline()) : d.outline(),
                 o.get("fill") instanceof JsonObject s ? readSlot(s, d.fill()) : d.fill(),
-                str(o, "name", d.name()));
+                str(o, "name", d.name()),
+                o.get("sketch") instanceof JsonObject s ? readSketch(s) : null).withSketchSize();
     }
 
     private static ShapeSpec readSpec(JsonObject o, ShapeSpec d) {

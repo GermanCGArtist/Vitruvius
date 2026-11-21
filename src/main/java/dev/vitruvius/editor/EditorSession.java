@@ -729,6 +729,7 @@ public final class EditorSession {
     public boolean onKey(int key, int mods) {
         boolean ctrl = (mods & (GLFW.GLFW_MOD_CONTROL | GLFW.GLFW_MOD_SUPER)) != 0;
         boolean shift = (mods & GLFW.GLFW_MOD_SHIFT) != 0, alt = (mods & GLFW.GLFW_MOD_ALT) != 0;
+        if (dev.vitruvius.editor.view.SketchPad.onKey(key, ctrl, shift, alt)) return true;   // the sketchpad's own keys while it is in use
         if (gizmo.modal()) {                       // a gesture is running: its keys only (DESIGN 12.4)
             gizmo.onKey(key, mods);
             return true;

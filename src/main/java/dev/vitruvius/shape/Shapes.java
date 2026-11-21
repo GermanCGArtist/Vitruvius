@@ -14,7 +14,7 @@ public final class Shapes {
     public static boolean inside(ShapeSpec spec, int x, int y, int z) {
         int sx = spec.sizeX(), sy = spec.sizeY(), sz = spec.sizeZ();
         return switch (spec.type()) {
-            case BOX, PLANE -> true;
+            case BOX, PLANE, CUSTOM -> true;     // CUSTOM is generated from its Sketch, see ShapeGenerator
             case FRAME -> frame(spec.thickness(), x, y, z, sx, sy, sz);
             case ELLIPSOID -> ellipse(x, sx, y, sy) + sq(off(z, sz) / (sz / 2.0)) <= 1 + EPS;
             case ARCH -> spec.axis() == Axis.X

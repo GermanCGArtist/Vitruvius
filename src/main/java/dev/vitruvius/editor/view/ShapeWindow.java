@@ -62,6 +62,7 @@ public final class ShapeWindow {
     private static final ImInt sx = new ImInt(9), sy = new ImInt(9), sz = new ImInt(9);
     private static final ImInt axis = new ImInt(1);
     private static final ImInt thickness = new ImInt(1), param1 = new ImInt(3), param2 = new ImInt(1);
+    private static final ImInt depth = new ImInt(4);        // Custom 2D: how far the drawing is extruded
     private static final ImString name = new ImString("shape", 64);
     private static final SlotState outline = new SlotState(), fill = new SlotState();
 
@@ -147,11 +148,23 @@ public final class ShapeWindow {
     /** Removes the output ghost and drops pending work; safe to call at any time (editor exit, window closed). */
     public static void close() {
         PreviewWorker.cancel();
+        SketchPad.close();
+        setHiddenShape(null);
         clearOutputGhost();
         boundId = null;
         result = null;
         resultJson = "";
         requestedJson = "";
+    }
+
+    private static UUID hiddenShape;
+
+    /** The shape whose blocks are not drawn right now (null = none): only the viewport, nothing is saved. */
+    private static void setHiddenShape(UUID id) {
+        if (java.util.Objects.equals(id, hiddenShape)) return;
+        if (hiddenShape != null) dev.vitruvius.editor.mc.ReconcileCore.suppress(hiddenShape, false);
+        hiddenShape = id;
+        if (id != null) dev.vitruvius.editor.mc.ReconcileCore.suppress(id, true);
     }
 
     private static void clearOutputGhost() {
@@ -180,6 +193,8 @@ public final class ShapeWindow {
         param2.set(sp.param2());
         outline.load(g.outline());
         fill.load(g.fill());
+        if (g.sketch() != null) depth.set(g.sketch().depth());
+        SketchPad.load(g.sketch());
     }
 
     private static ObjectNode bound(EditorSession s) {
@@ -196,6 +211,11 @@ public final class ShapeWindow {
         }
         VoxelResult r = dev.vitruvius.shape.ShapeGenerator.generate(g, () -> false);
         if (r == null || r.blockCount() == 0) {
+            if (g.spec().type() == ShapeType.CUSTOM) {
+                s.toast(ToastQueue.Level.WARN, "Draw something in the sketchpad first");
+                SketchPad.open();
+                return;
+            }
             s.toast(ToastQueue.Level.WARN, "That makes an empty shape");
             return;
         }
@@ -262,7 +282,11 @@ public final class ShapeWindow {
         }
         Ui.endWindow();
         if (!OPEN.get()) s.showShape = false;        // the X button; the Close button sets showShape itself
-        if (!s.showShape) close();
+        if (s.showShape) {
+            SketchPad.draw(result == null ? "" : result.sizeX() + " x " + result.sizeY() + " x " + result.sizeZ() + " blocks");
+        } else {
+            close();
+        }
     }
 
     /** Follows the selection (a generated shape rebinds the window) and picks up changes made outside (handles, Properties). */
@@ -318,15 +342,31 @@ public final class ShapeWindow {
         }
 
         Ui.section("Shape");
-        ImGui.setNextItemWidth(w);
+        boolean custom = TYPES[type.get()] == ShapeType.CUSTOM;
+        ImGui.setNextItemWidth(custom ? -128 * sc : w);
         ImGui.combo("##shapetype", type, TYPE_NAMES);
         t = TYPES[type.get()];
-        size("X", sx, sc);
-        size("Y", sy, sc);
-        size("Z", sz, sc);
-        if (t.usesAxis()) {
+        custom = t == ShapeType.CUSTOM;
+        if (custom) {
+            ImGui.sameLine();
+            if (ImGui.button(SketchPad.isOpen() ? "Sketchpad ✓" : "Open sketchpad", 120 * sc, 0)) {
+                if (SketchPad.isOpen()) SketchPad.close();
+                else SketchPad.open();
+            }
+            Ui.tooltip("Draw the shape pixel by pixel; it is extruded along the axis below");
+            Ui.smallDim(result == null ? "Draw it in the sketchpad, then it is extruded to a 3D shape."
+                    : "Size " + result.sizeX() + " x " + result.sizeY() + " x " + result.sizeZ() + " (from the drawing)");
             ImGui.setNextItemWidth(80 * sc);
-            ImGui.combo("Axis", axis, AXIS_NAMES);
+            ImGui.combo("Extrude along", axis, AXIS_NAMES);
+            number("Depth", depth, 1, ShapeSpec.MAX_SIZE, sc);
+        } else {
+            size("X", sx, sc);
+            size("Y", sy, sc);
+            size("Z", sz, sc);
+            if (t.usesAxis()) {
+                ImGui.setNextItemWidth(80 * sc);
+                ImGui.combo("Axis", axis, AXIS_NAMES);
+            }
         }
         number("Thickness", thickness, 1, ShapeSpec.MAX_SIZE, sc);
         if (t.param1Label != null) number(t.param1Label, param1, 0, ShapeSpec.MAX_SIZE, sc);
@@ -359,6 +399,9 @@ public final class ShapeWindow {
                 ImGui.combo("##shapeoption", option, opts.toArray(new String[0]));
             }
         }
+
+        // while an output (Heavymatic) shows the shape, the shape's own blocks stay out of the way
+        setHiddenShape(out != null && o != null ? o.id() : null);
 
         // the controls changed: regenerate off-thread, then the object takes the new file
         String blockError = outline.error() != null ? outline.error() : fill.error();
@@ -562,6 +605,9 @@ public final class ShapeWindow {
     private static GeneratorSettings settings(ShapeType t) {
         ShapeSpec spec = new ShapeSpec(t, sx.get(), sy.get(), sz.get(), Axis.values()[axis.get()], thickness.get(),
                 param1.get(), param2.get(), false).clamped();
+        if (t == ShapeType.CUSTOM) {
+            return new GeneratorSettings(spec, outline.slot(), fill.slot(), name.get(), SketchPad.sketch(depth.get())).withSketchSize();
+        }
         return new GeneratorSettings(spec, outline.slot(), fill.slot(), name.get());
     }
 

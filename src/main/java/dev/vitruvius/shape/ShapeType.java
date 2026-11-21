@@ -35,7 +35,8 @@ public enum ShapeType {
     TORUS("Torus", "Tube diameter", null),
     ARCH("Arch", "Arch width", null),
     TUBE("Tube", "Wall width", null),
-    GRID("Grid", "Spacing", "Line width");
+    GRID("Grid", "Spacing", "Line width"),
+    CUSTOM("Custom 2D", null, null);
 
     public final String displayName;
     /** Label of ShapeSpec.param1 for this type, null = not used. */

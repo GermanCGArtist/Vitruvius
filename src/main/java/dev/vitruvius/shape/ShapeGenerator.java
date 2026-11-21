@@ -71,7 +71,84 @@ public final class ShapeGenerator {
     }
 
     public static VoxelResult generate(GeneratorSettings s, BooleanSupplier cancelled) {
+        if (s.spec().type() == ShapeType.CUSTOM) return generateSketch(s, cancelled);
         return generate(s.spec().clamped(), s.outline(), s.fill(), cancelled);
+    }
+
+    /**
+     * CUSTOM: extrudes the drawing along spec.axis by sketch.depth. Outline = pixels within thickness of the drawing's
+     * edge (over the whole depth) plus the first and last thickness layers (the caps); Fill = the pixels in between.
+     * A pixel pinned to a block uses it for its whole column, outline or not. Pixels beyond MAX are cropped.
+     */
+    private static VoxelResult generateSketch(GeneratorSettings g, BooleanSupplier cancelled) {
+        ShapeSpec spec = g.spec().clamped();
+        Sketch sk = g.sketch() == null ? Sketch.EMPTY : g.sketch();
+        int w = sk.usedW(), h = sk.usedH(), d = sk.depthClamped();
+        int[] size = sk.size(spec.axis());
+        int sx = size[0], sy = size[1], sz = size[2];
+        short[] cells = new short[sx * sy * sz];
+        if (sk.isEmpty()) return new VoxelResult(sx, sy, sz, cells, List.of(), 0);
+
+        short[] dist = new short[w * h];
+        for (int r = 0; r < h; r++) for (int c = 0; c < w; c++) dist[r * w + c] = sk.cells()[r * sk.w() + c] != null ? FAR : 0;
+        for (int r = 0; r < h; r++) {
+            for (int c = 0; c < w; c++) {
+                int i = r * w + c, m = dist[i];
+                if (m == 0) continue;
+                m = Math.min(m, c == 0 ? 1 : dist[i - 1] + 1);
+                m = Math.min(m, r == 0 ? 1 : dist[i - w] + 1);
+                dist[i] = (short) m;
+            }
+        }
+        for (int r = h - 1; r >= 0; r--) {
+            for (int c = w - 1; c >= 0; c--) {
+                int i = r * w + c, m = dist[i];
+                if (m == 0) continue;
+                m = Math.min(m, c == w - 1 ? 1 : dist[i + 1] + 1);
+                m = Math.min(m, r == h - 1 ? 1 : dist[i + w] + 1);
+                dist[i] = (short) m;
+            }
+        }
+
+        BlockSlot outline = g.outline(), fill = g.fill();
+        Palette palette = new Palette();
+        int[] outlineIds = new int[outline.entries().size()];
+        int[] fillIds = new int[fill.entries().size()];
+        Arrays.fill(outlineIds, -1);
+        Arrays.fill(fillIds, -1);
+        Map<String, Integer> pinned = new HashMap<>();
+        int thickness = spec.thickness(), count = 0;
+        for (int r = 0; r < h; r++) {
+            if (cancelled.getAsBoolean()) return null;
+            for (int c = 0; c < w; c++) {
+                String cell = sk.cells()[r * sk.w() + c];
+                if (cell == null) continue;
+                for (int k = 0; k < d; k++) {
+                    int x, y, z;
+                    switch (spec.axis()) {
+                        case Z -> { x = c; y = h - 1 - r; z = k; }
+                        case Y -> { x = c; y = k; z = r; }
+                        default -> { x = k; y = h - 1 - r; z = c; }
+                    }
+                    int id;
+                    if (!cell.isEmpty()) {
+                        id = pinned.computeIfAbsent(cell, palette::idOf);
+                    } else {
+                        boolean isOutline = dist[r * w + c] <= thickness || k < thickness || k >= d - thickness;
+                        BlockSlot slot = isOutline ? outline : fill;
+                        int pick = Patterns.pick(slot, x, y, z, sx, sy, sz);
+                        if (pick < 0) continue;
+                        int[] ids = isOutline ? outlineIds : fillIds;
+                        id = ids[pick];
+                        if (id < 0) id = ids[pick] = palette.idOf(slot.entries().get(pick).blockState());
+                    }
+                    if (id == 0) continue;
+                    cells[(y * sz + z) * sx + x] = (short) id;
+                    count++;
+                }
+            }
+        }
+        return new VoxelResult(sx, sy, sz, cells, List.copyOf(palette.states), count);
     }
 
     /**
