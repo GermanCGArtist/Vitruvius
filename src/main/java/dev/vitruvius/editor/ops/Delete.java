@@ -43,6 +43,22 @@ public final class Delete extends BaseCommand {
             touch(n);
             remember(n.parent());
         }
+        List<dev.vitruvius.editor.core.ExternalNode> gone = new ArrayList<>();
+        for (Node n : nodes) collectExternal(n, gone);
         for (Node n : nodes) n.parent().removeChild(n);
+        for (dev.vitruvius.editor.core.ExternalNode x : gone) {          // the type's owner may have a thing of its own to remove
+            dev.vitruvius.api.SceneObjectType type = dev.vitruvius.api.ObjectTypes.get(x.typeId());
+            if (type == null) continue;
+            try {
+                type.onRemoved(x.data().deepCopy());
+            } catch (RuntimeException ignored) {
+                // another mod's problem must not undo the delete
+            }
+        }
+    }
+
+    private static void collectExternal(Node n, List<dev.vitruvius.editor.core.ExternalNode> out) {
+        if (n instanceof dev.vitruvius.editor.core.ExternalNode x) out.add(x);
+        for (Node c : n.children()) collectExternal(c, out);
     }
 }

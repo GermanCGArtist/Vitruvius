@@ -43,4 +43,11 @@ public interface SceneObjectType {
     default boolean affectsBlocks() {
         return false;
     }
+
+    /**
+     * Called when the user deletes an object of this type (also when it goes with a folder, and again on Redo). Undo
+     * puts the object back without calling anything, so keep what you need to restore it. Closing a project does not
+     * call this: the objects are only put away.
+     */
+    default void onRemoved(JsonObject data) {}
 }

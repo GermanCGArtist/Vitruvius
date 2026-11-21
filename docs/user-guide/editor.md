@@ -53,7 +53,7 @@ bar stay). *Windows → Reset layout* in the toolbar puts them back.
 
 The tree of everything in the editor, open projects first (the active one has an **ACTIVE** badge) and **Loose** last.
 
-- **Click** selects a row, **Shift+click** and **Ctrl+click** select several. The arrow keys move the selection when
+- **Click** selects a row, **Shift+click** selects a range, **Ctrl+click** adds or removes one row. The arrow keys move the selection when
   the window has focus; Left and Right collapse and expand, **Space** toggles visibility, **Enter** frames the object.
 - **F2**, or a double-click on the name, renames. **Enter** confirms and **Esc** cancels.
 - **Drag** a row to reorder it (a teal line shows where), onto a folder to move it in, or onto another project to move
