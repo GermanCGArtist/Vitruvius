@@ -28,6 +28,7 @@ import net.minecraft.core.BlockPos;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -72,6 +73,13 @@ public final class ShapeWindow {
     private static VoxelResult result;
     private static String error;
     private static String lastShownKey = "";
+    private static final ImString folder = new ImString("Shapes", 128);
+    private static final ImInt output = new ImInt(0);      // 0 = schematic, n = shapeOutputs().get(n - 1)
+    private static final ImInt option = new ImInt(0);
+    private static String outputStatus;
+    private static int activeOutput = -1;                  // the output whose ghost is up (index into shapeOutputs()), or -1
+    private static boolean blockGhost;
+    private static List<String> folderChoices = List.of();
 
     /** One Outline/Fill editor: pattern mode, the block text and the mode's extra numbers. */
     private static final class SlotState {
@@ -132,6 +140,8 @@ public final class ShapeWindow {
             anchorCenter = sp.anchorCenter();
             outline.load(g.outline());
             fill.load(g.fill());
+            String f = ShapePresets.folder();
+            folder.set(f == null || f.isBlank() ? FOLDER : f);
             name.set(g.name() == null || g.name().isBlank() ? "shape" : g.name());
         }
         moveHere();
@@ -142,9 +152,24 @@ public final class ShapeWindow {
     public static void close() {
         PreviewWorker.cancel();
         ShapePreview.clear();
+        blockGhost = false;
+        clearOutputGhost();
         requested = null;
         result = null;
         lastShownKey = "";
+    }
+
+    private static void clearOutputGhost() {
+        var outs = dev.vitruvius.api.VitruviusApi.shapeOutputs();
+        if (activeOutput >= 0 && activeOutput < outs.size()) {
+            try {
+                outs.get(activeOutput).preview(null, 0);
+            } catch (Throwable ignored) {
+                // the other mod's ghost is its own problem
+            }
+        }
+        activeOutput = -1;
+        outputStatus = null;
     }
 
     private static void moveHere() {
@@ -201,6 +226,26 @@ public final class ShapeWindow {
         ImGui.sameLine();
         Ui.smallDim(target.getX() + ", " + target.getY() + ", " + target.getZ());
 
+        var outs = dev.vitruvius.api.VitruviusApi.shapeOutputs();
+        if (output.get() > outs.size()) output.set(0);
+        dev.vitruvius.api.ShapeOutput out = output.get() == 0 ? null : outs.get(output.get() - 1);
+        if (!outs.isEmpty()) {
+            Ui.section("Output");
+            String[] names = new String[outs.size() + 1];
+            names[0] = "Schematic";
+            for (int i = 0; i < outs.size(); i++) names[i + 1] = outs.get(i).label();
+            ImGui.setNextItemWidth(130 * sc);
+            if (ImGui.combo("##shapeoutput", output, names)) option.set(0);
+            out = output.get() == 0 ? null : outs.get(output.get() - 1);
+            if (out != null) {
+                var opts = out.options();
+                if (option.get() >= opts.size()) option.set(0);
+                ImGui.sameLine();
+                ImGui.setNextItemWidth(-1);
+                ImGui.combo("##shapeoption", option, opts.toArray(new String[0]));
+            }
+        }
+
         // build the settings and (re)generate when something changed
         String blockError = outline.error() != null ? outline.error() : fill.error();
         GeneratorSettings g = settings(t);
@@ -213,10 +258,27 @@ public final class ShapeWindow {
                     lastShownKey = "";      // show it below with the current origin
                 });
             }
-            String key = origin.toString() + (result == null ? 0 : System.identityHashCode(result));
+            String key = origin.toString() + (result == null ? 0 : System.identityHashCode(result)) + "/" + output.get() + "/" + option.get();
             if (result != null && !key.equals(lastShownKey)) {
                 lastShownKey = key;
-                ShapePreview.show(result, origin);
+                if (out == null) {
+                    clearOutputGhost();
+                    ShapePreview.show(result, origin);
+                    blockGhost = true;
+                } else {
+                    if (blockGhost) {
+                        ShapePreview.clear();
+                        blockGhost = false;
+                    }
+                    int idx = output.get() - 1;
+                    if (activeOutput >= 0 && activeOutput != idx) clearOutputGhost();
+                    activeOutput = idx;
+                    try {
+                        outputStatus = out.preview(new dev.vitruvius.api.ShapeActionContext(result, name.get().trim(), origin), option.get());
+                    } catch (Throwable ex) {
+                        outputStatus = out.label() + " preview failed: " + ex.getMessage();
+                    }
+                }
             }
         }
         error = blockError;
@@ -224,22 +286,27 @@ public final class ShapeWindow {
         Ui.section("Create");
         ImGui.setNextItemWidth(w);
         ImGui.inputText("##shapename", name);
+        if (out == null) drawFolder(sc);
         boolean busy = PreviewWorker.busy();
         if (error != null) Ui.colored(Theme.ERR, error);
         else if (busy) Ui.smallDim("Generating…");
+        else if (out != null && outputStatus != null) Ui.smallDim(outputStatus);
         else if (result != null) Ui.smallDim(result.blockCount() + " blocks, " + result.sizeX() + " x " + result.sizeY() + " x " + result.sizeZ()
                 + "  at " + origin.getX() + ", " + origin.getY() + ", " + origin.getZ());
         boolean can = error == null && !busy && result != null && result.blockCount() > 0 && !name.get().isBlank();
         String why = error != null ? error : busy ? "Still generating" : result == null || result.blockCount() == 0 ? "The shape is empty" : "Give it a name";
-        if (Ui.button("Generate", true, can, 120 * sc, why)) generate(s, g, origin);
+        String create = out == null ? "Generate" : "Create " + out.label().toLowerCase(java.util.Locale.ROOT);
+        if (Ui.button(create, true, can, 150 * sc, why)) {
+            if (out == null) generate(s, g, origin);
+            else createOutput(s, out, origin);
+        }
+        if (out != null && out.hover() != null && can) Ui.tooltip(out.hover());
         ImGui.sameLine();
         if (ImGui.button("Close", 80 * sc, 0)) s.showShape = false;
-        ImGui.sameLine();
-        Ui.smallDim("into the project, folder \"" + FOLDER + "\"");
 
-        // buttons other mods registered for the generator (Heavymatica: "Save as Heavymatic")
+        // old-style buttons other mods registered (only when no output of theirs is there)
         var actions = dev.vitruvius.api.VitruviusApi.shapeActions();
-        if (!actions.isEmpty()) {
+        if (!actions.isEmpty() && outs.isEmpty()) {
             Ui.section("Send the shape to");
             for (var a : actions) {
                 if (Ui.button(a.label() + "##shapeaction", false, can, 0, why)) runAction(s, a, g, origin);
@@ -249,6 +316,52 @@ public final class ShapeWindow {
             ImGui.newLine();
             Ui.smallDim("These open their own dialog, which leaves the editor (press F6 to come back).");
         }
+    }
+
+    private static void createOutput(EditorSession s, dev.vitruvius.api.ShapeOutput out, BlockPos origin) {
+        String err;
+        try {
+            err = out.create(new dev.vitruvius.api.ShapeActionContext(result, name.get().trim(), origin), option.get());
+        } catch (Throwable ex) {
+            err = ex.getMessage() == null ? ex.toString() : ex.getMessage();
+        }
+        activeOutput = -1;           // create() removed its own ghost
+        lastShownKey = "";           // a new ghost for the next tweak
+        String what = out.label().toLowerCase(java.util.Locale.ROOT);
+        if (err != null) s.toast(ToastQueue.Level.WARN, "Not created: " + err);
+        else s.toast(ToastQueue.Level.INFO, "Created " + what + " \"" + name.get().trim() + "\". Change the settings to make another.");
+    }
+
+    /** The folder row: where the schematic file goes (inside Litematica's schematics folder). */
+    private static void drawFolder(float sc) {
+        ImGui.setNextItemWidth(-70 * sc);
+        ImGui.inputTextWithHint("##shapefolder", "Folder in the schematics folder", folder);
+        ImGui.sameLine();
+        if (ImGui.button("Browse##shapefolder")) {
+            folderChoices = listFolders();
+            ImGui.openPopup("##folderpick");
+        }
+        Ui.tooltip("Where the schematic file is saved, inside Litematica's schematics folder. A new name makes a new folder. Empty = the schematics folder itself.");
+        if (ImGui.beginPopup("##folderpick")) {
+            if (ImGui.selectable("(schematics folder)")) folder.set("");
+            for (String f : folderChoices) if (ImGui.selectable(f + "##fp" + f)) folder.set(f);
+            ImGui.endPopup();
+        }
+    }
+
+    private static List<String> listFolders() {
+        List<String> out = new ArrayList<>();
+        Path root = ShapeSaver.root();
+        try (var st = Files.walk(root, 4)) {
+            st.filter(Files::isDirectory).forEach(d -> {
+                String rel = root.relativize(d).toString().replace(java.io.File.separatorChar, '/');
+                if (!rel.isEmpty() && !rel.startsWith("Projects") && !rel.contains("/.") && !rel.startsWith(".")) out.add(rel);
+            });
+        } catch (java.io.IOException ignored) {
+            // no folders to offer
+        }
+        out.sort(String.CASE_INSENSITIVE_ORDER);
+        return out;
     }
 
     private static void runAction(EditorSession s, dev.vitruvius.api.VitruviusApi.ShapeAction a, GeneratorSettings g, BlockPos origin) {
@@ -328,7 +441,19 @@ public final class ShapeWindow {
     // ------------------------------------------------------------------ generate
 
     private static void generate(EditorSession s, GeneratorSettings g, BlockPos origin) {
-        Path folder = ShapeSaver.root().resolve(FOLDER);
+        Path root = ShapeSaver.root();
+        Path folder;
+        try {
+            folder = root.resolve(ShapeWindow.folder.get().trim()).normalize();
+        } catch (RuntimeException e) {
+            s.toast(ToastQueue.Level.WARN, "That is not a valid folder name");
+            return;
+        }
+        if (!folder.startsWith(root)) {
+            s.toast(ToastQueue.Level.WARN, "The folder must be inside the schematics folder");
+            return;
+        }
+        ShapePresets.setFolder(ShapeSaver.relative(folder));
         String base = name.get().trim();
         String unique = base;
         for (int i = 2; Files.exists(ShapeSaver.fileFor(folder, unique)); i++) unique = base + " " + i;

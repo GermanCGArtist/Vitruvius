@@ -24,6 +24,7 @@ public final class VitruviusApi {
     public record FolderAction(String label, String hover, Consumer<FolderActionContext> action) {}
 
     private static final List<ListEntryProvider> PROVIDERS = new CopyOnWriteArrayList<>();
+    private static final List<ShapeOutput> SHAPE_OUTPUTS = new CopyOnWriteArrayList<>();
     private static final List<ShapeAction> SHAPE_ACTIONS = new CopyOnWriteArrayList<>();
     private static final List<FolderAction> FOLDER_ACTIONS = new CopyOnWriteArrayList<>();
 
@@ -96,6 +97,15 @@ public final class VitruviusApi {
             }
         }
         return out;
+    }
+
+    /** Adds an output to the editor's Shape generator window (live preview and a create button). */
+    public static void registerShapeOutput(ShapeOutput output) {
+        if (output != null && !SHAPE_OUTPUTS.contains(output)) SHAPE_OUTPUTS.add(output);
+    }
+
+    public static List<ShapeOutput> shapeOutputs() {
+        return SHAPE_OUTPUTS;
     }
 
     public static List<ShapeAction> shapeActions() {
