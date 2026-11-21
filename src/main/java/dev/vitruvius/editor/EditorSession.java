@@ -891,8 +891,11 @@ public final class EditorSession {
             try {
                 Path dir = Path.of(p.path());
                 if (!dir.isAbsolute()) dir = schematicsDir.resolve(dir);
-                net.minecraft.util.Util.getPlatform().openPath(dir);
-            } catch (RuntimeException e) {
+                String os = System.getProperty("os.name", "").toLowerCase();
+                String[] cmd = os.contains("win") ? new String[]{"explorer", dir.toString()}
+                        : os.contains("mac") ? new String[]{"open", dir.toString()} : new String[]{"xdg-open", dir.toString()};
+                new ProcessBuilder(cmd).start();
+            } catch (RuntimeException | java.io.IOException e) {
                 EditorSession.this.toast(ToastQueue.Level.WARN, "Cannot open the folder: " + e.getMessage());
             }
         }

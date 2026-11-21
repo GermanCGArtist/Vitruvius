@@ -11,8 +11,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(MouseHandler.class)
 public abstract class MouseHandlerMixin {
     @Inject(method = "onMove", at = @At("HEAD"), cancellable = true)
-    private void cguihost$onMove(long window, double xpos, double ypos, CallbackInfo ci) {
-        if (HostCore.onMouseMove(window, xpos, ypos)) ci.cancel();
+    private void cguihost$onMove(long window, double xpos, double ypos, double dx, double dy, CallbackInfo ci) {
+        if (HostCore.onMouseMove(window, xpos, ypos, dx, dy)) ci.cancel();
     }
 
     @Inject(method = "onButton", at = @At("HEAD"), cancellable = true)

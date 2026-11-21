@@ -19,6 +19,8 @@ dependencies {
     // Minecraft 26.1+ is unobfuscated: no mappings
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
     implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    // 26.3 uses SDL3 (LWJGL sdl) for windowing and input; it is on the game classpath at runtime
+    compileOnly "org.lwjgl:lwjgl-sdl:3.4.3"
 
     // Dear ImGui (imgui-java 1.90.0) with the natives for every platform it ships for, bundled into the jar.
     // 1.90.0 has: windows x86_64, linux x86_64, macOS universal (x86_64 + arm64). There are no arm64 builds of

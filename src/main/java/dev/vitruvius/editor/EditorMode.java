@@ -66,7 +66,12 @@ public final class EditorMode {
 
     public static void enter(Minecraft mc) {
         LocalPlayer player = mc.player;
-        if (active || player == null || mc.level == null || mc.screen != null) return;
+        if (active || player == null || mc.level == null || mc.gui.screen() != null) return;
+        if (!UiHost.isBackendSupported()) {
+            player.sendSystemMessage(net.minecraft.network.chat.Component.literal(
+                    "[Vitruvius] The editor needs the OpenGL graphics backend. Set Video Settings > Graphics API to OpenGL (or Default) and restart."));
+            return;
+        }
         active = true;
         level = mc.level;
         savedCameraType = mc.options.getCameraType();
@@ -96,7 +101,7 @@ public final class EditorMode {
         UiHost.captureCursor(false);
         mc.options.setCameraType(savedCameraType);
         releaseGameplayKeys(mc);
-        if (regrab && mc.screen == null && mc.player != null) mc.mouseHandler.grabMouse();
+        if (regrab && mc.gui.screen() == null && mc.player != null) mc.mouseHandler.grabMouse();
         LOG.debug("editor mode off");
     }
 
@@ -111,8 +116,8 @@ public final class EditorMode {
             exit(mc, false);                  // disconnect, respawn into a new level, dimension change
             return;
         }
-        if (mc.screen != null) {
-            if (!(mc.screen instanceof ChatScreen)) {
+        if (mc.gui.screen() != null) {
+            if (!(mc.gui.screen() instanceof ChatScreen)) {
                 exit(mc, false);              // pause menu, inventory, ... the screen owns the mouse now
                 return;
             }
@@ -130,10 +135,13 @@ public final class EditorMode {
 
     // ------------------------------------------------------------------ input rules
 
-    /** True for the keys vanilla may still see in editor mode: F1 to F12, the toggle key, chat and command. */
+    /**
+     * True for the keys vanilla may still see in editor mode: F1 to F12, the toggle key, chat and command.
+     * {@code scancode} is the SDL scancode (what Minecraft 26.3's key mappings and {@link InputConstants} use).
+     */
     public static boolean passesToVanilla(Minecraft mc, int key, int scancode, int mods) {
-        if (key >= InputConstants.KEY_F1 && key <= InputConstants.KEY_F12) return true;
-        var event = new net.minecraft.client.input.KeyEvent(key, scancode, mods);
+        if (scancode >= InputConstants.KEY_F1 && scancode <= InputConstants.KEY_F12) return true;
+        var event = new net.minecraft.client.input.KeyEvent(scancode, 0, 0);
         return TOGGLE.matches(event) || mc.options.keyChat.matches(event) || mc.options.keyCommand.matches(event);
     }
 

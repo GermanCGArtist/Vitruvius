@@ -12,10 +12,9 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.navigation.ScreenRectangle;
 import net.minecraft.client.gui.render.pip.PictureInPictureRenderer;
 import net.minecraft.client.model.geom.builders.UVPair;
-import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.block.dispatch.BlockStateModel;
 import net.minecraft.client.renderer.block.dispatch.BlockStateModelPart;
-import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.client.renderer.state.gui.pip.PictureInPictureRenderState;
 import net.minecraft.client.renderer.texture.TextureAtlas;
@@ -44,7 +43,7 @@ public final class ThumbnailCompat {
 
     /** Registers the picture-in-picture renderer. Call once from the client initializer. */
     public static void register() {
-        PictureInPictureRendererRegistry.register(ctx -> new Renderer(ctx.bufferSource()));
+        PictureInPictureRendererRegistry.register(ctx -> new Renderer());
     }
 
     /** Queues the mesh to be drawn into the GUI rectangle (GUI coordinates) at pxPerBlock GUI pixels per block. */
@@ -99,7 +98,8 @@ public final class ThumbnailCompat {
                     uv[v * 2 + 1] = UVPair.unpackV(packed);
                 }
                 BakedQuad.MaterialInfo info = q.materialInfo();
-                float shade = info.shade() ? DIR_SHADE[q.direction().ordinal()] : 1f;
+                Direction lit = info.shadeDirectionOverride() != null ? info.shadeDirectionOverride() : q.direction();
+                float shade = DIR_SHADE[lit.ordinal()];
                 out.add(new ThumbnailMesh.Quad(pos, uv, info.isTinted() ? tintFor(blockName) : 0xFFFFFFFF, shade, mapColor));
             }
         }
@@ -119,10 +119,6 @@ public final class ThumbnailCompat {
     /** Draws the mesh orthographically; re-renders only when the view changes, otherwise the texture is re-blitted. */
     private static final class Renderer extends PictureInPictureRenderer<State> {
         private State last;
-
-        Renderer(MultiBufferSource.BufferSource bufferSource) {
-            super(bufferSource);
-        }
 
         @Override
         public Class<State> getRenderStateClass() {
@@ -145,7 +141,7 @@ public final class ThumbnailCompat {
         }
 
         @Override
-        protected void renderToTexture(State state, PoseStack poseStack) {
+        protected void renderToTexture(State state, PoseStack poseStack, SubmitNodeCollector collector) {
             last = state;
             ThumbnailMesh mesh = state.mesh();
             // the pose already holds translate(centre of the texture) * scale(s, s, -s), s = texture pixels per block
@@ -166,16 +162,15 @@ public final class ThumbnailCompat {
             m.translate(-mesh.sizeX / 2f, -mesh.sizeY / 2f, -mesh.sizeZ / 2f);
             float[] toCamera = {cx, cy, cz};
             boolean textured = mesh.quadCount <= ThumbnailMesh.FACE_CAP && state.scale() >= 4f;
-            if (textured) draw(RenderTypes.text(TextureAtlas.LOCATION_BLOCKS), m, mesh, toCamera, true, true);
-            draw(RenderTypes.textBackground(), m, mesh, toCamera, false, textured);
+            if (textured) collector.submitCustomGeometry(poseStack, RenderTypes.text(TextureAtlas.LOCATION_BLOCKS), (pose, buf) -> draw(buf, m, mesh, toCamera, true, true));
+            collector.submitCustomGeometry(poseStack, RenderTypes.debugQuads(), (pose, buf) -> draw(buf, m, mesh, toCamera, false, textured));
         }
 
         /**
          * One pass over the camera-facing buckets. The textured pass draws quads with uv; the flat pass draws all
          * quads (flat mode) or only the uv-less stand-ins (textured mode).
          */
-        private void draw(RenderType type, Matrix4f m, ThumbnailMesh mesh, float[] toCamera, boolean texturedPass, boolean texturedMode) {
-            VertexConsumer buf = null;
+        private void draw(VertexConsumer buf, Matrix4f m, ThumbnailMesh mesh, float[] toCamera, boolean texturedPass, boolean texturedMode) {
             float m00 = m.m00(), m01 = m.m01(), m02 = m.m02(), m10 = m.m10(), m11 = m.m11(), m12 = m.m12();
             float m20 = m.m20(), m21 = m.m21(), m22 = m.m22(), m30 = m.m30(), m31 = m.m31(), m32 = m.m32();
             for (int b = 0; b < 7; b++) {
@@ -185,7 +180,6 @@ public final class ThumbnailCompat {
                     ThumbnailMesh.Quad q = bucket.quads[i];
                     boolean uvless = q.uv() == null;
                     if (texturedPass ? uvless : texturedMode && !uvless) continue;
-                    if (buf == null) buf = bufferSource.getBuffer(type);
                     int p = bucket.pos[i];
                     float ox = p & 1023, oy = (p >> 10) & 1023, oz = (p >> 20) & 1023;
                     int color = shaded(texturedPass ? q.tint() : q.flatColor(), q.shade());

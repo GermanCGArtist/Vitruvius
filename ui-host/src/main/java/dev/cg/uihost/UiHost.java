@@ -69,4 +69,32 @@ public final class UiHost {
     public static boolean isCursorCaptured() {
         return HostCore.isCursorCaptured();
     }
+
+    /** Whether a key (a GLFW key code, e.g. 87 for W) is held, from the key events the host has seen. */
+    public static boolean isKeyDown(int glfwKey) {
+        return HostCore.isKeyDown(glfwKey);
+    }
+
+    /** Whether a mouse button is held (GLFW numbering: 0 left, 1 right, 2 middle). */
+    public static boolean isMouseDown(int glfwButton) {
+        return HostCore.isMouseDown(glfwButton);
+    }
+
+    /** The cursor x in window coordinates; unbounded (virtual) while {@link #captureCursor} is on. */
+    public static double cursorX() {
+        return HostCore.cursorX();
+    }
+
+    /** The cursor y in window coordinates; unbounded (virtual) while {@link #captureCursor} is on. */
+    public static double cursorY() {
+        return HostCore.cursorY();
+    }
+
+    /**
+     * Whether the host can draw with the running graphics backend. It needs OpenGL (Minecraft's default); with
+     * the Vulkan backend selected there is no ImGui renderer, so layers should not open.
+     */
+    public static boolean isBackendSupported() {
+        return HostCore.backendSupported();
+    }
 }

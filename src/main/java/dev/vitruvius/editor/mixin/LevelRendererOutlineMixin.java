@@ -12,9 +12,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 /** No block outline for the block the player is looking at while editor mode is on. */
 @Mixin(LevelRenderer.class)
 public abstract class LevelRendererOutlineMixin {
-    @Inject(method = "extractBlockOutline(Lnet/minecraft/client/Camera;Lnet/minecraft/client/renderer/state/level/LevelRenderState;)V",
+    @Inject(method = "submitBlockOutline(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;Lnet/minecraft/client/renderer/state/level/LevelRenderState;)V",
             at = @At("HEAD"), cancellable = true)
-    private void vitruvius$hideOutline(Camera camera, LevelRenderState state, CallbackInfo ci) {
+    private void vitruvius$hideOutline(com.mojang.blaze3d.vertex.PoseStack pose, net.minecraft.client.renderer.SubmitNodeCollector collector, LevelRenderState state, CallbackInfo ci) {
         if (EditorMode.isActive()) ci.cancel();
     }
 }

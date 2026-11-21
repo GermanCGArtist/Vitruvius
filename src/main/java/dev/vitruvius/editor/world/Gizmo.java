@@ -151,7 +151,7 @@ public final class Gizmo {
     // ------------------------------------------------------------------ helpers
 
     private static boolean held(Minecraft mc, int... keys) {
-        for (int k : keys) if (GLFW.glfwGetKey(mc.getWindow().handle(), k) == GLFW.GLFW_PRESS) return true;
+        for (int k : keys) if (dev.cg.uihost.UiHost.isKeyDown(k)) return true;
         return false;
     }
 
@@ -164,9 +164,7 @@ public final class Gizmo {
     }
 
     private static double[] cursor(Minecraft mc) {
-        double[] x = new double[1], y = new double[1];
-        GLFW.glfwGetCursorPos(mc.getWindow().handle(), x, y);
-        return new double[] {x[0], y[0]};
+        return new double[] {dev.cg.uihost.UiHost.cursorX(), dev.cg.uihost.UiHost.cursorY()};
     }
 
     private record View(ViewMath.Basis basis, double[] cam, double fov, double w, double h) {}
@@ -561,7 +559,7 @@ public final class Gizmo {
 
         // a drag that started on empty space turns into a box select after 5 px
         if (pending) {
-            if (GLFW.glfwGetMouseButton(mc.getWindow().handle(), GLFW.GLFW_MOUSE_BUTTON_LEFT) != GLFW.GLFW_PRESS || cam.isNavigating()) {
+            if (!dev.cg.uihost.UiHost.isMouseDown(GLFW.GLFW_MOUSE_BUTTON_LEFT) || cam.isNavigating()) {
                 pending = false;
             } else if (Math.hypot(c[0] - bx0, c[1] - by0) >= CLICK_PX) {
                 beginBox(new double[] {bx0, by0}, true);

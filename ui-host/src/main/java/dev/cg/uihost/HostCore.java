@@ -1,17 +1,17 @@
 package dev.cg.uihost;
 
-import com.mojang.blaze3d.opengl.GlStateManager;
+import com.mojang.renderpearl.backend.opengl.GlStateManager;
 import com.mojang.blaze3d.platform.Window;
 import imgui.ImGui;
 import imgui.ImGuiIO;
 import imgui.flag.ImGuiConfigFlags;
 import imgui.gl3.ImGuiImplGl3;
-import imgui.glfw.ImGuiImplGlfw;
+import imgui.flag.ImGuiMouseCursor;
 import imgui.internal.ImGuiContext;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
-import org.lwjgl.glfw.GLFW;
-import org.lwjgl.glfw.GLFWMonitorCallback;
+import org.lwjgl.sdl.SDLKeyboard;
+import org.lwjgl.sdl.SDLMouse;
 import org.lwjgl.opengl.GL30;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,7 +37,8 @@ public final class HostCore {
     private static boolean disabled;
     private static float scale = 1.0f;
     private static ImGuiContext ctx;
-    private static ImGuiImplGlfw glfw;
+    private static long lastFrameNanos;
+    private static boolean textInputOn;
     private static ImGuiImplGl3 gl3;
 
     private HostCore() {}
@@ -120,50 +121,99 @@ public final class HostCore {
         return cursorCaptured;
     }
 
+    /** SDL relative mouse mode: hidden cursor, raw motion (delivered as deltas; see {@link #onMouseMove}). */
     static void captureCursor(boolean on) {
         if (on == cursorCaptured) return;
         Minecraft mc = Minecraft.getInstance();
         if (mc == null || mc.getWindow() == null) return;
-        long w = mc.getWindow().handle();
         cursorCaptured = on;
         if (on) {
-            GLFW.glfwSetInputMode(w, GLFW.GLFW_CURSOR, GLFW.GLFW_CURSOR_DISABLED);
-            if (GLFW.glfwRawMouseMotionSupported()) GLFW.glfwSetInputMode(w, GLFW.GLFW_RAW_MOUSE_MOTION, GLFW.GLFW_TRUE);
-        } else {
-            GLFW.glfwSetInputMode(w, GLFW.GLFW_RAW_MOUSE_MOTION, GLFW.GLFW_FALSE);
-            GLFW.glfwSetInputMode(w, GLFW.GLFW_CURSOR, GLFW.GLFW_CURSOR_NORMAL);   // GLFW puts the cursor back where it was
+            virtualX = mouseX;
+            virtualY = mouseY;
         }
+        SDLMouse.SDL_SetWindowRelativeMouseMode(mc.getWindow().handle(), on);
+    }
+
+    private static int sdlCursorId(UiHost.Cursor c) {
+        return switch (c) {
+            case TEXT -> SDLMouse.SDL_SYSTEM_CURSOR_TEXT;
+            case CROSSHAIR -> SDLMouse.SDL_SYSTEM_CURSOR_CROSSHAIR;
+            case HAND -> SDLMouse.SDL_SYSTEM_CURSOR_POINTER;
+            case RESIZE_EW -> SDLMouse.SDL_SYSTEM_CURSOR_EW_RESIZE;
+            case RESIZE_NS -> SDLMouse.SDL_SYSTEM_CURSOR_NS_RESIZE;
+            case RESIZE_ALL -> SDLMouse.SDL_SYSTEM_CURSOR_MOVE;
+            case NOT_ALLOWED -> SDLMouse.SDL_SYSTEM_CURSOR_NOT_ALLOWED;
+            default -> SDLMouse.SDL_SYSTEM_CURSOR_DEFAULT;
+        };
     }
 
     private static long standardCursor(UiHost.Cursor c) {
         int i = c.ordinal();
         if (STD_CURSORS[i] == 0L) {
-            int shape = switch (c) {
-                case TEXT -> GLFW.GLFW_IBEAM_CURSOR;
-                case CROSSHAIR -> GLFW.GLFW_CROSSHAIR_CURSOR;
-                case HAND -> GLFW.GLFW_HAND_CURSOR;
-                case RESIZE_EW -> GLFW.GLFW_HRESIZE_CURSOR;
-                case RESIZE_NS -> GLFW.GLFW_VRESIZE_CURSOR;
-                case RESIZE_ALL -> GLFW.GLFW_RESIZE_ALL_CURSOR;
-                case NOT_ALLOWED -> GLFW.GLFW_NOT_ALLOWED_CURSOR;
-                default -> GLFW.GLFW_ARROW_CURSOR;
-            };
-            long h = GLFW.glfwCreateStandardCursor(shape);
-            if (h == 0L) h = GLFW.glfwCreateStandardCursor(GLFW.GLFW_ARROW_CURSOR);   // shape not supported here
+            long h = SDLMouse.SDL_CreateSystemCursor(sdlCursorId(c));
+            if (h == 0L) h = SDLMouse.SDL_CreateSystemCursor(SDLMouse.SDL_SYSTEM_CURSOR_DEFAULT);
             STD_CURSORS[i] = h;
         }
         return STD_CURSORS[i];
     }
 
+    private static UiHost.Cursor fromImGui(int cursor) {
+        return switch (cursor) {
+            case ImGuiMouseCursor.TextInput -> UiHost.Cursor.TEXT;
+            case ImGuiMouseCursor.ResizeAll -> UiHost.Cursor.RESIZE_ALL;
+            case ImGuiMouseCursor.ResizeNS -> UiHost.Cursor.RESIZE_NS;
+            case ImGuiMouseCursor.ResizeEW -> UiHost.Cursor.RESIZE_EW;
+            case ImGuiMouseCursor.Hand -> UiHost.Cursor.HAND;
+            case ImGuiMouseCursor.NotAllowed -> UiHost.Cursor.NOT_ALLOWED;
+            default -> UiHost.Cursor.ARROW;
+        };
+    }
+
+    // ------------------------------------------------------------------ polled input state (GLFW codes)
+
+    private static final boolean[] SDL_KEYS_DOWN = new boolean[512];
+    private static final boolean[] BUTTONS_DOWN = new boolean[8];
+    private static double mouseX, mouseY;
+    private static double virtualX, virtualY;
+
+    /** Whether the key (a GLFW key code) is held, from the key events seen so far. */
+    static boolean isKeyDown(int glfwKey) {
+        int sc = InputMap.sdlScancode(glfwKey);
+        return sc >= 0 && SDL_KEYS_DOWN[sc];
+    }
+
+    /** Whether the mouse button (GLFW numbering: 0 left, 1 right, 2 middle) is held. */
+    static boolean isMouseDown(int glfwButton) {
+        return glfwButton >= 0 && glfwButton < BUTTONS_DOWN.length && BUTTONS_DOWN[glfwButton];
+    }
+
+    /** The cursor position in window coordinates; virtual and unbounded while the cursor is captured. */
+    static double cursorX() {
+        return cursorCaptured ? virtualX : mouseX;
+    }
+
+    static double cursorY() {
+        return cursorCaptured ? virtualY : mouseY;
+    }
+
+    /** Whether the host can draw: it needs the OpenGL graphics backend (the Vulkan one has no ImGui renderer here). */
+    static boolean backendSupported() {
+        return glPresentSeen;
+    }
+
+    private static boolean glPresentSeen;
+
+
     // ------------------------------------------------------------------ frame (render thread)
 
-    /** Called at the head of {@code RenderSystem.flipFrame}. */
+    /** Called at the head of the OpenGL surface's present (just before the buffer swap). */
     public static void renderFrame() {
+        glPresentSeen = true;   // only the OpenGL surface calls this
         if (disabled || LAYERS.isEmpty()) return;
         Minecraft mc = Minecraft.getInstance();
         if (mc == null) return;
         Window win = mc.getWindow();
-        if (win == null || win.isMinimized() || win.getWidth() <= 0 || win.getHeight() <= 0) return;
+        if (win == null || win.isIconified() || win.getWidth() <= 0 || win.getHeight() <= 0) return;
         List<UiLayer> layers = visibleLayers();
         if (layers.isEmpty()) return;
         try {
@@ -195,14 +245,7 @@ public final class HostCore {
                 io.getFonts().addFontDefault();
             }
 
-            glfw = new ImGuiImplGlfw();
-            GLFWMonitorCallback prevMonitor = GLFW.glfwSetMonitorCallback(null);
-            glfw.init(windowHandle, false);
-            GLFWMonitorCallback imguiMonitor = GLFW.glfwSetMonitorCallback(null);
-            GLFW.glfwSetMonitorCallback((monitor, event) -> {
-                if (prevMonitor != null) prevMonitor.invoke(monitor, event);
-                if (imguiMonitor != null) imguiMonitor.invoke(monitor, event);
-            });
+            io.setBackendPlatformName("cg-uihost-sdl");
 
             gl3 = new ImGuiImplGl3();
             gl3.init("#version 150");
@@ -226,6 +269,27 @@ public final class HostCore {
         Theme.apply(ImGui.getStyle(), scale);
     }
 
+    private static void platformNewFrame(Minecraft mc, ImGuiIO io) {
+        Window win = mc.getWindow();
+        int sw = Math.max(1, win.getScreenWidth()), sh = Math.max(1, win.getScreenHeight());
+        io.setDisplaySize(sw, sh);
+        io.setDisplayFramebufferScale((float) win.getWidth() / sw, (float) win.getHeight() / sh);
+        long now = System.nanoTime();
+        io.setDeltaTime(lastFrameNanos == 0 ? 1f / 60f : Math.max(1e-4f, (now - lastFrameNanos) / 1e9f));
+        lastFrameNanos = now;
+        // text fields need SDL's text input (it produces the character events)
+        boolean wantText = io.getWantTextInput();
+        if (wantText != textInputOn) {
+            textInputOn = wantText;
+            if (wantText) SDLKeyboard.SDL_StartTextInput(win.handle());
+            else SDLKeyboard.SDL_StopTextInput(win.handle());
+        }
+        // ImGui's own cursor, unless a layer asked for a shape or the cursor is captured
+        if ((io.getConfigFlags() & ImGuiConfigFlags.NoMouseCursorChange) == 0 && io.getWantCaptureMouse()) {
+            SDLMouse.SDL_SetCursor(standardCursor(fromImGui(ImGui.getMouseCursor())));
+        }
+    }
+
     private static void render(Minecraft mc, List<UiLayer> layers) {
         ImGui.setCurrentContext(ctx);
         refreshScale();
@@ -240,13 +304,13 @@ public final class HostCore {
             io.removeConfigFlags(ImGuiConfigFlags.NoMouse);
             if (wanted != null && wanted != UiHost.Cursor.AUTO) {
                 io.addConfigFlags(ImGuiConfigFlags.NoMouseCursorChange);
-                GLFW.glfwSetCursor(mc.getWindow().handle(), standardCursor(wanted));
+                SDLMouse.SDL_SetCursor(standardCursor(wanted));
             } else {
                 io.removeConfigFlags(ImGuiConfigFlags.NoMouseCursorChange);
             }
         }
         io.setWantSetMousePos(false);
-        glfw.newFrame();
+        platformNewFrame(mc, io);
         gl3.newFrame();
         ImGui.newFrame();
 
@@ -265,6 +329,7 @@ public final class HostCore {
     }
 
     // ------------------------------------------------------------------ input routing
+    // The mixins pass Minecraft 26.3's SDL values; layers get GLFW codes (see InputMap).
 
     private static boolean routing(long window, Minecraft mc) {
         return initialized && !disabled && mc != null && mc.getWindow() != null && window == mc.getWindow().handle()
@@ -294,16 +359,19 @@ public final class HostCore {
     }
 
     /** Returns true when vanilla must not see the event. Releases always reach ImGui so no key stays stuck. */
-    public static boolean onKey(long window, int key, int scancode, int action, int mods) {
+    public static boolean onKey(long window, int sdlScancode, int mcAction, int sdlMods) {
+        if (sdlScancode >= 0 && sdlScancode < SDL_KEYS_DOWN.length) SDL_KEYS_DOWN[sdlScancode] = mcAction != 0;
         Minecraft mc = Minecraft.getInstance();
         if (!routing(window, mc)) return false;
-        boolean wants = anyWantsKey(key, scancode, action, mods);
+        int key = InputMap.glfwKey(sdlScancode), action = InputMap.glfwAction(mcAction), mods = InputMap.glfwMods(sdlMods);
+        boolean wants = anyWantsKey(key, sdlScancode, action, mods);
         ImGui.setCurrentContext(ctx);
-        if (wants || action == GLFW.GLFW_RELEASE) glfw.keyCallback(window, key, scancode, action, mods);
-        if (wants || action == GLFW.GLFW_RELEASE) {
+        if (wants || action == InputMap.GLFW_RELEASE) {
+            int ik = InputMap.imguiKey(key);
+            if (ik != 0 && action != InputMap.GLFW_REPEAT) ImGui.getIO().addKeyEvent(ik, action == InputMap.GLFW_PRESS);
             for (UiLayer l : visibleLayers()) {
                 try {
-                    l.onKey(key, scancode, action, mods);
+                    l.onKey(key, sdlScancode, action, mods);
                 } catch (Throwable t) {
                     fail(l, t);
                 }
@@ -317,21 +385,28 @@ public final class HostCore {
         if (!routing(window, mc)) return false;
         if (!anyWantsKeyboard()) return false;
         ImGui.setCurrentContext(ctx);
-        glfw.charCallback(window, codepoint);
+        ImGui.getIO().addInputCharacter(codepoint);
         return true;
     }
 
-    public static boolean onMouseMove(long window, double x, double y) {
+    public static boolean onMouseMove(long window, double x, double y, double dx, double dy) {
+        mouseX = x;
+        mouseY = y;
+        if (cursorCaptured) {
+            virtualX += dx;
+            virtualY += dy;
+        }
         Minecraft mc = Minecraft.getInstance();
         if (!routing(window, mc) || mc.mouseHandler.isMouseGrabbed()) return false;
         ImGui.setCurrentContext(ctx);
-        glfw.cursorPosCallback(window, x, y);
+        if (!cursorCaptured) ImGui.getIO().addMousePosEvent((float) x, (float) y);
         boolean wants = false;
+        double lx = cursorX(), ly = cursorY();
         for (UiLayer l : visibleLayers()) {
             try {
-                if (l.wantsMouse()) {
+                if (l.wantsMouse() || cursorCaptured) {
                     wants = true;
-                    l.onMouseMove(x, y);
+                    l.onMouseMove(lx, ly);
                 }
             } catch (Throwable t) {
                 fail(l, t);
@@ -340,7 +415,9 @@ public final class HostCore {
         return wants;
     }
 
-    public static boolean onMouseButton(long window, int button, int action, int mods) {
+    public static boolean onMouseButton(long window, int sdlButton, int mcAction, int sdlMods) {
+        int button = InputMap.glfwButton(sdlButton), action = InputMap.glfwAction(mcAction), mods = InputMap.glfwMods(sdlMods);
+        if (button >= 0 && button < BUTTONS_DOWN.length) BUTTONS_DOWN[button] = action != InputMap.GLFW_RELEASE;
         Minecraft mc = Minecraft.getInstance();
         if (!routing(window, mc) || mc.mouseHandler.isMouseGrabbed()) return false;
         boolean wants = false;
@@ -352,11 +429,12 @@ public final class HostCore {
             }
         }
         ImGui.setCurrentContext(ctx);
-        if (wants || action == GLFW.GLFW_RELEASE) {
-            glfw.mouseButtonCallback(window, button, action, mods);
+        if (wants || action == InputMap.GLFW_RELEASE) {
+            // ImGui orders the buttons left, right, middle like GLFW
+            ImGui.getIO().addMouseButtonEvent(button, action == InputMap.GLFW_PRESS);
             for (UiLayer l : visibleLayers()) {
                 try {
-                    if (action == GLFW.GLFW_RELEASE || l.wantsMouse()) l.onMouseButton(button, action, mods);
+                    if (action == InputMap.GLFW_RELEASE || l.wantsMouse()) l.onMouseButton(button, action, mods);
                 } catch (Throwable t) {
                     fail(l, t);
                 }
@@ -381,7 +459,7 @@ public final class HostCore {
         }
         if (wants) {
             ImGui.setCurrentContext(ctx);
-            glfw.scrollCallback(window, dx, dy);
+            ImGui.getIO().addMouseWheelEvent((float) dx, (float) dy);
         }
         return wants;
     }

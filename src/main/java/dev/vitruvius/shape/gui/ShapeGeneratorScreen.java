@@ -711,8 +711,8 @@ public class ShapeGeneratorScreen extends GuiBase {
 
     @Override
     public boolean onKeyTyped(KeyEvent event) {
-        if (event.key() == GLFW.GLFW_KEY_TAB && (outline.acceptFirst() || fill.acceptFirst())) return true;
-        if (event.key() == GLFW.GLFW_KEY_G && event.modifiers() == 0 && !typing()) {
+        if (event.key() == com.mojang.blaze3d.platform.InputConstants.KEY_TAB && (outline.acceptFirst() || fill.acceptFirst())) return true;
+        if (event.key() == com.mojang.blaze3d.platform.InputConstants.KEY_G && (event.modifiers() & 0x0FFF) == 0 && !typing()) {
             peekKey = true;
             return true;
         }
@@ -721,7 +721,7 @@ public class ShapeGeneratorScreen extends GuiBase {
 
     @Override
     public boolean keyReleased(KeyEvent event) {
-        if (event.key() == GLFW.GLFW_KEY_G && peekKey) {
+        if (event.key() == com.mojang.blaze3d.platform.InputConstants.KEY_G && peekKey) {
             peekKey = false;
             return true;
         }

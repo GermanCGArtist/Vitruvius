@@ -17,9 +17,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  */
 @Mixin(EntityRenderDispatcher.class)
 public abstract class EntityRenderDispatcherMixin {
-    @Inject(method = "shouldRender(Lnet/minecraft/world/entity/Entity;Lnet/minecraft/client/renderer/culling/Frustum;DDD)Z",
+    @Inject(method = "shouldRender(Lnet/minecraft/world/entity/Entity;Lnet/minecraft/client/renderer/culling/Frustum;DDDF)Z",
             at = @At("HEAD"), cancellable = true)
-    private void vitruvius$hideLocalPlayer(Entity entity, Frustum frustum, double camX, double camY, double camZ,
+    private void vitruvius$hideLocalPlayer(Entity entity, Frustum frustum, double camX, double camY, double camZ, float partialTick,
                                             CallbackInfoReturnable<Boolean> cir) {
         if (EditorMode.isActive() && entity instanceof LocalPlayer) cir.setReturnValue(false);
     }

@@ -68,7 +68,7 @@ public final class WorldOverlay {
         List<Object[]> cutters = cutters(s);
         boolean externals = hasExternals(s);
         if (lines.isEmpty() && preview == null && overlaps.isEmpty() && cutters.isEmpty() && !externals) return;
-        try (var ignored = mc.levelRenderer.collectPerFrameGizmos()) {
+        try (var ignored = mc.levelRenderer.collectPerFrameRenderThreadGizmos()) {
             for (Line l : lines) {
                 var p = Gizmos.cuboid(l.box(), GizmoStyle.stroke(argb(l.rgb(), l.alpha()), l.width()));
                 if (l.xray()) p.setAlwaysOnTop();

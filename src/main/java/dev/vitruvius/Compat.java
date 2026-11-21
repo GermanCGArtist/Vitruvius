@@ -25,15 +25,15 @@ public final class Compat {
 
     /** The screen that is open right now, or null. */
     public static Screen screen() {
-        return Minecraft.getInstance().screen;
+        return Minecraft.getInstance().gui.screen();
     }
 
     /**
-     * Whether the left mouse button is held right now. Asks GLFW: Minecraft's MouseHandler.isLeftPressed is not
+     * Whether the left mouse button is held right now. Asks the UI host (which sees every mouse event): Minecraft's MouseHandler.isLeftPressed is not
      * updated while a screen handles the click, so it stays false inside menus.
      */
     public static boolean leftDown() {
-        return GLFW.glfwGetMouseButton(Minecraft.getInstance().getWindow().handle(), GLFW.GLFW_MOUSE_BUTTON_LEFT) == GLFW.GLFW_PRESS;
+        return dev.cg.uihost.UiHost.isMouseDown(GLFW.GLFW_MOUSE_BUTTON_LEFT);
     }
 
     /**

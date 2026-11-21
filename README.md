@@ -86,7 +86,7 @@ At the moment this repository has only `main`, which builds for Minecraft 26.1.1
 | 26.1.1 | 0.27.x | 0.28.x | `main` (alpha) |
 | 26.1.2 | 0.27.x | 0.28.x | planned |
 | 26.2 | 0.28.x | 0.29.x | planned |
-| 26.3 | 0.29.x | 0.30.x | planned |
+| 26.3 | 0.29.x | 0.30.x | `26.3` branch (alpha; needs the OpenGL graphics backend) |
 
 ## Build
 

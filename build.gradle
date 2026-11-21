@@ -19,6 +19,8 @@ dependencies {
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
     implementation "net.fabricmc:fabric-loader:${project.loader_version}"
     implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+    // 26.3 no longer exposes LWJGL GLFW on the compile classpath (Minecraft provides it at runtime)
+    compileOnly "org.lwjgl:lwjgl-glfw:3.4.1"
 
     // Litematica and malilib only to compile against; the player has them installed
     compileOnly "maven.modrinth:litematica:${project.litematica_version}"

@@ -341,13 +341,11 @@ public final class EditorCamera {
     }
 
     private static boolean key(long win, int key) {
-        return GLFW.glfwGetKey(win, key) == GLFW.GLFW_PRESS;
+        return UiHost.isKeyDown(key);
     }
 
     private static double[] cursor(long win) {
-        double[] x = new double[1], y = new double[1];
-        GLFW.glfwGetCursorPos(win, x, y);
-        return new double[]{x[0], y[0]};
+        return new double[]{UiHost.cursorX(), UiHost.cursorY()};
     }
 
     /** Degrees per pixel, vanilla's formula so the camera feels like the player's mouse look. */

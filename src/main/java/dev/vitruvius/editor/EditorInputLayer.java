@@ -82,7 +82,7 @@ public final class EditorInputLayer implements UiLayer {
 
         // viewport right click: a short RMB press opens the menu for what is under the pointer
         EditorCamera cam = EditorCamera.get();
-        if (cam.consumeRightClick() && mc.screen == null) {
+        if (cam.consumeRightClick() && mc.gui.screen() == null) {
             boolean hit = Picking.onRightClick(mc, cam.rightClickX(), cam.rightClickY());
             ContextMenus.openForSelection(s, !hit);
         }
@@ -104,7 +104,7 @@ public final class EditorInputLayer implements UiLayer {
     @Override
     public boolean wantsKey(int key, int scancode, int action, int mods) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.screen != null) return UiHost.imguiWantsKeyboard();       // chat: it gets the keys
+        if (mc.gui.screen() != null) return UiHost.imguiWantsKeyboard();       // chat: it gets the keys
         if (UiHost.imguiWantsTextInput()) return true;                    // a text field is active
         return !EditorMode.passesToVanilla(mc, key, scancode, mods);
     }
@@ -112,7 +112,7 @@ public final class EditorInputLayer implements UiLayer {
     @Override
     public void onKey(int key, int scancode, int action, int mods) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.screen != null || mc.player == null) return;
+        if (mc.gui.screen() != null || mc.player == null) return;
         if (action != GLFW.GLFW_PRESS && !(action == GLFW.GLFW_REPEAT && key == GLFW.GLFW_KEY_BACKSPACE)) return;   // Backspace repeats in a typed transform
         if (UiHost.imguiWantsTextInput()) return;                         // typing in a field: no shortcut fires
         if (EditorCamera.get().isFlying()) return;                        // fly keys only
@@ -137,13 +137,13 @@ public final class EditorInputLayer implements UiLayer {
     @Override
     public boolean wantsMouse() {
         // with chat open the mouse belongs to chat, unless the pointer is over an editor window
-        return Minecraft.getInstance().screen == null || UiHost.imguiWantsMouse();
+        return Minecraft.getInstance().gui.screen() == null || UiHost.imguiWantsMouse();
     }
 
     @Override
     public void onMouseButton(int button, int action, int mods) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.screen != null && action == GLFW.GLFW_PRESS) return;
+        if (mc.gui.screen() != null && action == GLFW.GLFW_PRESS) return;
         boolean overUi = UiHost.imguiWantsMouse();
         EditorSession s = null;
         try {
@@ -178,7 +178,7 @@ public final class EditorInputLayer implements UiLayer {
     public void onScroll(double dx, double dy) {
         if (UiHost.imguiWantsMouse()) return;                              // over a window: it scrolls
         Minecraft mc = Minecraft.getInstance();
-        if (mc.screen != null) return;
+        if (mc.gui.screen() != null) return;
         EditorCamera.get().onScroll(mc, dy);
     }
 }
