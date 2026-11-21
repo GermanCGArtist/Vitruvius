@@ -337,13 +337,37 @@ public final class SceneWindow {
             float tx = x0 + 14 * sc, iconCx = tx + 16 * sc + 2 * sc + 7 * sc, nameX = iconCx + 7 * sc + 6 * sc;
             EditorIcons.draw(dl, "areas", iconCx, y0 + rowH * 0.5f, 7 * sc, Ui.c(Theme.GUTTER, 0.8f));
             float fh = ImGui.getFontSize();
-            String tag = e.isRenderingEnabled() ? "1.x" : "1.x hidden";
-            float tagW = ImGui.calcTextSizeX(tag);
-            dl.addText(x0 + w - 8 * sc - tagW, y0 + (rowH - fh) * 0.5f, Ui.c(Theme.GUTTER), tag);
-            dl.addText(nameX, y0 + (rowH - fh) * 0.5f, Ui.c(Theme.DIM, e.isRenderingEnabled() ? 1f : 0.6f), Ui.fitEnd(e.name(), Math.max(20 * sc, w - (nameX - x0) - tagW - 16 * sc)));
-            if (hovered) ImGui.setTooltip("Added by another mod through the 1.x list API. Read-only here: manage it in Litematica's placement list.");
+            // right to left: the show/hide toggle, the cutaway ("slice") button when the entry has one, the 1.x tag
+            String vis = e.isRenderingEnabled() ? "Shown" : "Hidden";
+            float btnH = rowH - 4 * sc, by = y0 + 2 * sc, rx = x0 + w - 6 * sc;
+            float visW = ImGui.calcTextSizeX(vis) + 14 * sc;
+            rx -= visW;
+            ImGui.setCursorScreenPos(rx, by);
+            if (ImGui.invisibleButton("##legacyvis", visW, btnH)) e.setRenderingEnabled(!e.isRenderingEnabled());
+            boolean visHot = ImGui.isItemHovered();
+            legacyChip(dl, rx, by, visW, btnH, vis, e.isRenderingEnabled(), visHot, sc);
+            if (visHot) ImGui.setTooltip("Show or hide this entry in the world");
+            String cut = e.cutawayLabel();
+            if (cut != null) {
+                String cutText = "Slice: " + cut;
+                float cw = ImGui.calcTextSizeX(cutText) + 14 * sc;
+                rx -= cw + 4 * sc;
+                ImGui.setCursorScreenPos(rx, by);
+                if (ImGui.invisibleButton("##legacycut", cw, btnH)) e.cycleCutaway();
+                boolean cutHot = ImGui.isItemHovered();
+                legacyChip(dl, rx, by, cw, btnH, cutText, !"OFF".equals(cut), cutHot, sc);
+                if (cutHot) ImGui.setTooltip("Terrain slice: ON (cut the terrain), WIREFRAME (outline only) or OFF. Click for the next.");
+            }
+            float rightEdge = rx - 8 * sc;
+            dl.addText(nameX, y0 + (rowH - fh) * 0.5f, Ui.c(Theme.DIM, e.isRenderingEnabled() ? 1f : 0.6f), Ui.fitEnd(e.name(), Math.max(20 * sc, rightEdge - nameX)));
+            if (hovered && !ImGui.isAnyItemActive()) ImGui.setTooltip("Added by another mod (1.x list). Its other settings live in Litematica's placement list.");
             ImGui.popID();
         }
+    }
+
+    private static void legacyChip(ImDrawList dl, float x, float y, float w, float h, String text, boolean on, boolean hot, float sc) {
+        dl.addRectFilled(x, y, x + w, y + h, Ui.c(on ? Theme.ACCENT : Theme.BTN, on ? (hot ? 0.35f : 0.22f) : (hot ? 1f : 0.7f)), 5 * sc);
+        dl.addText(x + 7 * sc, y + (h - ImGui.getFontSize()) * 0.5f, Ui.c(on ? Theme.ACCENT : Theme.DIM), text);
     }
 
     private static int iconColor(Kind k) {

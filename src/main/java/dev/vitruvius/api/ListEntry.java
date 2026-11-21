@@ -31,4 +31,15 @@ public interface ListEntry {
     boolean isRenderingEnabled();
 
     void setRenderingEnabled(boolean enabled);
+
+    /**
+     * The entry's terrain cutaway ("slice") state as a short label such as "ON", "WIREFRAME" or "OFF", or null when it
+     * has none. The editor shows it as a button on the row.
+     */
+    default String cutawayLabel() {
+        return null;
+    }
+
+    /** Switches to the next cutaway state; called when the editor's cutaway button is clicked. */
+    default void cycleCutaway() {}
 }
