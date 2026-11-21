@@ -67,11 +67,6 @@ public final class EditorMode {
     public static void enter(Minecraft mc) {
         LocalPlayer player = mc.player;
         if (active || player == null || mc.level == null || mc.gui.screen() != null) return;
-        if (!UiHost.isBackendSupported()) {
-            player.sendSystemMessage(net.minecraft.network.chat.Component.literal(
-                    "[Vitruvius] The editor needs the OpenGL graphics backend. Set Video Settings > Graphics API to OpenGL (or Default) and restart."));
-            return;
-        }
         active = true;
         level = mc.level;
         savedCameraType = mc.options.getCameraType();

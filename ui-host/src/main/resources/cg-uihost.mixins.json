@@ -6,7 +6,7 @@
   "client": [
     "KeyboardHandlerMixin",
     "MouseHandlerMixin",
-    "GlSurfaceMixin"
+    "GuiRendererMixin"
   ],
   "injectors": {
     "defaultRequire": 0

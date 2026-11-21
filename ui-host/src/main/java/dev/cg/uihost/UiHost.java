@@ -91,8 +91,8 @@ public final class UiHost {
     }
 
     /**
-     * Whether the host can draw with the running graphics backend. It needs OpenGL (Minecraft's default); with
-     * the Vulkan backend selected there is no ImGui renderer, so layers should not open.
+     * Whether the host can draw with the running graphics backend. It draws through Minecraft's own render API,
+     * so this is true with both the OpenGL and the Vulkan backend.
      */
     public static boolean isBackendSupported() {
         return HostCore.backendSupported();

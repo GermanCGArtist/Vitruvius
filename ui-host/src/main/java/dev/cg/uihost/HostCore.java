@@ -1,18 +1,15 @@
 package dev.cg.uihost;
 
-import com.mojang.renderpearl.backend.opengl.GlStateManager;
 import com.mojang.blaze3d.platform.Window;
 import imgui.ImGui;
 import imgui.ImGuiIO;
 import imgui.flag.ImGuiConfigFlags;
-import imgui.gl3.ImGuiImplGl3;
 import imgui.flag.ImGuiMouseCursor;
 import imgui.internal.ImGuiContext;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 import org.lwjgl.sdl.SDLKeyboard;
 import org.lwjgl.sdl.SDLMouse;
-import org.lwjgl.opengl.GL30;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,7 +36,7 @@ public final class HostCore {
     private static ImGuiContext ctx;
     private static long lastFrameNanos;
     private static boolean textInputOn;
-    private static ImGuiImplGl3 gl3;
+    private static RpRenderer renderer;
 
     private HostCore() {}
 
@@ -196,19 +193,16 @@ public final class HostCore {
         return cursorCaptured ? virtualY : mouseY;
     }
 
-    /** Whether the host can draw: it needs the OpenGL graphics backend (the Vulkan one has no ImGui renderer here). */
+    /** Whether the host can draw with the running graphics backend: it draws through Minecraft's render API, so always. */
     static boolean backendSupported() {
-        return glPresentSeen;
+        return true;
     }
-
-    private static boolean glPresentSeen;
 
 
     // ------------------------------------------------------------------ frame (render thread)
 
-    /** Called at the head of the OpenGL surface's present (just before the buffer swap). */
+    /** Called at the end of the GUI renderer's render: the GUI is in the main render target, the window blit follows. */
     public static void renderFrame() {
-        glPresentSeen = true;   // only the OpenGL surface calls this
         if (disabled || LAYERS.isEmpty()) return;
         Minecraft mc = Minecraft.getInstance();
         if (mc == null) return;
@@ -247,8 +241,8 @@ public final class HostCore {
 
             io.setBackendPlatformName("cg-uihost-sdl");
 
-            gl3 = new ImGuiImplGl3();
-            gl3.init("#version 150");
+            renderer = new RpRenderer();
+            renderer.init(io);
             initialized = true;
             return true;
         } catch (Throwable t) {
@@ -264,8 +258,7 @@ public final class HostCore {
         ImGuiIO io = ImGui.getIO();
         io.getFonts().clear();
         Theme.loadFonts(io, scale);
-        gl3.destroyFontsTexture();
-        gl3.createFontsTexture();
+        renderer.createFontTexture(io);
         Theme.apply(ImGui.getStyle(), scale);
     }
 
@@ -311,7 +304,6 @@ public final class HostCore {
         }
         io.setWantSetMousePos(false);
         platformNewFrame(mc, io);
-        gl3.newFrame();
         ImGui.newFrame();
 
         for (UiLayer l : layers) {
@@ -324,8 +316,7 @@ public final class HostCore {
         }
 
         ImGui.render();
-        GlStateManager._glBindFramebuffer(GL30.GL_FRAMEBUFFER, 0);
-        gl3.renderDrawData(ImGui.getDrawData());
+        renderer.render(mc, ImGui.getDrawData());
     }
 
     // ------------------------------------------------------------------ input routing
