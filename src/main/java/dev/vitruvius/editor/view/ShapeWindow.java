@@ -1,0 +1,334 @@
+package dev.vitruvius.editor.view;
+
+import dev.cg.uihost.Theme;
+import dev.vitruvius.editor.EditorSession;
+import dev.vitruvius.editor.core.Node;
+import dev.vitruvius.editor.core.Vec3i;
+import dev.vitruvius.editor.ops.AddObject;
+import dev.vitruvius.editor.ui.ToastQueue;
+import dev.vitruvius.shape.Axis;
+import dev.vitruvius.shape.BlockEntry;
+import dev.vitruvius.shape.BlockSlot;
+import dev.vitruvius.shape.GeneratorSettings;
+import dev.vitruvius.shape.PatternMode;
+import dev.vitruvius.shape.ShapeSpec;
+import dev.vitruvius.shape.ShapeType;
+import dev.vitruvius.shape.VoxelResult;
+import dev.vitruvius.shape.mc.BlockParsing;
+import dev.vitruvius.shape.mc.PreviewWorker;
+import dev.vitruvius.shape.mc.ShapePresets;
+import dev.vitruvius.shape.mc.ShapePreview;
+import dev.vitruvius.shape.mc.ShapeSaver;
+import imgui.ImGui;
+import imgui.flag.ImGuiCond;
+import imgui.type.ImBoolean;
+import imgui.type.ImInt;
+import imgui.type.ImString;
+import net.minecraft.core.BlockPos;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+import java.util.UUID;
+
+/**
+ * The Shape Generator inside the editor (Add > Shape generator, Windows > Shape generator): the controls of the
+ * 1.x screen as an ImGui window. Every change regenerates off-thread (PreviewWorker) and shows the result as a ghost
+ * at the camera target, so the shape is judged in the 3D viewport while the camera flies around it. Generate writes
+ * the schematic into Litematica's {@code Shapes} folder and adds it as a normal object to the active project (or the
+ * folder the Add menu was opened on), where it can be moved, rotated, arrayed and cut like any other.
+ */
+public final class ShapeWindow {
+    private ShapeWindow() {}
+
+    private static final String FOLDER = "Shapes";
+    private static final ImBoolean OPEN = new ImBoolean(true);
+
+    private static boolean initialised;
+    private static UUID parent;
+
+    // spec
+    private static final ShapeType[] TYPES = ShapeType.values();
+    private static final String[] TYPE_NAMES = new String[TYPES.length];
+    private static final String[] AXIS_NAMES = {"X", "Y", "Z"};
+    private static final String[] MODE_NAMES = new String[PatternMode.values().length];
+
+    static {
+        for (int i = 0; i < TYPES.length; i++) TYPE_NAMES[i] = TYPES[i].displayName;
+        for (int i = 0; i < MODE_NAMES.length; i++) MODE_NAMES[i] = PatternMode.values()[i].displayName;
+    }
+
+    private static final ImInt type = new ImInt(0);
+    private static final ImInt sx = new ImInt(9), sy = new ImInt(9), sz = new ImInt(9);
+    private static final ImInt axis = new ImInt(1);
+    private static final ImInt thickness = new ImInt(1), param1 = new ImInt(3), param2 = new ImInt(1);
+    private static boolean anchorCenter;
+    private static final ImString name = new ImString("shape", 64);
+    private static final SlotState outline = new SlotState(), fill = new SlotState();
+
+    // preview
+    private static BlockPos target = BlockPos.ZERO;     // the point the shape is anchored at
+    private static GeneratorSettings requested;
+    private static VoxelResult result;
+    private static String error;
+    private static String lastShownKey = "";
+
+    /** One Outline/Fill editor: pattern mode, the block text and the mode's extra numbers. */
+    private static final class SlotState {
+        final ImInt mode = new ImInt(0);
+        final ImString blocks = new ImString("", 512);
+        final ImInt cellX = new ImInt(1), cellY = new ImInt(1), cellZ = new ImInt(1);
+        final ImInt axis = new ImInt(1), width = new ImInt(1);
+        final ImInt seed = new ImInt(0);
+        boolean dither;
+
+        void load(BlockSlot s) {
+            mode.set(s.mode().ordinal());
+            blocks.set(s.entries().isEmpty() ? "" : BlockParsing.formatEntries(s.entries()));
+            cellX.set(s.cellX());
+            cellY.set(s.cellY());
+            cellZ.set(s.cellZ());
+            axis.set(s.axis().ordinal());
+            width.set(s.width());
+            seed.set((int) s.seed());
+            dither = s.dither();
+        }
+
+        BlockSlot slot() {
+            List<BlockEntry> entries = BlockParsing.parseEntries(blocks.get());
+            return new BlockSlot(PatternMode.values()[mode.get()], entries, cellX.get(), cellY.get(), cellZ.get(),
+                    Axis.values()[axis.get()], width.get(), seed.get(), dither);
+        }
+
+        /** The first invalid block of the field, or null. */
+        String error() {
+            for (BlockEntry e : BlockParsing.parseEntries(blocks.get())) {
+                String m = BlockParsing.error(e.blockState());
+                if (m != null) return m;
+            }
+            return null;
+        }
+    }
+
+    // ------------------------------------------------------------------ open / close
+
+    /** Opens the window; the Add menu passes the parent the shape should end up in. */
+    public static void open(EditorSession s, UUID parentId) {
+        parent = parentId;
+        s.showShape = true;
+        s.windowsHidden = false;
+        if (!initialised) {
+            initialised = true;
+            GeneratorSettings g = ShapePresets.last();
+            ShapeSpec sp = g.spec();
+            type.set(sp.type().ordinal());
+            sx.set(sp.sizeX());
+            sy.set(sp.sizeY());
+            sz.set(sp.sizeZ());
+            axis.set(sp.axis().ordinal());
+            thickness.set(sp.thickness());
+            param1.set(sp.param1());
+            param2.set(sp.param2());
+            anchorCenter = sp.anchorCenter();
+            outline.load(g.outline());
+            fill.load(g.fill());
+            name.set(g.name() == null || g.name().isBlank() ? "shape" : g.name());
+        }
+        moveHere();
+        requested = null;     // force a fresh preview
+    }
+
+    /** Removes the ghost and drops pending work; safe to call at any time (editor exit, window closed). */
+    public static void close() {
+        PreviewWorker.cancel();
+        ShapePreview.clear();
+        requested = null;
+        result = null;
+        lastShownKey = "";
+    }
+
+    private static void moveHere() {
+        var t = dev.vitruvius.editor.cam.EditorCamera.get().target();
+        target = new BlockPos((int) Math.floor(t.x), (int) Math.floor(t.y), (int) Math.floor(t.z));
+        lastShownKey = "";
+    }
+
+    // ------------------------------------------------------------------ window
+
+    public static void draw(EditorSession s) {
+        float sc = Ui.s();
+        var vp = ImGui.getMainViewport();
+        OPEN.set(s.showShape);
+        ImGui.setNextWindowPos(vp.getPosX() + vp.getSizeX() - 340 * sc - 12 * sc, vp.getPosY() + 56 * sc, s.resetLayout ? ImGuiCond.Always : ImGuiCond.FirstUseEver);
+        ImGui.setNextWindowSize(330 * sc, Math.max(300 * sc, vp.getSizeY() * 0.7f), s.resetLayout ? ImGuiCond.Always : ImGuiCond.FirstUseEver);
+        ImGui.setNextWindowSizeConstraints(280 * sc, 200 * sc, 4000, 4000);
+        boolean visible = Ui.beginWindow("Shape generator", OPEN, 0, 0.96f);
+        if (visible) drawContent(s, sc);
+        Ui.endWindow();
+        s.showShape = OPEN.get();
+        if (!s.showShape) close();
+    }
+
+    private static void drawContent(EditorSession s, float sc) {
+        ShapeType t = TYPES[type.get()];
+        float w = -1;
+
+        Ui.section("Shape");
+        ImGui.setNextItemWidth(w);
+        ImGui.combo("##shapetype", type, TYPE_NAMES);
+        t = TYPES[type.get()];
+        size("X", sx, sc);
+        size("Y", sy, sc);
+        size("Z", sz, sc);
+        if (t.usesAxis()) {
+            ImGui.setNextItemWidth(80 * sc);
+            ImGui.combo("Axis", axis, AXIS_NAMES);
+        }
+        number("Thickness", thickness, 1, ShapeSpec.MAX_SIZE, sc);
+        if (t.param1Label != null) number(t.param1Label, param1, 0, ShapeSpec.MAX_SIZE, sc);
+        if (t.param2Label != null) number(t.param2Label, param2, 0, ShapeSpec.MAX_SIZE, sc);
+
+        Ui.section("Outline");
+        slot("outline", outline, "stone, or 60%stone,40%andesite", sc);
+        Ui.section("Fill");
+        slot("fill", fill, "empty = hollow", sc);
+
+        Ui.section("Placement");
+        if (ImGui.checkbox("Anchor at the center", anchorCenter)) anchorCenter = !anchorCenter;
+        Ui.tooltip("Off: the camera target is the shape's low corner. On: it is the middle of the box.");
+        if (ImGui.button("Move to camera target")) moveHere();
+        Ui.tooltip("Orbit or fly the camera, then click: the shape jumps to what the camera looks at.");
+        ImGui.sameLine();
+        Ui.smallDim(target.getX() + ", " + target.getY() + ", " + target.getZ());
+
+        // build the settings and (re)generate when something changed
+        String blockError = outline.error() != null ? outline.error() : fill.error();
+        GeneratorSettings g = settings(t);
+        BlockPos origin = originFor(g.spec());
+        if (blockError == null) {
+            if (!g.equals(requested)) {
+                requested = g;
+                PreviewWorker.request(g, r -> {
+                    result = r;
+                    lastShownKey = "";      // show it below with the current origin
+                });
+            }
+            String key = origin.toString() + (result == null ? 0 : System.identityHashCode(result));
+            if (result != null && !key.equals(lastShownKey)) {
+                lastShownKey = key;
+                ShapePreview.show(result, origin);
+            }
+        }
+        error = blockError;
+
+        Ui.section("Create");
+        ImGui.setNextItemWidth(w);
+        ImGui.inputText("##shapename", name);
+        boolean busy = PreviewWorker.busy();
+        if (error != null) Ui.colored(Theme.ERR, error);
+        else if (busy) Ui.smallDim("Generating…");
+        else if (result != null) Ui.smallDim(result.blockCount() + " blocks, " + result.sizeX() + " x " + result.sizeY() + " x " + result.sizeZ()
+                + "  at " + origin.getX() + ", " + origin.getY() + ", " + origin.getZ());
+        boolean can = error == null && !busy && result != null && result.blockCount() > 0 && !name.get().isBlank();
+        String why = error != null ? error : busy ? "Still generating" : result == null || result.blockCount() == 0 ? "The shape is empty" : "Give it a name";
+        if (Ui.button("Generate", true, can, 120 * sc, why)) generate(s, g, origin);
+        ImGui.sameLine();
+        if (ImGui.button("Close", 80 * sc, 0)) s.showShape = false;
+        ImGui.sameLine();
+        Ui.smallDim("into the project, folder \"" + FOLDER + "\"");
+    }
+
+    private static GeneratorSettings settings(ShapeType t) {
+        ShapeSpec spec = new ShapeSpec(t, sx.get(), sy.get(), sz.get(), Axis.values()[axis.get()], thickness.get(),
+                param1.get(), param2.get(), anchorCenter).clamped();
+        return new GeneratorSettings(spec, outline.slot(), fill.slot(), name.get());
+    }
+
+    private static BlockPos originFor(ShapeSpec spec) {
+        if (!spec.anchorCenter()) return target;
+        return target.offset(-(spec.sizeX() / 2), -(spec.sizeY() / 2), -(spec.sizeZ() / 2));
+    }
+
+    // ------------------------------------------------------------------ controls
+
+    private static void size(String label, ImInt v, float sc) {
+        number(label, v, 1, ShapeSpec.MAX_SIZE, sc);
+    }
+
+    private static void number(String label, ImInt v, int lo, int hi, float sc) {
+        ImGui.setNextItemWidth(130 * sc);
+        if (ImGui.inputInt(label, v, 1, 8)) v.set(Math.max(lo, Math.min(hi, v.get())));
+    }
+
+    private static void slot(String id, SlotState st, String hint, float sc) {
+        ImGui.setNextItemWidth(110 * sc);
+        ImGui.combo("##" + id + "mode", st.mode, MODE_NAMES);
+        PatternMode mode = PatternMode.values()[st.mode.get()];
+        ImGui.sameLine();
+        if (ImGui.button("Hand##" + id)) {
+            String held = BlockParsing.fromMainHand();
+            if (held != null) st.blocks.set(held);
+        }
+        Ui.tooltip("Use the block in your main hand");
+        ImGui.setNextItemWidth(-1);
+        ImGui.inputTextWithHint("##" + id + "blocks", mode == PatternMode.SINGLE ? hint : "2+ blocks: stone,andesite", st.blocks);
+        switch (mode) {
+            case CHECKER, BRICK -> {
+                ImGui.setNextItemWidth(60 * sc);
+                if (ImGui.inputInt("##" + id + "cx", st.cellX, 0, 0)) st.cellX.set(Math.max(1, st.cellX.get()));
+                ImGui.sameLine();
+                ImGui.setNextItemWidth(60 * sc);
+                if (ImGui.inputInt("##" + id + "cy", st.cellY, 0, 0)) st.cellY.set(Math.max(1, st.cellY.get()));
+                ImGui.sameLine();
+                ImGui.setNextItemWidth(60 * sc);
+                if (ImGui.inputInt("##" + id + "cz", st.cellZ, 0, 0)) st.cellZ.set(Math.max(1, st.cellZ.get()));
+                ImGui.sameLine();
+                Ui.smallDim(mode == PatternMode.BRICK ? "brick X Y Z" : "cell X Y Z");
+            }
+            case STRIPES, GRADIENT, DIAGONAL -> {
+                ImGui.setNextItemWidth(60 * sc);
+                ImGui.combo("##" + id + "axis", st.axis, AXIS_NAMES);
+                ImGui.sameLine();
+                ImGui.setNextItemWidth(80 * sc);
+                if (ImGui.inputInt("width##" + id, st.width, 1, 4)) st.width.set(Math.max(1, st.width.get()));
+                if (mode == PatternMode.GRADIENT && ImGui.checkbox("Dither##" + id, st.dither)) st.dither = !st.dither;
+            }
+            case MIX -> {
+                ImGui.setNextItemWidth(110 * sc);
+                ImGui.inputInt("Seed##" + id, st.seed, 1, 100);
+                ImGui.sameLine();
+                if (ImGui.button("Dice##" + id)) st.seed.set(java.util.concurrent.ThreadLocalRandom.current().nextInt(1_000_000));
+            }
+            default -> {
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------ generate
+
+    private static void generate(EditorSession s, GeneratorSettings g, BlockPos origin) {
+        Path folder = ShapeSaver.root().resolve(FOLDER);
+        String base = name.get().trim();
+        String unique = base;
+        for (int i = 2; Files.exists(ShapeSaver.fileFor(folder, unique)); i++) unique = base + " " + i;
+        String err = ShapeSaver.write(result, folder, unique);
+        if (err != null) {
+            s.toast(ToastQueue.Level.WARN, "Shape not saved: " + err);
+            return;
+        }
+        ShapePresets.setLast(new GeneratorSettings(g.spec(), g.outline(), g.fill(), base));
+        String rel = ShapeSaver.root().relativize(ShapeSaver.fileFor(folder, unique)).toString().replace(java.io.File.separatorChar, '/');
+        UUID target = parent != null && s.scene().byId(parent) != null ? parent
+                : (s.scene().activeProject() != null ? s.scene().activeProject().id() : s.scene().loose().id());
+        close();      // the ghost goes first: the new object takes its place
+        AddObject cmd = new AddObject(target, -1, unique, rel, new Vec3i(origin.getX(), origin.getY(), origin.getZ()));
+        if (s.actions.execute(cmd)) {
+            s.selection.set(cmd.objectId());
+            Node n = s.scene().byId(cmd.objectId());
+            if (n != null) s.tree.reveal(n);
+            s.scrollToRow = cmd.objectId();
+            s.toast(ToastQueue.Level.INFO, "Added \"" + unique + "\". Change the settings to make another.");
+        }
+        requested = null;
+    }
+}

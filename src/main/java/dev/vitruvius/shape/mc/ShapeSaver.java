@@ -65,6 +65,35 @@ public final class ShapeSaver {
     }
 
     /**
+     * Writes result as fileFor(folder, name) without making a placement (the editor adds the object itself). Existing
+     * files are never overwritten here. Returns null on success, else a message.
+     */
+    public static String write(VoxelResult result, Path folder, String name) {
+        if (name == null || name.isBlank()) return "Name is empty";
+        Path dir = folder.toAbsolutePath().normalize();
+        if (!dir.startsWith(root())) return "Folder is outside the schematics folder";
+        try {
+            Files.createDirectories(dir);
+        } catch (IOException e) {
+            return "Cannot create folder: " + e.getMessage();
+        }
+        Path file = fileFor(dir, name);
+        if (Files.exists(file)) return "File exists";
+        LitematicaSchematic schematic;
+        try {
+            schematic = ShapeSchematics.build(result, name.trim());
+        } catch (IllegalArgumentException e) {
+            return e.getMessage();
+        }
+        try {
+            if (!schematic.writeToFile(dir, name.trim(), false)) return "Write failed";
+        } catch (RuntimeException e) {
+            return "Write failed: " + e.getMessage();
+        }
+        return null;
+    }
+
+    /**
      * Writes result as fileFor(name) (overwrite only when allowed), loads it, adds a normal placement at origin
      * named name, removes the ghost and selects the new placement. Returns null on success, else an error message
      * for the screen (e.g. "File exists", invalid block, write failed).

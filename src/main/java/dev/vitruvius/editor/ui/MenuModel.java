@@ -158,6 +158,7 @@ public final class MenuModel {
     public static List<Item> addItems(boolean canAdd, String whyNot) {
         List<Item> out = new ArrayList<>();
         out.add(item("add.schematic", "Schematic…", "", "object", canAdd, whyNot));
+        out.add(item("add.shape", "Shape generator…", "", "box", canAdd, whyNot));
         out.add(item("add.assembly", "Assembly (.lasm)…", "", "assembly", canAdd, whyNot));
         out.add(item("add.link", "Link project as assembly…", "", "link", canAdd, whyNot));
         for (dev.vitruvius.api.SceneObjectType t : dev.vitruvius.api.ObjectTypes.all()) {      // objects of other mods (API 2)

@@ -115,7 +115,7 @@ public final class EditorSession {
     private Tool tool = Tool.SELECT;
 
     public boolean windowsHidden;
-    public boolean showScene = true, showProperties = true, showTopView = true;
+    public boolean showScene = true, showProperties = true, showTopView = true, showShape;
     /** Snapping toolbar toggle (Ctrl inverts it while dragging). Saved in the UI config. */
     public boolean snap;
     /** Local view is on (see {@link #toggleLocalView()}); runtime only. */
@@ -836,6 +836,11 @@ public final class EditorSession {
             scrollToRow = id;
             showScene = true;
             windowsHidden = false;
+        }
+
+        @Override
+        public void requestAddShape(UUID parentId) {
+            dev.vitruvius.editor.view.ShapeWindow.open(EditorSession.this, parentId);
         }
 
         @Override

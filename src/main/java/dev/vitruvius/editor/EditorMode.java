@@ -89,7 +89,11 @@ public final class EditorMode {
         EditorCamera.get().cancelGesture();
         try {
             EditorSession s = EditorSession.get();
-            if (s != null) s.gizmo.cancel();                 // a running drag or typed transform ends like Esc
+            if (s != null) {
+                s.gizmo.cancel();                            // a running drag or typed transform ends like Esc
+                s.showShape = false;
+            }
+            dev.vitruvius.editor.view.ShapeWindow.close();   // no ghost is left behind
         } catch (Throwable ignored) {
             // no session (Litematica missing)
         }

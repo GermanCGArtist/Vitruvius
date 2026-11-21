@@ -63,6 +63,9 @@ public final class EditorActions {
         /** Opens the file picker for a new schematic under this parent. */
         void requestAddSchematic(UUID parentId);
 
+        /** Opens the shape generator window; its result is added under this parent. */
+        default void requestAddShape(UUID parentId) {}
+
         void focusFilter();
 
         /** Pushes a shared project to Syncmatica. */
@@ -168,7 +171,7 @@ public final class EditorActions {
     public static boolean handles(String id) {
         if (id.startsWith("move.to:") || id.startsWith("add.ext:")) return true;
         return switch (id) {
-            case "add.schematic", "add.folder", "select.all", "select.none", "select.contents", "frame.all", "frame",
+            case "add.schematic", "add.shape", "add.folder", "select.all", "select.none", "select.contents", "frame.all", "frame",
                  "show.hidden", "undo", "redo", "duplicate", "dup.linked", "rename", "t.rot.cw", "t.rot.ccw", "t.mirror",
                  "t.mirrorz", "mod.array", "mod.boolean", "mod.realise", "mod.apply", "front.front", "front.forward", "front.backward",
                  "front.back", "assembly.create", "hide", "delete", "asm.makelocal", "asm.breakup", "part.select.owner",
@@ -430,6 +433,9 @@ private static boolean hasArray(Node n) {        List<dev.vitruvius.editor.core.
                 return true;
             case "add.schematic":
                 host.requestAddSchematic(addParent().id());
+                return true;
+            case "add.shape":
+                host.requestAddShape(addParent().id());
                 return true;
             case "proj.push":
                 return single(ProjectNode.class).map(p -> {

@@ -161,11 +161,13 @@ See [File formats](../reference/file-formats.md) for details.
 
 - **New project** creates one and makes it active. **Open project...** lists the folders in `schematics/Projects`.
 - **Make active** changes where new objects go. Front order works across all open projects.
-- **Add** (toolbar, `Shift A`, or the right-click menu) offers **Schematic...**, **Assembly (.lasm)...**,
+- **Add** (toolbar, `Shift A`, or the right-click menu) offers **Schematic...**, **Shape generator...**, **Assembly (.lasm)...**,
   **Link project as assembly...**, any object type another mod registered, and **Folder**.
 - **Convert to project...** (on Loose or on a folder) turns existing placements into a new project.
 - **Close project** removes its placements from the world; the files stay on disk.
 - Open projects are remembered per world and open again when you rejoin it. A project records the world and dimension it was made in.
+
+**Shape generator** (Add menu, or Windows) opens the shape builder as a window in the editor: pick a shape, sizes and block patterns, and the result shows as a ghost at the camera target while you fly around it. **Move to camera target** repositions it. **Generate** saves the schematic in `schematics/Shapes` and adds it as an ordinary object, so you can move, rotate, array and cut it.
 
 When you add a schematic, its file is **copied into the project's `files/` folder**, so the project is self-contained.
 

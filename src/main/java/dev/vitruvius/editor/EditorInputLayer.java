@@ -8,6 +8,7 @@ import dev.vitruvius.editor.view.ContextMenus;
 import dev.vitruvius.editor.view.EditorChrome;
 import dev.vitruvius.editor.view.PropertiesWindow;
 import dev.vitruvius.editor.view.SceneWindow;
+import dev.vitruvius.editor.view.ShapeWindow;
 import dev.vitruvius.editor.view.TopViewWindow;
 import dev.vitruvius.editor.view.Toasts;
 import dev.vitruvius.editor.view.TransformHud;
@@ -74,6 +75,7 @@ public final class EditorInputLayer implements UiLayer {
             if (s.showScene) SceneWindow.draw(s);
             if (s.showProperties) PropertiesWindow.draw(s);
             if (s.showTopView) TopViewWindow.draw(s);
+            if (s.showShape) ShapeWindow.draw(s);
         }
         s.resetLayout = false;
         EditorChrome.draw(s);
