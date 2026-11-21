@@ -79,9 +79,7 @@ public final class ShapeWindow {
     private static String outputStatus;
     private static int activeOutput = -1;                  // the output whose ghost is up (index into shapeOutputs()), or -1
     private static boolean blockGhost;
-    private static List<String> folderChoices = List.of();
     private static String listFolder;                      // chosen 1.x list folder id, null = top level
-    private static final ImString newListFolder = new ImString("", 64);
 
     /** One Outline/Fill editor: pattern mode, the block text and the mode's extra numbers. */
     private static final class SlotState {
@@ -324,7 +322,7 @@ public final class ShapeWindow {
     private static void createOutput(EditorSession s, dev.vitruvius.api.ShapeOutput out, BlockPos origin) {
         String err;
         try {
-            String folderId = out.usesListFolders() ? resolveListFolder() : null;
+            String folderId = out.usesListFolders() ? listFolder : null;
             err = out.create(new dev.vitruvius.api.ShapeActionContext(result, name.get().trim(), origin), option.get(), folderId);
         } catch (Throwable ex) {
             err = ex.getMessage() == null ? ex.toString() : ex.getMessage();
@@ -336,65 +334,94 @@ public final class ShapeWindow {
         else s.toast(ToastQueue.Level.INFO, "Created " + what + " \"" + name.get().trim() + "\". Change the settings to make another.");
     }
 
-    /** The list folder row: where the new entry goes in the placement list (pick one, or type a name for a new one). */
+    private static final FolderPicker SCHEM_PICKER = new FolderPicker("schem");
+    private static final FolderPicker LIST_PICKER = new FolderPicker("list");
+
+    /** The list folder row: shows the chosen placement-list folder; Browse opens the folder window. */
     private static void drawListFolder(float sc) {
         var folders = dev.vitruvius.api.VitruviusApi.listFolders();
         String shown = "(top level)";
         for (var f : folders) if (f.id().equals(listFolder)) shown = f.name();
         if (listFolder != null && shown.equals("(top level)")) listFolder = null;     // the folder was deleted
-        ImGui.setNextItemWidth(-1);
-        if (ImGui.beginCombo("##listfolder", "Folder: " + shown)) {
-            if (ImGui.selectable("(top level)", listFolder == null)) listFolder = null;
-            for (var f : folders) {
-                if (ImGui.selectable("  ".repeat(f.depth()) + f.name() + "##lf" + f.id(), f.id().equals(listFolder))) listFolder = f.id();
-            }
-            ImGui.endCombo();
+        Ui.smallDim("Placement list folder");
+        ImGui.setNextItemWidth(-90 * sc);
+        ImGui.inputText("##listfolder", new ImString(shown, 128), imgui.flag.ImGuiInputTextFlags.ReadOnly);
+        ImGui.sameLine();
+        if (ImGui.button("Browse…##listfolder", 80 * sc, 0)) {
+            LIST_PICKER.open("Choose list folder", "The new entry appears in this folder of the placement list.",
+                    ShapeWindow::listTree, listFolder == null ? "" : listFolder,
+                    (parentKey, name) -> dev.vitruvius.api.VitruviusApi.createFolder(name, parentKey.isEmpty() ? null : parentKey),
+                    key -> listFolder = key.isEmpty() ? null : key);
         }
-        Ui.tooltip("The folder of the placement list the new entry goes into.");
-        ImGui.setNextItemWidth(-1);
-        ImGui.inputTextWithHint("##newlistfolder", "or a new folder name (inside the one above)", newListFolder);
+        LIST_PICKER.draw(sc);
     }
 
-    /** The folder id to use: a new folder when a name was typed (made now, inside the chosen one), else the chosen one. */
-    private static String resolveListFolder() {
-        String n = newListFolder.get().trim();
-        if (n.isEmpty()) return listFolder;
-        String id = dev.vitruvius.api.VitruviusApi.createFolder(n, listFolder);
-        listFolder = id;
-        newListFolder.set("");
-        return id;
+    private static FolderPicker.Node listTree() {
+        FolderPicker.Node root = new FolderPicker.Node("(top level)", "");
+        java.util.ArrayDeque<FolderPicker.Node> stack = new java.util.ArrayDeque<>();
+        stack.push(root);
+        for (var f : dev.vitruvius.api.VitruviusApi.listFolders()) {        // flattened tree: depth says where it belongs
+            while (stack.size() > f.depth() + 1) stack.pop();
+            FolderPicker.Node n = new FolderPicker.Node(f.name(), f.id());
+            stack.peek().children.add(n);
+            stack.push(n);
+        }
+        return root;
     }
 
     /** The folder row: where the schematic file goes (inside Litematica's schematics folder). */
     private static void drawFolder(float sc) {
-        ImGui.setNextItemWidth(-70 * sc);
-        ImGui.inputTextWithHint("##shapefolder", "Folder in the schematics folder", folder);
+        Ui.smallDim("Save the schematic in");
+        ImGui.setNextItemWidth(-90 * sc);
+        ImGui.inputTextWithHint("##shapefolder", "(schematics folder)", folder);
+        Ui.tooltip("A path inside Litematica's schematics folder. Type a new name to make a new folder, or use Browse.");
         ImGui.sameLine();
-        if (ImGui.button("Browse##shapefolder")) {
-            folderChoices = listFolders();
-            ImGui.openPopup("##folderpick");
+        if (ImGui.button("Browse…##shapefolder", 80 * sc, 0)) {
+            SCHEM_PICKER.open("Choose schematic folder", "Schematics are saved as .litematic files in the selected folder.",
+                    ShapeWindow::schematicTree, folder.get().trim().replace('\\', '/'),
+                    ShapeWindow::createSchematicFolder, key -> folder.set(key));
         }
-        Ui.tooltip("Where the schematic file is saved, inside Litematica's schematics folder. A new name makes a new folder. Empty = the schematics folder itself.");
-        if (ImGui.beginPopup("##folderpick")) {
-            if (ImGui.selectable("(schematics folder)")) folder.set("");
-            for (String f : folderChoices) if (ImGui.selectable(f + "##fp" + f)) folder.set(f);
-            ImGui.endPopup();
+        SCHEM_PICKER.draw(sc);
+    }
+
+    private static FolderPicker.Node schematicTree() {
+        Path root = ShapeSaver.root();
+        FolderPicker.Node top = new FolderPicker.Node("(schematics folder)", "");
+        addDirs(root, root, top, 0);
+        return top;
+    }
+
+    private static void addDirs(Path root, Path dir, FolderPicker.Node into, int depth) {
+        if (depth > 8) return;
+        List<Path> subs = new ArrayList<>();
+        try (var st = Files.list(dir)) {
+            st.filter(Files::isDirectory).forEach(subs::add);
+        } catch (java.io.IOException ignored) {
+            return;
+        }
+        subs.sort(java.util.Comparator.comparing(p -> p.getFileName().toString().toLowerCase(java.util.Locale.ROOT)));
+        for (Path p : subs) {
+            String n = p.getFileName().toString();
+            if (n.startsWith(".") || (depth == 0 && n.equals("Projects"))) continue;
+            FolderPicker.Node node = new FolderPicker.Node(n, root.relativize(p).toString().replace(java.io.File.separatorChar, '/'));
+            into.children.add(node);
+            addDirs(root, p, node, depth + 1);
         }
     }
 
-    private static List<String> listFolders() {
-        List<String> out = new ArrayList<>();
+    private static String createSchematicFolder(String parentKey, String name) {
+        String clean = name.trim();
+        if (clean.isEmpty() || clean.contains("/") || clean.contains("\\") || clean.equals(".") || clean.equals("..")
+                || clean.matches(".*[<>:\"|?*].*")) return null;
         Path root = ShapeSaver.root();
-        try (var st = Files.walk(root, 4)) {
-            st.filter(Files::isDirectory).forEach(d -> {
-                String rel = root.relativize(d).toString().replace(java.io.File.separatorChar, '/');
-                if (!rel.isEmpty() && !rel.startsWith("Projects") && !rel.contains("/.") && !rel.startsWith(".")) out.add(rel);
-            });
-        } catch (java.io.IOException ignored) {
-            // no folders to offer
+        try {
+            Path dir = root.resolve(parentKey).resolve(clean).normalize();
+            if (!dir.startsWith(root)) return null;
+            Files.createDirectories(dir);
+            return root.relativize(dir).toString().replace(java.io.File.separatorChar, '/');
+        } catch (java.io.IOException | RuntimeException e) {
+            return null;
         }
-        out.sort(String.CASE_INSENSITIVE_ORDER);
-        return out;
     }
 
     private static void runAction(EditorSession s, dev.vitruvius.api.VitruviusApi.ShapeAction a, GeneratorSettings g, BlockPos origin) {
