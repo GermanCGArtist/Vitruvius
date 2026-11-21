@@ -138,6 +138,10 @@ public final class ShapeHandles {
         }
         String tmpRel = ResizeShape.CACHE_DIR;
         String baseDir = s.undoStack().context().baseDir(o);
+        if (baseDir.equals("..") || baseDir.startsWith("../")) {
+            s.toast(ToastQueue.Level.WARN, "This project is outside the profile's schematics folder, so the shape cannot be changed");
+            return false;
+        }
         if (s.scene().projectOf(o) != null && !baseDir.isEmpty()) tmpRel = baseDir + "/" + ResizeShape.CACHE_DIR;
         String tmpName = Integer.toHexString(o.id().hashCode()) + "-" + Integer.toHexString(java.util.concurrent.ThreadLocalRandom.current().nextInt());
         Path dir = s.schematicsDir().resolve(tmpRel).normalize();

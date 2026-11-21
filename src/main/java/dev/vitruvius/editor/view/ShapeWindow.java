@@ -199,9 +199,14 @@ public final class ShapeWindow {
             s.toast(ToastQueue.Level.WARN, "That makes an empty shape");
             return;
         }
-        var t = dev.vitruvius.editor.cam.EditorCamera.get().target();
+        // where the player stands (the camera target when there is no player), centered on X and Z, standing on Y
+        BlockPos at = dev.vitruvius.Compat.playerBlockPos();
+        if (at == null) {
+            var t = dev.vitruvius.editor.cam.EditorCamera.get().target();
+            at = new BlockPos((int) Math.floor(t.x), (int) Math.floor(t.y), (int) Math.floor(t.z));
+        }
         ShapeSpec sp = g.spec();
-        Vec3i pos = new Vec3i((int) Math.floor(t.x) - sp.sizeX() / 2, (int) Math.floor(t.y), (int) Math.floor(t.z) - sp.sizeZ() / 2);
+        Vec3i pos = new Vec3i(at.getX() - sp.sizeX() / 2, at.getY(), at.getZ() - sp.sizeZ() / 2);
         String base = name.get().isBlank() ? "shape" : name.get().trim();
         String tmpName = Integer.toHexString(java.util.concurrent.ThreadLocalRandom.current().nextInt());
         Path dir = s.schematicsDir().resolve(dev.vitruvius.editor.ops.ResizeShape.CACHE_DIR).normalize();
@@ -217,6 +222,14 @@ public final class ShapeWindow {
         }
         UUID parent = parentId != null && s.scene().byId(parentId) != null ? parentId
                 : (s.scene().activeProject() != null ? s.scene().activeProject().id() : s.scene().loose().id());
+        Node parentNode = s.scene().byId(parent);
+        String baseDir = parentNode == null ? "" : s.undoStack().context().baseDir(parentNode);
+        if (baseDir.equals("..") || baseDir.startsWith("../")) {
+            // a project that lives outside this profile's schematics folder (opened from another profile) cannot take files
+            s.toast(ToastQueue.Level.WARN, "The project \"" + (s.scene().projectOf(parentNode) == null ? "" : s.scene().projectOf(parentNode).name())
+                    + "\" is outside this profile's schematics folder, so the shape was added to Loose. Move the project folder into schematics/Projects to use it.");
+            parent = s.scene().loose().id();
+        }
         AddObject cmd = new AddObject(parent, -1, base, dev.vitruvius.editor.ops.ResizeShape.CACHE_DIR + "/" + tmpName + ".litematic", pos);
         if (!s.actions.execute(cmd)) return;
         s.selection.set(cmd.objectId());
