@@ -673,8 +673,13 @@ public final class SceneWindow {
             s.actions.execute(new SetHidden(List.of(n.id()), !n.hidden()));
             return;
         }
-        if (io.getKeyShift()) s.selection.range(order, n.id());                          // Shift: a range, as in a file manager
-        else if (io.getKeyCtrl() || io.getKeySuper()) s.selection.toggle(n.id());      // Ctrl: add or remove one
+        // the host's own key state as well as ImGui's: ImGui's modifier flags are not always set by the host's input
+        boolean shift = io.getKeyShift() || dev.cg.uihost.UiHost.isKeyDown(org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT_SHIFT) || dev.cg.uihost.UiHost.isKeyDown(org.lwjgl.glfw.GLFW.GLFW_KEY_RIGHT_SHIFT);
+        boolean ctrl = io.getKeyCtrl() || io.getKeySuper() || dev.cg.uihost.UiHost.isKeyDown(org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT_CONTROL)
+                || dev.cg.uihost.UiHost.isKeyDown(org.lwjgl.glfw.GLFW.GLFW_KEY_RIGHT_CONTROL) || dev.cg.uihost.UiHost.isKeyDown(org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT_SUPER)
+                || dev.cg.uihost.UiHost.isKeyDown(org.lwjgl.glfw.GLFW.GLFW_KEY_RIGHT_SUPER);
+        if (shift) s.selection.range(order, n.id());                          // Shift: a range, as in a file manager
+        else if (ctrl) s.selection.toggle(n.id());                            // Ctrl: add or remove one
         else if (s.selection.isSelected(n.id()) && s.selection.size() > 1) deferredSelect = n.id();
         else s.selection.set(n.id());
     }
