@@ -97,11 +97,6 @@ While a typed transform is running:
 
 | Input | Where | Action |
 |---|---|---|
-| Left / right click on **+-** | Array screen | +1 / −1. |
-| `Shift` / `Alt` with **+-** | Array screen | ×8 / ×4. |
 | `Ctrl` / `Shift` click | Placement list | Multi-select / range. |
 | `Shift` + **Delete** | Placement list folder | Delete a folder. |
 | Right click | Placement list | Pick a color. |
-| `Tab` | Shape Generator block field | Take the first suggestion. |
-| `G` held | Shape Generator | Peek at the ghost. |
-| `Shift` + **Generate** | Shape Generator | Overwrite an existing file. |

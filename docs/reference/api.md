@@ -6,7 +6,7 @@ is `2`. Call everything from the **client thread**.
 | API | Version | For |
 |---|---|---|
 | [List entries](#list-entries) | 1 | Rows of your own in Litematica's placement list. |
-| [Shape actions](#shape-actions) | 1 | A button in the Shape Generator. |
+| [Shape outputs](#shape-outputs) | 2 | Another output in the editor's Shape generator (with a live preview). |
 | [Folder actions](#folder-actions) | 1 | An action on folders (`registerFolderAction`, `FolderActionContext`). |
 | [Scene object types](../editor-2.0/API-v2.md) | 2 | Full objects in the 2.0 editor (areas, markers). |
 
@@ -53,11 +53,17 @@ Folder data for entries is stored under `id()` in `config/vitruvius/folders.json
 | `selectedEntryIds()` | The currently selected entry ids. |
 | `refreshList()` | Rebuilds the list (call it after your entries changed). |
 
-## Shape actions
+## Shape outputs
 
-`VitruviusApi.registerShapeAction(label, hover, action)` adds a button to the Shape Generator screen. The action
-receives a `ShapeActionContext(voxels, suggestedName, suggestedOrigin)`: the generated `VoxelResult`, the text of the name
-field and the origin (`BlockPos`) of the preview.
+`VitruviusApi.registerShapeOutput(output)` adds an entry to the **Output** drop-down of the editor's
+[Shape generator](../user-guide/shape-generator.md). A `ShapeOutput` has a `label()`, the `options()` of the drop-down next
+to it, a `preview(ctx, option)` that the window calls whenever the shape, its position or the option changes (`ctx` null
+removes your preview), and a `create(ctx, option, ...)` for the create button. Override `usesListFolders()` or
+`usesSchematicFolder()` to get the window's folder pickers. `ctx` is a `ShapeActionContext(voxels, suggestedName,
+suggestedOrigin)`: the generated `VoxelResult`, the name field and the origin (`BlockPos`).
+
+`registerShapeAction` from API 1 still compiles and loads, but its buttons are not shown: the Shape Generator screen
+it added them to is gone. Use a shape output instead.
 
 ## Folder actions
 

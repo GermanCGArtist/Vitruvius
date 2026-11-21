@@ -1,7 +1,7 @@
 # Vitruvius API v2: scene objects of your own
 
 For the author of Heavymatica (or any mod that has things with a position and a size). `VitruviusApi.API_VERSION` is `2`.
-The 1.x API (list entries, shape actions, folder actions) is unchanged and keeps working.
+The 1.x API (list entries, folder actions) keeps working. Shape actions are no longer shown; see [shape outputs](../reference/api.md#shape-outputs).
 
 ## What you get
 

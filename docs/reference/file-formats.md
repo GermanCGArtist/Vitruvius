@@ -10,10 +10,9 @@ are kept and written back unchanged, so files from a newer 2.x survive being ope
 |---|---|
 | `schematics/Projects/<name>/` | One 2.0 project (see below). |
 | `schematics/exports/` | Output of the editor's exports (`.zip`, baked `.litematic`). |
-| `<your save folder>/*.litematic` | Shapes saved by the Shape Generator. |
+| `schematics/Shapes/*.litematic` | Shapes made by the Shape generator (the folder can be changed in its window). |
 | `config/vitruvius/folders.json` | Placement-list folders (global, all worlds). |
-| `config/vitruvius/arrays.json` | 1.x arrays. Read by 2.0 for migration; not written by the editor. |
-| `config/vitruvius/shapes.json` | Shape Generator presets and last settings. |
+| `config/vitruvius/shapes.json` | The Shape generator's last settings and save folder. |
 | `config/vitruvius/editor-session.json` | Per world: the *migrated* flag, the open project folders and the active one. |
 | `config/vitruvius/editor-loose/<world>.lasm` | The **Loose** node of a world, after migration. |
 | `config/vitruvius/editor-loose/.cache/derived/` | Trimmed files for Loose objects (never cleaned up automatically). |
@@ -158,8 +157,8 @@ The manifest is a 1×1×1 air schematic named `[LA2] <project>`. Its description
 JSON, or `la2z:` followed by gzip and base64 when the JSON is longer than 30,000 characters. Above 60,000 characters it is
 refused, because NBT strings stop at 65,535 bytes.
 
-## Migration from 1.x
+## First start in a world
 
-On the first start in a world, `folders.json` and `arrays.json` are converted into Loose objects and written to
-`editor-loose/<world>.lasm`. The editor never writes `folders.json` or `arrays.json` afterwards, so a rollback to 1.x
-keeps working with the data from before the migration.
+On the first start in a world, the placements and their `folders.json` folders are converted into Loose objects and
+written to `editor-loose/<world>.lasm`. The editor never writes `folders.json` afterwards. The 1.x `arrays.json` is not
+read: the copies of a 1.x array come in as separate objects.

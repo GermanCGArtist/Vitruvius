@@ -167,15 +167,15 @@ See [File formats](../reference/file-formats.md) for details.
 - **Close project** removes its placements from the world; the files stay on disk.
 - Open projects are remembered per world and open again when you rejoin it. A project records the world and dimension it was made in.
 
-**Shape generator** (Add menu, or Windows) opens the shape builder as a window in the editor: pick a shape, sizes and block patterns, and the result shows as a ghost at the camera target while you fly around it. **Move to camera target** repositions it. **Generate** saves the schematic in `schematics/Shapes` and adds it as an ordinary object, so you can move, rotate, array and cut it.
+**Shape generator** (Add menu, or Windows) opens the shape builder as a window in the editor: pick a shape, sizes and block patterns, and the result shows as a ghost at the camera target while you fly around it. The shape is an ordinary object from the start, saved in `schematics/Shapes`, so you can move, rotate, array and cut it. See the [Shape generator guide](shape-generator.md).
 
 When you add a schematic, its file is **copied into the project's `files/` folder**, so the project is self-contained.
 
-### Migrating from 1.x
+### The first start in a world
 
-The first time the editor starts, the 1.x placement folders (`folders.json`) and arrays (`arrays.json`) are converted
-into Loose objects with array modifiers. The old files are never written to again by the editor, so you can go back.
-Folder hiding of migrated nodes remains handled by the classic placement list.
+The first time the editor starts in a world, your placements and their [placement folders](placement-folders.md)
+(`folders.json`) become Loose objects. The editor never writes `folders.json`. Folder hiding of these nodes remains
+handled by the placement list. Arrays made with 1.x are not converted: their copies come in as separate objects.
 
 ## Assemblies
 
@@ -208,8 +208,9 @@ For a linked assembly both first make it local, as one undo step.
 
 Any object or assembly can carry an **Array** modifier (**+ Array** in Properties, or *Modifiers → Add Array* in the
 menu). It works like Blender's: **Count** copies, a **Relative offset** (a fraction of the box built so far) and a
-**Constant offset** (in blocks), added together when both are on. The details are in
-[Arrays](placement-tools.md#arrays); the editor adds:
+**Constant offset** (in blocks), added together when both are on. With several modifiers the copies form a grid, and each modifier measures the box
+the ones above it have built. The axes are the object's own, so rotating or mirroring it turns the whole array. The
+editor adds:
 
 - arrays of **assemblies**, which repeat every part;
 - **Realise array**, which turns the copies into separate objects in a `<name> (realised)` folder that replaces the
@@ -314,7 +315,7 @@ Limits:
 - Files of objects are fetched once. Editing the blocks of a file in place is not synchronised.
 
 > **Not yet verified with two players on a real server.** The bridge's reflection calls match Syncmatica 0.3.20 (checked
-> with `javap`), and the merge has unit tests. See the [M6 test sheet](../editor-2.0/testing/M6.md).
+> with `javap`), and the merge has unit tests.
 
 ## Undo and saving
 

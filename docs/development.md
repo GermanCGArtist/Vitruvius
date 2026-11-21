@@ -47,11 +47,9 @@ that two mods can share it.
 ```
 src/main/java/dev/vitruvius/
   VitruviusMod.java        client entry point
-  ArrayStore / ArraySync    1.x arrays: model and the placement synchroniser
-  ArrayScreen, MoveScreen, ColorMenu, ...   classic Litematica-screen UI
-  Folders, DragDrop, WidgetFolderRow, ...   placement-list folders
+  Folders, DragDrop, WidgetFolderRow, MoveScreen, ColorMenu, ...   placement-list folders and colours
   api/                      public API for other mods (v1 and v2)
-  shape/                    Shape Generator: pure core (no Minecraft) + gui/ + mc/
+  shape/                    Shape generator engine: pure core (no Minecraft) + mc/ (the window is editor/view/ShapeWindow)
   mixin/                    mixins into Litematica and malilib screens
   editor/                   the 2.0 editor (below)
 src/main/resources/         fabric.mod.json, mixin configs, lang
@@ -107,18 +105,9 @@ project and assembly I/O, migration (fixtures in `src/test/resources/migration`)
 Syncmatica manifests, the object-type API and the shape generator.
 
 What the tests do **not** cover is anything that needs a running game: the reconciler against real Litematica, bake,
-derived files, the camera and the ImGui windows. Those have manual checklists, one per milestone:
-
-| Sheet | Covers |
-|---|---|
-| [M0](editor-2.0/testing/M0.md) | Editor mode, camera, input |
-| [M1](editor-2.0/testing/M1.md) and [M1 reconciler](editor-2.0/testing/M1-reconciler.md) | Windows, menus, picking, projects, reconciler |
-| [M2](editor-2.0/testing/M2.md) | Gizmo, typed transforms, snapping, duplicates, local view |
-| [M3 and M4](editor-2.0/testing/M3-M4.md) | Arrays, assemblies, links, exports |
-| [M5](editor-2.0/testing/M5.md) | Derived files, front order, Booleans, Apply |
-| [M6](editor-2.0/testing/M6.md) | Per-cell trims, Top view, Syncmatica, object-type API |
-
-Before a release, walk the sheets on a clean profile with the target Minecraft and Litematica versions.
+derived files, the camera and the ImGui windows. Check those by hand in a running game before a release, on a clean
+profile with the target Minecraft and Litematica versions. Branches have their own two-player sheet in
+[BRANCHES.md](BRANCHES.md).
 
 ## Conventions
 
@@ -144,7 +133,7 @@ The convention is one branch per Minecraft version, with the version-specific va
 3. Run the unit tests, then the manual sheets.
 4. Release: tag as `v<mod_version>+mc<minecraft_version>`, and attach the jar.
 
-Planned ports for this repository are 26.1.2, 26.2 and 26.3.
+26.3 is the developed line (`main`); `26.1.1` keeps the last 26.1.1 build (alpha.17).
 
 ## Releasing
 
