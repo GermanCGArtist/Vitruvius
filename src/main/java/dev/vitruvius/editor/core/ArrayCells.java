@@ -39,9 +39,11 @@ public final class ArrayCells {
             if (!m.enabled) continue;
             int[] step = new int[3];
             for (int a = 0; a < 3; a++) {
-                if (m.useRelative) step[a] += (int) Math.round(m.relative[a] * (max[a] - min[a] + 1));
-                if (m.useConstant) step[a] += m.constant[a];
-                long last = (long) (Math.max(1, m.count) - 1) * step[a];
+                long s = 0;
+                if (m.useRelative) s += Math.round(m.relative[a] * (double) (max[a] - min[a] + 1));
+                if (m.useConstant) s += m.constant[a];
+                step[a] = Math.clamp(s, Integer.MIN_VALUE, Integer.MAX_VALUE);
+                long last = (long) (Math.max(1, m.count) - 1) * s;
                 min[a] = Math.min(min[a], min[a] + last);
                 max[a] = Math.max(max[a], max[a] + last);
             }
@@ -65,15 +67,18 @@ public final class ArrayCells {
         int[] idx = new int[k];
         while (true) {
             boolean zero = true;
-            int[] off = new int[3];
+            long[] off = new long[3];
             StringBuilder key = new StringBuilder();
             for (int i = 0; i < k; i++) {
                 if (idx[i] != 0) zero = false;
                 if (i > 0) key.append(',');
                 key.append(idx[i]);
-                for (int a = 0; a < 3; a++) off[a] += idx[i] * steps.get(i).get(a);
+                for (int a = 0; a < 3; a++) off[a] += (long) idx[i] * steps.get(i).get(a);
             }
-            if (!zero) out.put(key.toString(), new Vec3i(off[0], off[1], off[2]));
+            if (!zero) out.put(key.toString(), new Vec3i(
+                    Math.clamp(off[0], Integer.MIN_VALUE, Integer.MAX_VALUE),
+                    Math.clamp(off[1], Integer.MIN_VALUE, Integer.MAX_VALUE),
+                    Math.clamp(off[2], Integer.MIN_VALUE, Integer.MAX_VALUE)));
             int i = k - 1;
             while (i >= 0 && ++idx[i] >= Math.max(1, on.get(i).count)) idx[i--] = 0;
             if (i < 0) break;

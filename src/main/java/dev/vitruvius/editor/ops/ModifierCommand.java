@@ -68,6 +68,9 @@ abstract class ModifierCommand extends BaseCommand {
         if (owner instanceof dev.vitruvius.editor.core.ExternalNode) {
             for (Modifier m : mods) if (!(m instanceof ArrayModifier)) return new Refusal(Nodes.q(owner) + " takes arrays only (it never changes blocks)");
         }
+        if (owner instanceof dev.vitruvius.editor.core.ObjectNode o && o.wire()) {
+            for (Modifier m : mods) if (m instanceof BooleanModifier) return new Refusal(Nodes.q(owner) + " is a wire object and cannot have Boolean modifiers");
+        }
         List<ArrayModifier> arrays = new ArrayList<>();
         for (Modifier m : mods) {
             if (m instanceof ArrayModifier a) {

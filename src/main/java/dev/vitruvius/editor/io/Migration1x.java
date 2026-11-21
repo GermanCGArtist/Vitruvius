@@ -123,7 +123,7 @@ public final class Migration1x {
             readArrayEntry(e.getValue(), mods, copies);
             modsOf.put(e.getKey(), mods);
             copiesOf.put(e.getKey(), copies);
-            copyIds.addAll(copies.values());
+            if (lookup.apply(e.getKey()) != null) copyIds.addAll(copies.values());
         }
 
         // ---- placements ----
@@ -161,7 +161,15 @@ public final class Migration1x {
     }
 
     /** Reads one arrays.json entry into modifiers and copy ids; converts the pre-1.6 counts/gaps form. */
-    private static void readArrayEntry(JsonObject e, List<ArrayModifier> mods, Map<String, String> copies) {
+    private static void readArrayEntry(JsonObject e, List<ArrayModifier> mods, Map<String, String> copies) throws FormatException {
+        try {
+            readArrayEntryUnchecked(e, mods, copies);
+        } catch (ClassCastException | IllegalStateException | NumberFormatException ex) {
+            throw new FormatException("malformed arrays.json entry", ex);
+        }
+    }
+
+    private static void readArrayEntryUnchecked(JsonObject e, List<ArrayModifier> mods, Map<String, String> copies) {
         Map<String, String> raw = new LinkedHashMap<>();
         JsonObject c = obj(e, "copies");
         for (var en : c.entrySet()) if (en.getValue().isJsonPrimitive()) raw.put(en.getKey(), en.getValue().getAsString());

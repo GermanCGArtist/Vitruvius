@@ -115,6 +115,14 @@ for (SceneObjectView v : VitruviusApi.objectsOfType("heavymatica:area")) {
 }
 ```
 
+## Edit mode (optional)
+
+A type whose objects are made of boxes can offer the editor's edit mode (E): the user drags the sides of the boxes. Override
+`editBoxes(data)` (local boxes, stable order; empty means no edit mode) and the three edits `resizeBox(data, index, box)`,
+`addBox(data, fromIndex, box)` and `removeBox(data, index)`. Each returns a `SceneObjectType.EditResult(newData, shift)`, or null to
+refuse, and must not change `data`. `shift` is how far you moved your local origin (new = old - shift); the editor moves the node by the
+same amount. `editColor(data, index)` colors the handles. Heavymatica uses this for its boxes.
+
 ## Rules of thumb
 
 - Keep `data` plain JSON you own. The editor never reads it, copies it deeply when it duplicates, and writes it back as is.

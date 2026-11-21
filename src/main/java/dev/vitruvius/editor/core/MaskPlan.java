@@ -1,7 +1,5 @@
 package dev.vitruvius.editor.core;
 
-import dev.vitruvius.editor.mc.TransformMath;
-
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.security.MessageDigest;
@@ -204,6 +202,7 @@ public final class MaskPlan {
             Transform parent = n.parent() == null ? Transform.IDENTITY : scene.worldTransform(n.parent());
             all = new ArrayList<>();
             for (BakeParts.Part p : BakeParts.collect(List.of(n), parent, null, env)) {
+                if (p.object().wire()) continue;
                 Path file = env.file(p.object(), p.base());
                 Vec3i size = env.size(p.object(), p.base());
                 if (file == null || size == null || size.x() <= 0 || size.y() <= 0 || size.z() <= 0) continue;
@@ -225,7 +224,7 @@ public final class MaskPlan {
      * is, only on how the others lie around it.
      */
     public static String hash(long sourceMtime, String sourceName, Transform own, List<Contributor> contributors) {
-        Transform inv = TransformMath.inverse(own);
+        Transform inv = own.inverse();
         List<String> sigs = new ArrayList<>();
         for (Contributor c : contributors) sigs.add(c.signature(inv));
         sigs.sort(null);

@@ -449,6 +449,14 @@ public final class PropertiesWindow {
                 Ui.colored(Theme.ERR, "The properties of " + e.typeId() + " failed: " + ex.getClass().getSimpleName());
             }
             if (ui.changed()) s.actions.execute(new dev.vitruvius.editor.ops.SetExternalData(e.id(), work));
+            if (!locked && dev.vitruvius.editor.world.BoxEdit.canEdit(e)) {
+                boolean on = s.boxEdit.active();
+                if (ImGui.button(on ? "Done editing boxes (E)" : "Edit boxes (E)")) {
+                    if (on) s.boxEdit.exit();
+                    else s.boxEdit.enter();
+                }
+                Ui.smallDim("Drag a side to resize. Shift + drag pulls out a new box. X deletes the box under the pointer.");
+            }
         }
         modifiersSection(s, e, e.mods(), true, false, locked);
         ImGui.dummy(0, 6);

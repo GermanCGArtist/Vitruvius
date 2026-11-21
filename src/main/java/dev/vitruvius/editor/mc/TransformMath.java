@@ -14,10 +14,6 @@ public final class TransformMath {
      * {@code (R F)^-1 = F R^-1 = R F}: a mirrored transform is its own linear inverse, an unmirrored one inverts R.
      */
     public static Transform inverse(Transform t) {
-        Transform c = t.canonical();
-        Transform lin = c.mirror() == Mirror.NONE
-                ? new Transform(Vec3i.ZERO, c.rot().inverse(), Mirror.NONE)
-                : new Transform(Vec3i.ZERO, c.rot(), c.mirror());
-        return new Transform(lin.applyVector(c.pos().neg()), lin.rot(), lin.mirror()).canonical();
+        return t.inverse();
     }
 }

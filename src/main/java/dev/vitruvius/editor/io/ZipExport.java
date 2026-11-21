@@ -195,7 +195,10 @@ public final class ZipExport {
 
     /** A name for a new export in {@code dir}: {@code base.ext}, else {@code base 2.ext}, and so on. */
     public static String uniqueName(Path dir, String base, String ext) {
-        return ProjectLayout.uniqueName(ProjectLayout.safeName(base) + ext, n -> Files.exists(dir.resolve(n)));
+        String safeBase = ProjectLayout.safeName(base);
+        int maxBase = Math.max(1, 120 - ext.length());
+        if (safeBase.length() > maxBase) safeBase = ProjectLayout.safeName(safeBase.substring(0, maxBase));
+        return ProjectLayout.uniqueName(safeBase + ext, n -> Files.exists(dir.resolve(n)));
     }
 
     /** Writes the plan to {@code zip} (a new file: an existing one is never replaced). */

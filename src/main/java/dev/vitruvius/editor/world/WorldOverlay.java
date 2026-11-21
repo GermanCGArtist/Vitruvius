@@ -67,7 +67,7 @@ public final class WorldOverlay {
         for (Overlaps.Overlap ov : s.allOverlaps()) if (s.lostTo(ov.loser(), ov.winner()) != 0) overlaps.add(ov.box());
         List<Object[]> cutters = cutters(s);
         boolean externals = hasExternals(s);
-        if (lines.isEmpty() && preview == null && overlaps.isEmpty() && cutters.isEmpty() && !externals) return;
+        if (lines.isEmpty() && preview == null && overlaps.isEmpty() && cutters.isEmpty() && !externals && !s.boxEdit.active()) return;
         try (var ignored = mc.levelRenderer.collectPerFrameGizmos()) {
             for (Line l : lines) {
                 var p = Gizmos.cuboid(l.box(), GizmoStyle.stroke(argb(l.rgb(), l.alpha()), l.width()));
@@ -77,6 +77,18 @@ public final class WorldOverlay {
             for (Object[] c : cutters) ghostBox((Box) c[0], (Boolean) c[1] ? BOOL : Theme.GUTTER, (Boolean) c[1] ? 0.9f : 0.6f, 1.5f, 0f);
             if (externals) drawExternals(s);
             if (preview != null) renderPreview(preview);
+            if (s.boxEdit.active()) renderBoxEdit(s.boxEdit);
+        }
+    }
+
+    /** Edit mode: the side under the pointer, and the box a running drag would make. */
+    private static void renderBoxEdit(BoxEdit e) {
+        Box ghost = e.ghostWorld();
+        if (ghost != null) ghostBox(ghost, Theme.ACCENT, 1f, 2f, 0.08f);
+        double[][] c = e.hoverRect();
+        if (c != null) {
+            Gizmos.rect(new Vec3(c[0][0], c[0][1], c[0][2]), new Vec3(c[1][0], c[1][1], c[1][2]), new Vec3(c[2][0], c[2][1], c[2][2]),
+                    new Vec3(c[3][0], c[3][1], c[3][2]), GizmoStyle.strokeAndFill(argb(Theme.ACCENT, 1f), 2f, argb(Theme.ACCENT, 0.25f))).setAlwaysOnTop();
         }
     }
 

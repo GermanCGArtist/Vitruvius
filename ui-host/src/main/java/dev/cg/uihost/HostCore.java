@@ -260,8 +260,10 @@ public final class HostCore {
         }
 
         ImGui.render();
+        int prevFbo = GL30.glGetInteger(GL30.GL_FRAMEBUFFER_BINDING);
         GlStateManager._glBindFramebuffer(GL30.GL_FRAMEBUFFER, 0);
         gl3.renderDrawData(ImGui.getDrawData());
+        GlStateManager._glBindFramebuffer(GL30.GL_FRAMEBUFFER, prevFbo);
     }
 
     // ------------------------------------------------------------------ input routing

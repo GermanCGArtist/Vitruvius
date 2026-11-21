@@ -135,8 +135,10 @@ public final class ProjectManager {
             }
             String active = w.has("active") && w.get("active").isJsonPrimitive() ? w.get("active").getAsString() : null;
             if (active != null) {
+                Path activePath = Path.of(active);
+                Path resolvedActive = activePath.isAbsolute() ? activePath : env.schematicsDir().resolve(activePath).toAbsolutePath().normalize();
                 for (ProjectNode p : scene.projects()) {
-                    if (samePath(Path.of(p.path()), Path.of(active))) scene.setActiveProject(p);
+                    if (samePath(dirOf(p), resolvedActive)) scene.setActiveProject(p);
                 }
             }
         }

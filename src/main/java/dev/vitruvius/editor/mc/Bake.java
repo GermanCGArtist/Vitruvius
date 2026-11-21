@@ -73,11 +73,23 @@ public final class Bake {
             }
             List<SchematicInfo.Region> regions = SchematicInfo.regionsOf(s);
             for (SchematicInfo.Region r : regions) {
-                String name = part.label() + (regions.size() > 1 ? "/" + r.name() : "");
-                srcs.add(new Src(part, s, r, name));
+                String baseName = part.label() + (regions.size() > 1 ? "/" + r.name() : "");
+                srcs.add(new Src(part, s, r, baseName));
             }
         }
         if (srcs.isEmpty()) return new Result(null, 0, 0, skipped, "Nothing to bake: no readable schematic in the selection");
+        // Deduplicate sub-region names so AreaSelection.addSubRegionBox never overwrites an earlier region.
+        java.util.Set<String> usedNames = new java.util.HashSet<>();
+        for (int i = 0; i < srcs.size(); i++) {
+            Src s = srcs.get(i);
+            String name = s.name;
+            if (!usedNames.add(name)) {
+                int n = 2;
+                while (!usedNames.add(name + " #" + n)) n++;
+                name = name + " #" + n;
+                srcs.set(i, new Src(s.part, s.schematic, s.region, name));
+            }
+        }
 
         List<BakeLayout.Source> sources = new ArrayList<>();
         for (Src s : srcs) sources.add(new BakeLayout.Source(s.name, s.region.box().transformed(s.part.world())));
@@ -149,11 +161,15 @@ public final class Bake {
             Map<BlockPos, CompoundData> dst = out.getBlockEntityMapForRegion(r.name());
             if (src == null || dst == null) return;
             var t = s.part.world();
+            net.minecraft.core.Vec3i dsz = out.getSubRegionContainer(r.name()).getSize();
             for (Map.Entry<BlockPos, CompoundData> e : src.entrySet()) {
                 BlockPos local = new BlockPos(lo.min().x() + e.getKey().getX(), lo.min().y() + e.getKey().getY(), lo.min().z() + e.getKey().getZ());
                 BlockPos m = PositionUtils.getTransformedBlockPos(local, mirror, rot);
-                dst.put(new BlockPos(m.getX() + t.pos().x() - origin.x() - r.pos().x(), m.getY() + t.pos().y() - origin.y() - r.pos().y(),
-                        m.getZ() + t.pos().z() - origin.z() - r.pos().z()), e.getValue());
+                int dx = m.getX() + t.pos().x() - origin.x() - r.pos().x();
+                int dy = m.getY() + t.pos().y() - origin.y() - r.pos().y();
+                int dz = m.getZ() + t.pos().z() - origin.z() - r.pos().z();
+                if (dx < 0 || dy < 0 || dz < 0 || dx >= dsz.getX() || dy >= dsz.getY() || dz >= dsz.getZ()) continue;
+                dst.put(new BlockPos(dx, dy, dz), e.getValue().copy());
             }
         } catch (UnsupportedOperationException ignored) {
             // an immutable map: the blocks are baked without their block entities

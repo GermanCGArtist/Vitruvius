@@ -885,4 +885,29 @@ class ReconcileCoreTest {
         run();
         assertTrue(port.read(id).render());
     }
+
+    @Test
+    void nonCanonicalModelTransformDoesNotTriggerSpuriousDrift() {
+        ObjectNode o = obj("a");
+        o.setTransform(new Transform(new Vec3i(5, 0, 5), Rot.NONE, Mirror.LEFT_RIGHT));
+        proj.addChild(o);
+        run();
+        ReconcileCore.Result second = run();
+        assertEquals(0, second.adopted());
+        assertEquals(0, second.updated());
+        assertTrue(changes.isEmpty());
+    }
+
+    @Test
+    void anObjectCreatedAsWireShowsItsPlacementWhenUnwired() {
+        ObjectNode o = obj("c");
+        o.setWire(true);
+        proj.addChild(o);
+        run();
+        String id = o.placementIds().get(ObjectNode.BASE_CELL);
+        assertFalse(port.read(id).render());
+        o.setWire(false);
+        run();
+        assertTrue(port.read(id).render());
+    }
 }

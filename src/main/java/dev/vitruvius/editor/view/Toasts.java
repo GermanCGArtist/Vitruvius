@@ -32,6 +32,7 @@ public final class Toasts {
         float mx = ImGui.getMousePosX(), my = ImGui.getMousePosY();
         Theme.push(UiHost.theme().ui());
         Toast clicked = null;
+        float clickedActionX = Float.MAX_VALUE;
         for (int i = list.size() - 1; i >= 0; i--) {
             Toast t = list.get(i);
             float actW = t.hasAction() ? ImGui.calcTextSizeX(t.actionLabel) + 14 * sc : 0;
@@ -65,18 +66,23 @@ public final class Toasts {
             dl.addRect(x0, y0, right, y, Theme.u32(border, borderA * a), 12 * sc);
             dl.addRectFilled(x0 + 8 * sc, y0 + 9 * sc, x0 + 11 * sc, y - 9 * sc, Theme.u32(bar, a), 2 * sc);
             drawWrapped(dl, t.text, x0 + padX + 6 * sc, y0 + padY, wrapW, Theme.u32(Theme.FG, a));
+            float actionX = Float.MAX_VALUE;
             if (t.hasAction()) {
                 float bx = right - actW - 6 * sc, by = y0 + (h - lineH) * 0.5f;
-                boolean hotBtn = over && mx >= bx - 4 * sc;
+                actionX = bx - 4 * sc;
+                boolean hotBtn = over && mx >= actionX;
                 dl.addText(bx, by, Theme.u32(Theme.ACCENT, hotBtn ? a : a * 0.85f), t.actionLabel);
             }
-            if (over && ImGui.isMouseClicked(0)) clicked = t;
+            if (over && ImGui.isMouseClicked(0)) {
+                clicked = t;
+                clickedActionX = actionX;
+            }
             y = y0 - gap;
         }
         ImGui.popFont();
         q.tick((long) (ImGui.getTime() * 1000.0), hovered);
         if (clicked != null) {
-            if (clicked.hasAction() && mx >= right - 110 * sc) q.click(clicked);
+            if (clicked.hasAction() && mx >= clickedActionX) q.click(clicked);
             else q.dismiss(clicked);
         }
     }

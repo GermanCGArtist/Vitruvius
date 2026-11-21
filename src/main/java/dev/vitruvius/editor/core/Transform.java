@@ -74,4 +74,16 @@ public record Transform(Vec3i pos, Rot rot, Mirror mirror) {
         if (mirror != Mirror.LEFT_RIGHT) return this;
         return new Transform(pos, rot.rotate(2), Mirror.FRONT_BACK);
     }
+
+    /**
+     * The transform that undoes this one: {@code this.then(inverse())} and {@code inverse().then(this)} are the
+     * identity.
+     */
+    public Transform inverse() {
+        Transform c = canonical();
+        Transform lin = c.mirror() == Mirror.NONE
+                ? new Transform(Vec3i.ZERO, c.rot().inverse(), Mirror.NONE)
+                : new Transform(Vec3i.ZERO, c.rot(), c.mirror());
+        return new Transform(lin.applyVector(c.pos().neg()), lin.rot(), lin.mirror()).canonical();
+    }
 }

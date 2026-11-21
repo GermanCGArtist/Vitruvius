@@ -55,7 +55,7 @@ public final class ProjectIo {
         if (!root.isJsonObject()) throw new FormatException("project.json must hold an object");
         NodeJson.Fields f = new NodeJson.Fields(root.getAsJsonObject(), "project");
         int format = f.integer("format", FORMAT);
-        if (format > FORMAT) throw new FormatException("project.json has format " + format + ", this version reads up to " + FORMAT);
+        if (format < 1 || format > FORMAT) throw new FormatException("project.json has format " + format + ", this version reads 1.." + FORMAT);
         String idText = f.str("id", null);
         UUID id = idText == null ? Ids.newId() : Ids.parseOrNull(idText);
         if (id == null) throw new FormatException("project: id '" + idText + "' is not a UUID");

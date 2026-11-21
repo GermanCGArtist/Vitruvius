@@ -147,6 +147,10 @@ public final class Reconciler {
                 // another dimension of the same world: Litematica keeps its placements, but their chunks need a rebuild
                 core.scheduleFullRebuild(tick + 40, tick + 200);
             } else {
+                if (ready) {
+                    DerivedFiles.shared().reset();
+                    dev.vitruvius.editor.sync.SyncService.get().reset();
+                }
                 ready = false;
                 failed = false;
                 sinceJoin = 0;
@@ -182,6 +186,8 @@ public final class Reconciler {
         }
         if (core != null) core.reset();
         DerivedFiles.shared().reset();
+        dev.vitruvius.editor.sync.SyncService.get().reset();
+        runtimeDirtyAt = -1;
         ready = false;
         failed = false;
         lastLevel = null;

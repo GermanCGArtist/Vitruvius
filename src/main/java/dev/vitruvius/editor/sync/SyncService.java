@@ -115,6 +115,25 @@ public final class SyncService implements MenuModel.SyncHook {
         MenuModel.setSyncHook(this);
     }
 
+    /** Clears all server/world session state on disconnect or world switch. */
+    public void reset() {
+        remotes.clear();
+        hide.clear();
+        lastState.clear();
+        lastAutoPush.clear();
+        fileWait.clear();
+        scanned.clear();
+        queue.clear();
+        pendingBy.clear();
+        job = null;
+        receive = null;
+        pending = 0;
+        sharedProjects = 0;
+        status = new Status(State.IDLE, 0, 0, null);
+        lastPoll = -POLL_EVERY;
+        lastStats = -STATS_EVERY;
+    }
+
     // ------------------------------------------------------------------------------------------ queries
 
     @Override
@@ -354,6 +373,7 @@ public final class SyncService implements MenuModel.SyncHook {
         LitematicaAdapter.shared().remove(a.copyId());
     }
 
+
     private void startNext(Scene scene, ReconcileCore core) {
         UUID id = queue.poll();
         ProjectNode p = id == null ? null : scene.byId(id) instanceof ProjectNode pn ? pn : null;
@@ -519,6 +539,7 @@ public final class SyncService implements MenuModel.SyncHook {
             j.active.add(j.manifest);
             j.manifestPlacement = placement;
         } catch (ReflectiveOperationException | RuntimeException e) {
+            ad.remove(placement);
             record(j, false);
             fail("Syncmatica could not share the manifest: " + cause(e));
         }
@@ -775,7 +796,12 @@ public final class SyncService implements MenuModel.SyncHook {
                 System.out.println("[Vitruvius] cannot copy " + local + ": " + e.getMessage());
             }
         }
-        if (waiting && fileWait.merge(p.id(), 1, Integer::sum) < FILE_WAIT_POLLS) return;
+        if (waiting) {
+            if (fileWait.merge(p.id(), 1, Integer::sum) < FILE_WAIT_POLLS) return;
+            fileWait.remove(p.id());
+            toast(ToastQueue.Level.WARN, "Timed out waiting for schematic files from " + who(pl));
+            return;
+        }
         fileWait.remove(p.id());
 
         Set<UUID> affected = ProjectApply.apply(p, fresh);

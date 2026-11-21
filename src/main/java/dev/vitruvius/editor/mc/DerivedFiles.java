@@ -5,6 +5,7 @@ import dev.vitruvius.editor.core.AssemblyNode;
 import dev.vitruvius.editor.core.Box;
 import dev.vitruvius.editor.core.CellMasks;
 import dev.vitruvius.editor.core.MaskPlan;
+import dev.vitruvius.editor.core.Node;
 import dev.vitruvius.editor.core.ObjectNode;
 import dev.vitruvius.editor.core.ProjectNode;
 import dev.vitruvius.editor.core.Scene;
@@ -251,6 +252,7 @@ public final class DerivedFiles implements DerivedPort {
                 if (Files.isRegularFile(target)) {      // a cache hit needs no debounce
                     fe.file = target;
                     fe.status = Status.READY;
+                    fe.since = tick - DEBOUNCE;
                 }
                 files.put(key, fe);
             }
@@ -339,9 +341,19 @@ public final class DerivedFiles implements DerivedPort {
             keep.add(e.objectId + "-" + e.plan.hash() + ProjectLayout.SCHEMATIC_EXT);
         }
         for (SlotState st : slots.values()) if (st.shown != null) keep.add(st.shown.getFileName().toString());
+        // Preserve derived cache for hidden/localView-excluded objects in this project so unhiding doesn't rebuild them.
+        Set<String> preservePrefixes = new HashSet<>();
+        for (Node n : p.subtree()) {
+            if (n instanceof ObjectNode o && isHiddenChain(o)) preservePrefixes.add(o.id() + "-");
+        }
         List<Path> stale = new ArrayList<>();
         try (Stream<Path> s = Files.list(derived)) {
-            s.filter(Files::isRegularFile).filter(f -> !keep.contains(f.getFileName().toString())).forEach(stale::add);
+            s.filter(Files::isRegularFile).filter(f -> {
+                String name = f.getFileName().toString();
+                if (keep.contains(name)) return false;
+                for (String pre : preservePrefixes) if (name.startsWith(pre)) return false;
+                return true;
+            }).forEach(stale::add);
         } catch (IOException e) {
             return;
         }
@@ -598,5 +610,10 @@ public final class DerivedFiles implements DerivedPort {
             Files.move(tmp, j.target(), StandardCopyOption.REPLACE_EXISTING);
         }
         return new Result(removed, bool, trimBy, null);
+    }
+
+    private static boolean isHiddenChain(Node n) {
+        for (Node c = n; c != null; c = c.parent()) if (c.hidden()) return true;
+        return false;
     }
 }

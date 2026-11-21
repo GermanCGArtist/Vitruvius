@@ -65,7 +65,16 @@ public final class ProjectApply {
         if (same) return;
         affected.add(parent.id());
         parent.clearChildren();
-        for (Node n : next) parent.addChild(n);
+        for (Node n : next) {
+            // If an inverted hierarchy made parent a descendant of n, sever the old ancestor link before re-parenting.
+            for (Node x = parent; x != null; x = x.parent()) {
+                if (x.parent() == n) {
+                    n.removeChild(x);
+                    break;
+                }
+            }
+            parent.addChild(n);
+        }
     }
 
     /** The live node for a node of the other copy: the existing one updated, else the new one itself. */

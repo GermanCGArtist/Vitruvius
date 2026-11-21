@@ -72,8 +72,11 @@ public class Duplicate extends BaseCommand {
                 o -> linked || !copyFiles ? o.file() : FileOps.copyBeside(ctx, journal(), o, o.file(), fileCache),
                 linked, groupIds, this::remember);
         List<Node> copies = new ArrayList<>();
-        int nextFront = FrontOrder.nextBack(ctx.scene().frontOwnersInWorld(ctx.worldOf(nodes.get(0))));
+        Map<String, Integer> nextFrontByWorld = new HashMap<>();
         for (Node n : nodes) {
+            String world = ctx.worldOf(n);
+            int nextFront = nextFrontByWorld.computeIfAbsent(world,
+                    w -> FrontOrder.nextBack(ctx.scene().frontOwnersInWorld(w)));
             Node parent = n.parent();
             remember(parent);
             Node copy = copier.copy(n);
@@ -89,6 +92,7 @@ public class Duplicate extends BaseCommand {
             for (Node x : copy.subtree()) {
                 if ((x instanceof dev.vitruvius.editor.core.HasFront) && ctx.scene().ownerOf(x) == x) Nodes.setFront(x, nextFront++);
             }
+            nextFrontByWorld.put(world, nextFront);
             touch(copy);
             created.add(copy.id());
             copies.add(copy);

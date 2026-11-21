@@ -285,7 +285,7 @@ public final class SceneWindow {
         boolean noProjects = s.scene().projects().isEmpty() && s.scene().loose().children().isEmpty();
         if (tree.isFiltering()) {
             ImGui.dummy(0, 24 * sc);
-            centered("Nothing matches u201c" + (tree.search().isBlank() ? tree.chip().name().toLowerCase(Locale.ROOT) : tree.search()) + "u201d.", Theme.DIM);
+            centered("Nothing matches \u201c" + (tree.search().isBlank() ? tree.chip().name().toLowerCase(Locale.ROOT) : tree.search()) + "\u201d.", Theme.DIM);
             ImGui.dummy(0, 6 * sc);
             float cw = 120 * sc;
             ImGui.setCursorPosX((ImGui.getWindowWidth() - cw) * 0.5f);

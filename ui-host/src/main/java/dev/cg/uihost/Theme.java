@@ -148,20 +148,33 @@ public final class Theme {
         if (monoBytes == null) monoBytes = resource("JetBrainsMono.ttf");
         if (barlowBytes == null) barlowBytes = resource("BarlowCondensed-SemiBold.ttf");
         var atlas = io.getFonts();
-        short[] ranges = new short[]{0x0020, 0x00FF, 0x2010, 0x2027, 0x2190, 0x2193, 0x2026, 0x2026, 0};
+        short[] ranges = new short[]{
+                0x0020, 0x00FF,
+                0x2010, 0x2027,
+                0x2190, 0x2193,
+                0x21BA, 0x21BB,
+                0x2212, 0x2212,
+                0x25B8, 0x25B8,
+                0
+        };
         ui = small = mono = monoS = uiBold = numM = numL = null;
-        if (interBytes != null) {
-            ui = atlas.addFontFromMemoryTTF(interBytes, 15f * scale, cfg(), ranges);
-            small = atlas.addFontFromMemoryTTF(interBytes, 12.5f * scale, cfg(), ranges);
-        }
-        if (interBoldBytes != null) uiBold = atlas.addFontFromMemoryTTF(interBoldBytes, 15f * scale, cfg(), ranges);
-        if (monoBytes != null) {
-            mono = atlas.addFontFromMemoryTTF(monoBytes, 14f * scale, cfg(), ranges);
-            monoS = atlas.addFontFromMemoryTTF(monoBytes, 12f * scale, cfg(), ranges);
-        }
-        if (barlowBytes != null) {
-            numM = atlas.addFontFromMemoryTTF(barlowBytes, 28f * scale, cfg(), ranges);
-            numL = atlas.addFontFromMemoryTTF(barlowBytes, 44f * scale, cfg(), ranges);
+        ImFontConfig cfg = cfg();
+        try {
+            if (interBytes != null) {
+                ui = atlas.addFontFromMemoryTTF(interBytes, 15f * scale, cfg, ranges);
+                small = atlas.addFontFromMemoryTTF(interBytes, 12.5f * scale, cfg, ranges);
+            }
+            if (interBoldBytes != null) uiBold = atlas.addFontFromMemoryTTF(interBoldBytes, 15f * scale, cfg, ranges);
+            if (monoBytes != null) {
+                mono = atlas.addFontFromMemoryTTF(monoBytes, 14f * scale, cfg, ranges);
+                monoS = atlas.addFontFromMemoryTTF(monoBytes, 12f * scale, cfg, ranges);
+            }
+            if (barlowBytes != null) {
+                numM = atlas.addFontFromMemoryTTF(barlowBytes, 28f * scale, cfg, ranges);
+                numL = atlas.addFontFromMemoryTTF(barlowBytes, 44f * scale, cfg, ranges);
+            }
+        } finally {
+            cfg.destroy();
         }
         if (ui == null) {
             ui = atlas.addFontDefault();

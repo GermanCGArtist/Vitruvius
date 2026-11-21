@@ -19,9 +19,18 @@ public final class Rotate extends WorldMapEdit {
 
     /** @param quarterTurns +1 = 90 degrees clockwise, -1 = counter-clockwise, 2 = 180 */
     public Rotate(Collection<UUID> ids, Vec3i pivot, int quarterTurns) {
-        super(quarterTurns < 0 || quarterTurns % 4 == 3 ? "Rotate -90" : quarterTurns % 4 == 2 ? "Rotate 180" : "Rotate +90", ids);
+        super(labelFor(quarterTurns), ids);
         this.pivot = pivot;
         this.quarterTurns = quarterTurns;
+    }
+
+    private static String labelFor(int quarterTurns) {
+        return switch (Math.floorMod(quarterTurns, 4)) {
+            case 3 -> "Rotate -90";
+            case 2 -> "Rotate 180";
+            case 1 -> "Rotate +90";
+            default -> "Rotate";
+        };
     }
 
     public static Rotate clockwise(Collection<UUID> ids, Vec3i pivot) {

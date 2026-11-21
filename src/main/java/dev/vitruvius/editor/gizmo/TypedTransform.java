@@ -51,7 +51,7 @@ public final class TypedTransform {
         if (!isPlane()) cur = 0;
     }
 
-    /** Toggles an axis chip (clicking a pill): a click on a lit chip of a plane removes it, otherwise sets that single axis. */
+    /** Selects a single axis (clicking a chip returns a plane to that single axis). */
     public void clickAxis(int bit) {
         if (kind != Kind.MOVE) return;
         setAxis(bit, false);

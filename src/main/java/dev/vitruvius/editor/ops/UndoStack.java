@@ -128,6 +128,7 @@ public final class UndoStack {
         requireNoTransaction();
         if (redoList.isEmpty()) return false;
         Command c = redoList.get(redoList.size() - 1);
+        if (c.check(ctx).isPresent()) return false;
         c.apply(ctx);
         redoList.remove(redoList.size() - 1);
         undoList.add(c);

@@ -68,7 +68,7 @@ public final class AssemblyIo {
         if (!root.isJsonObject()) throw new FormatException(".lasm must hold an object");
         NodeJson.Fields f = new NodeJson.Fields(root.getAsJsonObject(), "lasm");
         int format = f.integer("format", FORMAT);
-        if (format > FORMAT) throw new FormatException(".lasm has format " + format + ", this version reads up to " + FORMAT);
+        if (format < 1 || format > FORMAT) throw new FormatException(".lasm has format " + format + ", this version reads 1.." + FORMAT);
         Lasm l = new Lasm(f.str("name", ""));
         java.util.Set<UUID> ids = NodeJson.newIdSet();
         l.nodes.addAll(NodeJson.readNodes(f.take("nodes"), "nodes", ids));

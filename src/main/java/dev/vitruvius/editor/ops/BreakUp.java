@@ -141,7 +141,12 @@ public final class BreakUp extends BaseCommand {
             if (original) remember(b);
             Nodes.setFront(b, front);
             List<Modifier> mods = Nodes.mods(b);
-            if (mods != null) for (Modifier m : others) mods.add(m.copy());
+            if (mods != null) {
+                for (Modifier m : others) {
+                    if (b instanceof dev.vitruvius.editor.core.ExternalNode && !(m instanceof ArrayModifier)) continue;
+                    mods.add(m.copy());
+                }
+            }
         }
         for (Node part : new ArrayList<>(x.children())) f.addChild(part);
         return f;

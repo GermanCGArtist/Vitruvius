@@ -217,9 +217,15 @@ public final class EditorExports {
     private static List<Node> topMost(List<Node> nodes) {
         List<Node> out = new ArrayList<>();
         for (Node n : nodes) {
+            if (!(n instanceof ObjectNode || n instanceof AssemblyNode || n instanceof FolderNode)) continue;
             boolean covered = false;
-            for (Node x = n.parent(); x != null; x = x.parent()) if (nodes.contains(x)) covered = true;
-            if (!covered && (n instanceof ObjectNode || n instanceof AssemblyNode || n instanceof FolderNode)) out.add(n);
+            for (Node x = n.parent(); x != null; x = x.parent()) {
+                if ((x instanceof ObjectNode || x instanceof AssemblyNode || x instanceof FolderNode) && nodes.contains(x)) {
+                    covered = true;
+                    break;
+                }
+            }
+            if (!covered) out.add(n);
         }
         return out;
     }

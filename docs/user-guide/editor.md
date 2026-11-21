@@ -216,6 +216,19 @@ menu). It works like Blender's: **Count** copies, a **Relative offset** (a fract
 
 The limit is 1024 copies per array.
 
+### Edit mode for boxes (heavymatics)
+
+Objects of other mods that are made of boxes, such as heavymatics, have an **edit mode**. Select one object and press **E**
+(or click **Edit boxes** in Properties). Every side of every box gets a handle.
+
+- **Drag a side** to move it by whole blocks. The box never gets thinner than one block.
+- **Shift + drag a side** pulls a new box out of it. The new box joins the same region.
+- **X** or **Delete** removes the box under the pointer (the last box stays).
+- **Esc** or a right click cancels a drag. **E**, **Enter** or **Esc** leave the mode, and so does selecting something else.
+
+Each drag is one undo step. Growing a box toward negative coordinates moves the object's origin, and the editor moves the
+object the other way, so the rest of it stays where it was.
+
 ## Overlaps, front order and Booleans
 
 Where two objects occupy the same blocks, Litematica would show both. The editor resolves it by priority instead.

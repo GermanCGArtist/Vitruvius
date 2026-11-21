@@ -104,4 +104,27 @@ class ProjectApplyTest {
         assertTrue(affected.isEmpty(), affected.toString());
         assertFalse(live.children().isEmpty());
     }
+
+    @Test
+    void invertedHierarchyDoesNotThrowCycleError() throws Exception {
+        ProjectNode live = project();
+        FolderNode a = new FolderNode("a");
+        FolderNode b = new FolderNode("b");
+        a.addChild(b);
+        live.addChild(a);
+
+        ProjectNode theirs = copyOf(live);
+        Node ta = theirs.children().get(0);
+        Node tb = ta.children().get(0);
+        ta.removeChild(tb);
+        theirs.removeChild(ta);
+        theirs.addChild(tb);
+        tb.addChild(ta);
+
+        ProjectApply.apply(live, theirs);
+
+        assertEquals(1, live.children().size());
+        assertSame(b, live.children().get(0));
+        assertSame(a, b.children().get(0));
+    }
 }

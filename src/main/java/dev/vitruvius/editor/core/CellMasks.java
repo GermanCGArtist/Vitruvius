@@ -46,12 +46,7 @@ public final class CellMasks {
         Map<UUID, Set<String>> hashes = new HashMap<>();
         Map<UUID, Integer> capped = new LinkedHashMap<>();
         for (Cell c : cells) {
-            MaskPlan.Plan p;
-            try {
-                p = MaskPlan.plan(scene, c.subject(), owners, env, f, cache);
-            } catch (RuntimeException | LinkageError ex) {
-                continue;
-            }
+            MaskPlan.Plan p = MaskPlan.plan(scene, c.subject(), owners, env, f, cache);
             if (p.isEmpty()) continue;
             UUID obj = c.subject().object().id();
             Set<String> seen = hashes.computeIfAbsent(obj, k -> new HashSet<>());

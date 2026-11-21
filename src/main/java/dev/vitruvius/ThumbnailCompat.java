@@ -159,7 +159,7 @@ public final class ThumbnailCompat {
             float cz = (float) (Math.cos(yaw) * Math.cos(pitch));
             float fx = -cx, fy = -cy, fz = -cz;
             float rLen = (float) Math.hypot(fz, fx);
-            float rx = -fz / rLen, rz = fx / rLen;
+            float rx = rLen > 1e-6f ? -fz / rLen : 1f, rz = rLen > 1e-6f ? fx / rLen : 0f;
             float ux = -rz * fy, uy = rz * fx - rx * fz, uz = rx * fy;
             // GUI space: x right, y down, larger z = nearer. Rows R, -U, F (the pose already negates z).
             m.mul(new Matrix4f(new Matrix3f(rx, -ux, zk * fx, 0f, -uy, zk * fy, rz, -uz, zk * fz)));

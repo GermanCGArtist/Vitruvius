@@ -8,6 +8,7 @@ import java.util.UUID;
 /** Renames a node. Typing in the name field makes many of these; they merge into one step. */
 public final class Rename extends BaseCommand {
     private final UUID id;
+    private String initialName;
     private String name;
 
     public Rename(UUID id, String name) {
@@ -28,7 +29,8 @@ public final class Rename extends BaseCommand {
     @Override
     protected void doApply() {
         Node n = ctx.scene().byId(id);
-        setLabel("Rename " + n.name() + " to " + name);
+        initialName = n.name();
+        setLabel("Rename " + initialName + " to " + name);
         remember(n);
         n.setName(name);
     }
@@ -37,6 +39,7 @@ public final class Rename extends BaseCommand {
     public boolean mergeWith(Command other) {
         if (!(other instanceof Rename r) || !id.equals(r.id)) return false;
         name = r.name;
+        if (initialName != null) setLabel("Rename " + initialName + " to " + name);
         return true;
     }
 }

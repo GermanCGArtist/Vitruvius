@@ -87,6 +87,7 @@ public final class EditorMode {
         active = false;                       // first: the grab mixin lets grabMouse() through from here on
         level = null;
         EditorCamera.get().cancelGesture();
+        EditorSession.get().gizmo.cancel();
         try {
             EditorSession s = EditorSession.get();
             if (s != null) s.gizmo.cancel();                 // a running drag or typed transform ends like Esc
@@ -117,6 +118,7 @@ public final class EditorMode {
                 return;
             }
             EditorCamera.get().cancelGesture();
+        EditorSession.get().gizmo.cancel();
         }
 
         // F5 (or anything else) must not bring the first-person camera back
@@ -130,9 +132,9 @@ public final class EditorMode {
 
     // ------------------------------------------------------------------ input rules
 
-    /** True for the keys vanilla may still see in editor mode: F1 to F12, the toggle key, chat and command. */
+    /** True for the keys vanilla may still see in editor mode: F1, F3 to F12, the toggle key, chat and command. */
     public static boolean passesToVanilla(Minecraft mc, int key, int scancode, int mods) {
-        if (key >= InputConstants.KEY_F1 && key <= InputConstants.KEY_F12) return true;
+        if (key >= InputConstants.KEY_F1 && key <= InputConstants.KEY_F12 && key != InputConstants.KEY_F2) return true;
         var event = new net.minecraft.client.input.KeyEvent(key, scancode, mods);
         return TOGGLE.matches(event) || mc.options.keyChat.matches(event) || mc.options.keyCommand.matches(event);
     }

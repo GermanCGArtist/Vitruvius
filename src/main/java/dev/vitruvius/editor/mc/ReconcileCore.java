@@ -205,6 +205,7 @@ public final class ReconcileCore {
         lastSeen.clear();
         prevModelIds = new HashSet<>();
         linkedIds.clear();
+        wireHidden.clear();
         restored = new HashSet<>();
         batch.clear();
         batchAt = 0;
@@ -224,6 +225,7 @@ public final class ReconcileCore {
             for (String id : o.placementIds().values()) {
                 port.remove(id);
                 lastSeen.remove(id);
+                wireHidden.remove(id);
             }
         }
     }
@@ -324,7 +326,17 @@ public final class ReconcileCore {
         Map<String, Vec3i> cells = Map.of();
         if (!off && parts != null && AssemblyBounds.hasEnabledArray(a)) cells = AssemblyBounds.frame(a, base, env).cells();
         if (a.isLinked()) {
-            if (parts != null) for (Node p : parts.parts()) visitRuntime(p, off, aw, a.id(), "", parts.base(), proj, r, 0, env, top);
+            if (parts != null) {
+                for (Node p : parts.parts()) visitRuntime(p, off, aw, a.id(), "", parts.base(), proj, r, 0, env, top);
+            } else {
+                // Keep restored placements if the .lasm file is temporarily unreadable on this pass.
+                Map<String, String> known = linkedIds.get(a.id());
+                if (known != null) {
+                    for (String id : known.values()) {
+                        if (restored.contains(id) && r.existing.contains(id)) r.modelIds.add(id);
+                    }
+                }
+            }
         } else {
             for (Node c : new ArrayList<>(a.children())) visit(c, off, proj, r);
         }
@@ -430,16 +442,18 @@ public final class ReconcileCore {
         ob.setMissing(false);
 
         // drift: the base placement was moved outside the editor
+        Transform canonicalWorld = world.canonical();
         if (bs != null && !linked) {
             Transform actual = bs.transform(), seen = lastSeen.get(baseId);
             boolean external = seen == null ? proj == null : !actual.equals(seen);
-            if (external && !actual.equals(world)) {
+            if (external && !actual.equals(canonicalWorld)) {
                 Node parent = ob.parent();
                 Transform pw = parent == null ? Transform.IDENTITY : r.scene.worldTransform(parent);
                 Transform local = TransformMath.inverse(pw).then(actual);
                 Transform before = ob.transform();
                 ob.setTransform(local);
                 world = actual;
+                canonicalWorld = actual;
                 r.adopted++;
                 listener.onExternalChange(new ExternalChange(ob, before, local));
             }
@@ -495,7 +509,8 @@ public final class ReconcileCore {
                 r.existing.add(nid);
                 r.modelIds.add(nid);
                 r.created++;
-                if (isBase) lastSeen.put(nid, t);
+                if (isBase && !linked && ob.wire()) wireHidden.add(nid);
+                if (isBase) lastSeen.put(nid, t.canonical());
                 if (batchAt == 0 || batchAt <= r.tick) {
                     batch.clear();
                     batchAt = r.tick + REBUILD_DELAY;
@@ -516,13 +531,13 @@ public final class ReconcileCore {
                     if (again != null) st = again;
                 }
             }
-            boolean tdiff = !st.transform().equals(t);
+            boolean tdiff = !st.transform().equals(t.canonical());
             boolean sdiff = !isBase && (st.enabled() != enabled || st.render() != render);
             if (tdiff || sdiff) {
                 port.update(id, t.pos(), t.rot(), t.mirror(), isBase ? st.enabled() : enabled, isBase ? st.render() : render);
                 r.updated++;
             }
-            if (isBase) lastSeen.put(id, t);
+            if (isBase) lastSeen.put(id, t.canonical());
             else if (r.tick % SUBREGION_EVERY == 0 && baseId != null && r.existing.contains(ids.get(ObjectNode.BASE_CELL))) {
                 port.copySubRegions(ids.get(ObjectNode.BASE_CELL), id);
             }

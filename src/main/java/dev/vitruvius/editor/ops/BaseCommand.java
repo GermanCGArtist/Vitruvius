@@ -106,9 +106,9 @@ abstract class BaseCommand implements Command {
     public final void revert(EditContext c) {
         if (snap == null) throw new IllegalStateException("revert before apply");
         ctx = c;
+        journal.undoAll();
         undoExtra();
         snap.restore();
-        journal.undoAll();
         snap.report(c.sink());
     }
 }

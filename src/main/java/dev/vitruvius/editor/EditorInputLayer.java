@@ -37,6 +37,7 @@ public final class EditorInputLayer implements UiLayer {
 
     private int frame;
     private boolean uiFailed;
+    private boolean screenWasOpen;
 
     @Override public String id() { return "vitruvius.editor"; }
     @Override public int order() { return 100; }
@@ -68,6 +69,10 @@ public final class EditorInputLayer implements UiLayer {
 
     private void drawUi(EditorSession s) {
         Minecraft mc = Minecraft.getInstance();
+        // a screen (chat) took the keyboard: ImGui must not keep a focused window, an active field or a nav highlight
+        boolean screenOpen = mc.screen != null;
+        if (screenOpen && !screenWasOpen) ImGui.setWindowFocus((String) null);
+        screenWasOpen = screenOpen;
         ImGui.dockSpaceOverViewport(0, ImGui.getMainViewport(), ImGuiDockNodeFlags.PassthruCentralNode | ImGuiDockNodeFlags.NoDockingOverCentralNode);
 
         if (!s.windowsHidden) {
@@ -78,6 +83,7 @@ public final class EditorInputLayer implements UiLayer {
         s.resetLayout = false;
         EditorChrome.draw(s);
         s.gizmo.frame(mc);
+        s.boxEdit.frame(mc);
         TransformHud.draw(s);
 
         // viewport right click: a short RMB press opens the menu for what is under the pointer
@@ -92,7 +98,7 @@ public final class EditorInputLayer implements UiLayer {
         }
         ContextMenus.draw(s);
 
-        if ((++frame & 1) == 0) Picking.updateHover(mc, UiHost.imguiWantsMouse() || s.gizmo.owningMouse());
+        if ((++frame & 1) == 0) Picking.updateHover(mc, UiHost.imguiWantsMouse() || s.gizmo.owningMouse() || s.boxEdit.owningMouse());
         WorldOverlay.drawTags();
         WorldOverlay.drawOverlapLabels();
         Toasts.draw(s);
@@ -101,10 +107,21 @@ public final class EditorInputLayer implements UiLayer {
 
     // ------------------------------------------------------------------ keyboard
 
+    /**
+     * With a screen (chat) open the keyboard belongs to the screen. ImGui's keyboard navigation reports "wants
+     * keyboard" whenever an editor window is focused, which used to swallow what was typed into chat and make Enter
+     * activate a focused row or menu instead of sending the message.
+     */
+    @Override
+    public boolean wantsKeyboard() {
+        if (Minecraft.getInstance().screen != null) return false;
+        return UiHost.imguiWantsKeyboard();
+    }
+
     @Override
     public boolean wantsKey(int key, int scancode, int action, int mods) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.screen != null) return UiHost.imguiWantsKeyboard();       // chat: it gets the keys
+        if (mc.screen != null) return false;                              // chat: it gets the keys
         if (UiHost.imguiWantsTextInput()) return true;                    // a text field is active
         return !EditorMode.passesToVanilla(mc, key, scancode, mods);
     }
@@ -154,16 +171,19 @@ public final class EditorInputLayer implements UiLayer {
         if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
             if (action == GLFW.GLFW_PRESS) {
                 if (!overUi && !EditorCamera.get().isNavigating()) {
-                    if (s == null || !s.gizmo.onLeftPress(mc)) {           // the gizmo, the ring and box select come first
+                    if (s != null && s.boxEdit.onLeftPress(mc)) {
+                        // edit mode grabbed a side of a box
+                    } else if (s == null || s.boxEdit.active() || !s.gizmo.onLeftPress(mc)) {    // the gizmo, the ring and box select come first
                         Picking.onLeftPress(mc);
                         if (s != null) s.gizmo.onEmptyPress(mc);
                     }
                 }
             } else if (action == GLFW.GLFW_RELEASE) {
-                if (s != null && s.gizmo.onLeftRelease(mc, mods)) Picking.cancelPress();
+                if (s != null && s.boxEdit.onLeftRelease()) Picking.cancelPress();
+                else if (s != null && s.gizmo.onLeftRelease(mc, mods)) Picking.cancelPress();
                 else Picking.onLeftRelease(mc, mods);
             }
-        } else if (button == GLFW.GLFW_MOUSE_BUTTON_RIGHT && action == GLFW.GLFW_PRESS && s != null && s.gizmo.onRightPress()) {
+        } else if (button == GLFW.GLFW_MOUSE_BUTTON_RIGHT && action == GLFW.GLFW_PRESS && s != null && (s.boxEdit.onRightPress() || s.gizmo.onRightPress())) {
             return;                                                         // a right click cancels the gesture and never starts a fly
         }
         EditorCamera.get().onMouseButton(mc, button, action, overUi);
