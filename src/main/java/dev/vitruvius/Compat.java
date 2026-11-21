@@ -8,13 +8,10 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.commands.arguments.blocks.BlockStateParser;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.level.block.state.BlockState;
 import org.lwjgl.glfw.GLFW;
 
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * The only place that touches Minecraft APIs which differ between versions (current screen, mouse button state,
@@ -45,13 +42,6 @@ public final class Compat {
         BlockState state = BlockStateParser.parseForBlock(BuiltInRegistries.BLOCK, reader, false).blockState();
         if (reader.canRead()) throw new SimpleCommandExceptionType(() -> "Unexpected text after the block state").createWithContext(reader);
         return state;
-    }
-
-    /** All block ids ("minecraft:stone", ...) in registration order. */
-    public static List<String> blockIds() {
-        List<String> ids = new ArrayList<>();
-        for (Identifier id : BuiltInRegistries.BLOCK.keySet()) ids.add(id.toString());
-        return ids;
     }
 
     /** The id of the block in the local player's main hand, or null (empty hand, not a block item, no player). */

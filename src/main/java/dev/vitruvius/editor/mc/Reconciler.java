@@ -25,7 +25,7 @@ import java.util.Set;
  * missing, as the 1.x arrays found). After that every tick runs one pass. A failure anywhere is logged once and
  * switches the editor off until the next join, so the 1.x behaviour is never in the way.
  *
- * <p>The static queries at the bottom are for {@code ArraySync} and the list: which placements the model owns.
+ * <p>The static queries at the bottom are for the placement list: which placements the model owns.
  */
 public final class Reconciler {
     private Reconciler() {}
@@ -263,13 +263,5 @@ public final class Reconciler {
     /** The hash id of the base placement this array copy belongs to, or null. */
     public static String baseOfCopy(String hashId) {
         return copyParents.get(hashId);
-    }
-
-    /**
-     * Whether the 1.x array sync should wait: a world was just joined and the editor has not looked at its
-     * placements yet (it takes over the arrays it owns as soon as it has).
-     */
-    public static boolean joining() {
-        return pm != null && lastLevel != null && !ready && !failed;
     }
 }

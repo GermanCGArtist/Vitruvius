@@ -3,7 +3,7 @@ package dev.vitruvius.editor.core;
 import java.util.Arrays;
 import java.util.Objects;
 
-/** One Blender-style array modifier (the fields of {@code ArrayStore.Mod}). Offsets are along the object's own axes. */
+/** One Blender-style array modifier. Offsets are along the object's own axes. */
 public final class ArrayModifier implements Modifier {
     public boolean enabled = true;
     /** At least 1; 1 = no copies from this modifier. */

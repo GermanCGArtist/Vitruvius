@@ -1,10 +1,8 @@
 package dev.vitruvius.editor.mc;
 
-import dev.vitruvius.ArraySync;
 import dev.vitruvius.editor.core.Mirror;
 import dev.vitruvius.editor.core.Rot;
 import dev.vitruvius.editor.core.Vec3i;
-import dev.vitruvius.shape.mc.ShapePreview;
 import fi.dy.masa.litematica.data.DataManager;
 import fi.dy.masa.litematica.data.SchematicHolder;
 import fi.dy.masa.litematica.schematic.LitematicaSchematic;
@@ -32,7 +30,7 @@ import java.util.UUID;
  * file and modification time. Render thread only.
  *
  * <p>Rotation and mirror map one to one (CLOCKWISE_90 is CW_90, and so on; LEFT_RIGHT and FRONT_BACK keep their
- * names), with the rule of {@code ArraySync.transform}: mirror first, then turn.
+ * names), with Litematica's rule: mirror first, then turn.
  */
 public final class LitematicaAdapter implements PlacementPort {
     /** A loaded schematic. Opaque to everything outside this class and {@link SchematicInfo}. */
@@ -133,10 +131,18 @@ public final class LitematicaAdapter implements PlacementPort {
         return d == null ? "" : d;
     }
 
-    /** The enclosing size of the schematic (same rule as the 1.x arrays). */
+    /** The enclosing size of the schematic: its total size, else the box around its sub-regions. */
     public Vec3i size(Handle h) {
-        net.minecraft.core.Vec3i s = ArraySync.size(h.schematic);
-        return new Vec3i(s.getX(), s.getY(), s.getZ());
+        net.minecraft.core.Vec3i t = h.schematic.getTotalSize();
+        if (t != null && t.getX() != 0 && t.getY() != 0 && t.getZ() != 0) return new Vec3i(Math.abs(t.getX()), Math.abs(t.getY()), Math.abs(t.getZ()));
+        int[] min = {Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE}, max = {Integer.MIN_VALUE, Integer.MIN_VALUE, Integer.MIN_VALUE};
+        for (SchematicInfo.Region r : SchematicInfo.regionsOf(h.schematic)) {
+            min[0] = Math.min(min[0], r.box().min().x()); max[0] = Math.max(max[0], r.box().maxExclusive().x());
+            min[1] = Math.min(min[1], r.box().min().y()); max[1] = Math.max(max[1], r.box().maxExclusive().y());
+            min[2] = Math.min(min[2], r.box().min().z()); max[2] = Math.max(max[2], r.box().maxExclusive().z());
+        }
+        if (min[0] == Integer.MAX_VALUE) return new Vec3i(1, 1, 1);
+        return new Vec3i(max[0] - min[0], max[1] - min[1], max[2] - min[2]);
     }
 
     // ------------------------------------------------------------------------------------------ placements
@@ -218,7 +224,6 @@ public final class LitematicaAdapter implements PlacementPort {
         byId.clear();
         Set<String> out = new HashSet<>();
         for (SchematicPlacement p : DataManager.getSchematicPlacementManager().getAllSchematicsPlacements()) {
-            if (ShapePreview.isPreview(p)) continue;
             String id = p.getHashId().toString();
             byId.put(id, p);
             out.add(id);
@@ -248,7 +253,7 @@ public final class LitematicaAdapter implements PlacementPort {
         SchematicPlacement p = byId.get(hashId);
         if (p != null) return p;
         for (SchematicPlacement q : DataManager.getSchematicPlacementManager().getAllSchematicsPlacements()) {
-            if (q.getHashId().toString().equals(hashId) && !ShapePreview.isPreview(q)) {
+            if (q.getHashId().toString().equals(hashId)) {
                 byId.put(hashId, q);
                 return q;
             }

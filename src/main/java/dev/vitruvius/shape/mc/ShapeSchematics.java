@@ -40,12 +40,6 @@ public final class ShapeSchematics {
         return schematic;
     }
 
-    /** Overwrites every cell of a schematic made by build() for a result of the same size (the in-place ghost update). */
-    static void refill(LitematicaSchematic schematic, VoxelResult r) {
-        fill(schematic, r, states(r), true);
-        schematic.getMetadata().setTimeModified(System.currentTimeMillis());
-    }
-
     private static BlockState[] states(VoxelResult r) {
         BlockState[] states = new BlockState[r.palette().size()];
         for (int i = 0; i < states.length; i++) {

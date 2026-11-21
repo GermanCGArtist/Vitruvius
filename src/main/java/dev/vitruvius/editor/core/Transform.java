@@ -3,7 +3,7 @@ package dev.vitruvius.editor.core;
 import java.util.Objects;
 
 /**
- * A placement transform: mirror first, then turn (as {@code ArraySync.transform} and Litematica do), then move by
+ * A placement transform: mirror first, then turn (as Litematica does), then move by
  * {@code pos}. Pure integer maths, no Minecraft types.
  */
 public record Transform(Vec3i pos, Rot rot, Mirror mirror) {

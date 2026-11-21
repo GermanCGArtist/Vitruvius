@@ -26,18 +26,6 @@ public final class ShapeSaver {
         return DataManager.getSchematicsBaseDirectory().toAbsolutePath().normalize();
     }
 
-    /** The folder for a relative path from shapes.json: an existing folder inside the root, else the root. */
-    public static Path resolveFolder(String relative) {
-        Path root = root();
-        if (relative == null || relative.isBlank()) return root;
-        try {
-            Path p = root.resolve(relative).normalize();
-            return p.startsWith(root) && Files.isDirectory(p) ? p : root;
-        } catch (RuntimeException e) {   // InvalidPathException
-            return root;
-        }
-    }
-
     /** folder relative to the root, "/" separated, "" for the root. */
     public static String relative(Path folder) {
         Path root = root();
@@ -141,7 +129,6 @@ public final class ShapeSaver {
         LitematicaSchematic loaded = holder.getOrLoad(file);
         if (loaded == null) return "Could not load " + file.getFileName();
 
-        ShapePreview.clear();
         SchematicPlacementManager mgr = DataManager.getSchematicPlacementManager();
         SchematicPlacement placement = SchematicPlacement.createFor(loaded, origin, name.trim(), true, true);
         mgr.addSchematicPlacement(placement, false);

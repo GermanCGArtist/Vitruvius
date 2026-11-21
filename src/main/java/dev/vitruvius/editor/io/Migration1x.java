@@ -1,9 +1,7 @@
 package dev.vitruvius.editor.io;
 
-import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import dev.vitruvius.editor.core.ArrayModifier;
 import dev.vitruvius.editor.core.FolderNode;
 import dev.vitruvius.editor.core.Ids;
 import dev.vitruvius.editor.core.LooseNode;
@@ -32,7 +30,8 @@ import java.util.Set;
 import java.util.function.Function;
 
 /**
- * Turns the 1.x {@code config/vitruvius/folders.json} and {@code arrays.json} into a LooseNode tree.
+ * Turns {@code config/vitruvius/folders.json} (the placement folders) and the live placements into a LooseNode tree,
+ * the first time a world is entered.
  *
  * <ul>
  *   <li>A 1.x folder becomes a FolderNode (name, open, hidden; nesting kept; the colour index goes to
@@ -40,12 +39,9 @@ import java.util.function.Function;
  *   <li>A placement becomes an ObjectNode in the folder it sat in. What the config files do not hold (file, origin,
  *       rotation, mirror, name) comes from the {@code lookup}, which the Minecraft side fills from the live
  *       Litematica placements. A placement the lookup does not know is skipped (listed in the result).
- *   <li>An array entry becomes the ArrayModifiers of its original; pre-1.6 entries (counts/gaps per axis) are
- *       converted like {@code ArrayStore.migrate}. The copy placements become {@code placementIds}, and the original
- *       placement's own id goes in under {@link ObjectNode#BASE_CELL}.
- *   <li>Copy placements are not objects of their own.
  * </ul>
- * Ids are derived from the 1.x ids, so migrating the same files twice gives the same ids. The hash ids themselves are
+ * The arrays of 1.x ({@code arrays.json}) are not read: their copy placements come in as ordinary objects. Ids are
+ * derived from the 1.x ids, so migrating the same files twice gives the same ids. The hash ids themselves are
  * never used as node ids.
  */
 public final class Migration1x {
@@ -58,19 +54,16 @@ public final class Migration1x {
     public record Result(LooseNode loose, List<String> skipped) {}
 
     /**
-     * @param foldersJson   the 1.x folders.json (a missing file means no folders)
-     * @param arraysJson    the 1.x arrays.json (a missing file means no arrays)
+     * @param foldersJson   folders.json (a missing file means no folders)
      * @param placementIds  the hash ids of all placements Litematica has; they come first, in this order
      * @param lookup        hash id to placement info, or null if there is no such placement
      */
-    public static Result migrate(Path foldersJson, Path arraysJson, Collection<String> placementIds,
+    public static Result migrate(Path foldersJson, Collection<String> placementIds,
                                  Function<String, PlacementInfo> lookup) throws IOException {
-        JsonObject folders = readObject(foldersJson);
-        JsonObject arrays = readObject(arraysJson);
-        return migrate(folders, arrays, placementIds, lookup);
+        return migrate(readObject(foldersJson), placementIds, lookup);
     }
 
-    static Result migrate(JsonObject folders, JsonObject arrays, Collection<String> placementIds,
+    static Result migrate(JsonObject folders, Collection<String> placementIds,
                           Function<String, PlacementInfo> lookup) throws FormatException {
         LooseNode loose = new LooseNode(Ids.derived("la1:loose"));
 
@@ -109,30 +102,12 @@ public final class Migration1x {
             (p == null ? loose : folderNodes.get(p)).addChild(folderNodes.get(id));
         }
 
-        // ---- arrays ----
-        Map<String, JsonObject> arrayDefs = new LinkedHashMap<>();
-        for (Map.Entry<String, JsonElement> e : arrays.entrySet()) {
-            if (e.getValue().isJsonObject()) arrayDefs.put(e.getKey(), e.getValue().getAsJsonObject());
-        }
-        Set<String> copyIds = new HashSet<>();
-        Map<String, List<ArrayModifier>> modsOf = new HashMap<>();
-        Map<String, Map<String, String>> copiesOf = new HashMap<>();
-        for (var e : arrayDefs.entrySet()) {
-            List<ArrayModifier> mods = new ArrayList<>();
-            Map<String, String> copies = new LinkedHashMap<>();
-            readArrayEntry(e.getValue(), mods, copies);
-            modsOf.put(e.getKey(), mods);
-            copiesOf.put(e.getKey(), copies);
-            copyIds.addAll(copies.values());
-        }
 
         // ---- placements ----
         JsonObject placementFolder = obj(folders, "placements");
         JsonObject placementColors = obj(folders, "placementColors");
         Set<String> ids = new LinkedHashSet<>(placementIds);
         ids.addAll(placementFolder.keySet());
-        ids.addAll(arrayDefs.keySet());
-        ids.removeAll(copyIds);
 
         List<String> skipped = new ArrayList<>();
         for (String id : ids) {
@@ -145,11 +120,8 @@ public final class Migration1x {
             ObjectNode o = new ObjectNode(Ids.derived("la1:placement:" + id), info.name() != null ? info.name() : baseName(file));
             o.setFile(file);
             o.setTransform(new Transform(info.origin(), info.rot(), info.mirror()).canonical());
-            List<ArrayModifier> mods = modsOf.getOrDefault(id, List.of());
-            o.setMods(new ArrayList<>(mods));
             Map<String, String> ids2 = new LinkedHashMap<>();
             ids2.put(ObjectNode.BASE_CELL, id);
-            ids2.putAll(copiesOf.getOrDefault(id, Map.of()));
             o.setPlacementIds(ids2);
             int color = integer(placementColors, id, -1);
             if (color >= 0) o.extra().addProperty("color", color);
@@ -158,81 +130,6 @@ public final class Migration1x {
             (target == null ? (Node) loose : target).addChild(o);
         }
         return new Result(loose, skipped);
-    }
-
-    /** Reads one arrays.json entry into modifiers and copy ids; converts the pre-1.6 counts/gaps form. */
-    private static void readArrayEntry(JsonObject e, List<ArrayModifier> mods, Map<String, String> copies) {
-        Map<String, String> raw = new LinkedHashMap<>();
-        JsonObject c = obj(e, "copies");
-        for (var en : c.entrySet()) if (en.getValue().isJsonPrimitive()) raw.put(en.getKey(), en.getValue().getAsString());
-
-        JsonElement counts = e.get("counts");
-        if (counts != null && counts.isJsonArray()) {
-            // legacy (before 1.6.0): counts and gaps per axis; same conversion as ArrayStore.migrate
-            int[] cn = ints(counts.getAsJsonArray()), gp = e.get("gaps") != null && e.get("gaps").isJsonArray() ? ints(e.get("gaps").getAsJsonArray()) : new int[3];
-            if (cn.length < 3 || gp.length < 3) {
-                copies.putAll(raw);
-                return;
-            }
-            List<Integer> axes = new ArrayList<>();
-            for (int a = 0; a < 3; a++) {
-                if (Math.abs(cn[a]) <= 1) continue;
-                int sign = Integer.signum(cn[a]);
-                ArrayModifier m = new ArrayModifier();
-                m.count = Math.abs(cn[a]);
-                m.useRelative = true;
-                m.relative = new double[3];
-                m.relative[a] = sign;
-                m.useConstant = gp[a] != 0;
-                m.constant = new int[3];
-                m.constant[a] = gp[a] * sign;
-                mods.add(m);
-                axes.add(a);
-            }
-            for (var en : raw.entrySet()) {
-                try {
-                    String[] k = en.getKey().split(",");
-                    StringBuilder nk = new StringBuilder();
-                    for (int a : axes) {
-                        if (nk.length() > 0) nk.append(',');
-                        nk.append(Integer.parseInt(k[a].trim()));
-                    }
-                    if (!axes.isEmpty()) copies.put(nk.toString(), en.getValue());
-                } catch (RuntimeException ex) {
-                    // unreadable key: forgotten, as in 1.x
-                }
-            }
-            return;
-        }
-
-        JsonElement ms = e.get("mods");
-        if (ms != null && ms.isJsonArray()) {
-            for (JsonElement me : ms.getAsJsonArray()) {
-                if (!me.isJsonObject()) continue;
-                JsonObject o = me.getAsJsonObject();
-                ArrayModifier m = new ArrayModifier();   // field defaults = the 1.x defaults for a missing field
-                m.enabled = bool(o, "enabled", true);
-                m.count = Math.max(1, integer(o, "count", 2));
-                m.useRelative = bool(o, "useRelative", true);
-                JsonElement rel = o.get("relative");
-                if (rel != null && rel.isJsonArray() && rel.getAsJsonArray().size() >= 3) {
-                    for (int k = 0; k < 3; k++) m.relative[k] = rel.getAsJsonArray().get(k).getAsDouble();
-                }
-                m.useConstant = bool(o, "useConstant", false);
-                JsonElement con = o.get("constant");
-                if (con != null && con.isJsonArray() && con.getAsJsonArray().size() >= 3) {
-                    for (int k = 0; k < 3; k++) m.constant[k] = con.getAsJsonArray().get(k).getAsInt();
-                }
-                mods.add(m);
-            }
-        }
-        copies.putAll(raw);
-    }
-
-    private static int[] ints(JsonArray a) {
-        int[] out = new int[a.size()];
-        for (int i = 0; i < out.length; i++) out[i] = a.get(i).getAsInt();
-        return out;
     }
 
     private static String baseName(String file) {

@@ -56,7 +56,7 @@ public final class ColorMenu {
             Object p = entry;
             placements = new ArrayList<>();
             if (DragDrop.selection().contains(p)) {
-                for (Object q : DragDrop.selection()) if (!(q instanceof SchematicPlacement sp && ArraySync.isCopy(sp))) placements.add(q);
+                for (Object q : DragDrop.selection()) if (!(q instanceof SchematicPlacement sp && Folders.isCopy(sp))) placements.add(q);
             }
             if (placements.isEmpty()) placements.add(p);
             current = Folders.ownColor(p);

@@ -4,7 +4,6 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import dev.vitruvius.api.ListEntry;
 import dev.vitruvius.api.VitruviusApi;
-import dev.vitruvius.shape.mc.ShapePreview;
 import fi.dy.masa.litematica.data.DataManager;
 import fi.dy.masa.litematica.schematic.placement.SchematicPlacement;
 import net.fabricmc.loader.api.FabricLoader;
@@ -98,7 +97,12 @@ public final class Folders {
 
     /** Array copies never get folders or colors of their own. */
     private static boolean isCopy(Object item) {
-        return item instanceof SchematicPlacement p && ArraySync.isCopy(p);
+        return item instanceof SchematicPlacement p && isCopy(p);
+    }
+
+    /** Whether p is an array copy the editor made (the list shows only the object's own placement). */
+    public static boolean isCopy(SchematicPlacement p) {
+        return dev.vitruvius.editor.mc.Reconciler.baseOfCopy(p.getHashId().toString()) != null;
     }
 
     private static Path file() {
@@ -515,7 +519,7 @@ public final class Folders {
         List<Object> items = new ArrayList<>(DataManager.getSchematicPlacementManager().getAllSchematicsPlacements());
         items.addAll(VitruviusApi.allEntries());
         for (Object item : items) {
-            if (isCopy(item) || (item instanceof SchematicPlacement p && ShapePreview.isPreview(p))) continue;
+            if (isCopy(item)) continue;
             String id = idOf(item);
             if (id == null) continue;
             boolean on = item instanceof SchematicPlacement p ? p.isRenderingEnabled() : ((ListEntry) item).isRenderingEnabled();

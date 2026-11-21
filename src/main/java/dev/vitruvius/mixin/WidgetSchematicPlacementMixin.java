@@ -1,7 +1,6 @@
 package dev.vitruvius.mixin;
 
 import dev.vitruvius.Compat;
-import dev.vitruvius.ArraySync;
 import dev.vitruvius.DragDrop;
 import dev.vitruvius.Folders;
 import dev.vitruvius.MoveScreen;
@@ -11,7 +10,6 @@ import fi.dy.masa.malilib.gui.GuiBase;
 import fi.dy.masa.malilib.gui.button.ButtonGeneric;
 import fi.dy.masa.malilib.render.GuiContext;
 import fi.dy.masa.malilib.render.RenderUtils;
-import net.minecraft.client.Minecraft;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -26,13 +24,13 @@ abstract class WidgetSchematicPlacementMixin {
     @Inject(method = "<init>", at = @At("TAIL"), remap = false)
     private void vitruvius$addMove(CallbackInfo ci) {
         WidgetSchematicPlacement w = (WidgetSchematicPlacement) (Object) this;
-        if (ArraySync.isCopy(w.placement)) return;
+        if (Folders.isCopy(w.placement)) return;
         ButtonGeneric move = new ButtonGeneric(w.buttonsStartX, w.getY() + 1, -1, true, "Move");
         ((WidgetContainerAccessor) w).vitruvius$addButton(move, (b, mouse) -> {
             // a row that is part of the selection moves the whole selection
             List<Object> moving = new ArrayList<>();
             if (DragDrop.selection().contains(w.placement)) {
-                for (Object p : DragDrop.selection()) if (!(p instanceof SchematicPlacement sp && ArraySync.isCopy(sp))) moving.add(p);
+                for (Object p : DragDrop.selection()) if (!(p instanceof SchematicPlacement sp && Folders.isCopy(sp))) moving.add(p);
             }
             if (moving.isEmpty()) moving.add(w.placement);
             GuiBase.openGui(new MoveScreen(Compat.screen(), moving));

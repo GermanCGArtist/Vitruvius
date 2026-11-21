@@ -57,9 +57,4 @@ public enum ShapeType {
             default -> true;
         };
     }
-
-    /** Whether the Outline thickness means anything (FRAME uses it as edge width, all others as shell). */
-    public boolean usesThickness() {
-        return true;
-    }
 }

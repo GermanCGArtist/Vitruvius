@@ -33,7 +33,11 @@ public final class VitruviusApi {
         if (provider != null && !PROVIDERS.contains(provider)) PROVIDERS.add(provider);
     }
 
-    /** Adds one button to the Shape Generator screen; it gets the generated shape when clicked. */
+    /**
+     * Used to add a button to the old Shape Generator screen, which is gone. Kept so mods that still call it load;
+     * the button is not shown anywhere. Use {@link #registerShapeOutput} for the editor's Shape generator.
+     */
+    @Deprecated
     public static void registerShapeAction(String buttonLabel, String hoverText, Consumer<ShapeActionContext> action) {
         if (buttonLabel != null && action != null) SHAPE_ACTIONS.add(new ShapeAction(buttonLabel, hoverText, action));
     }
@@ -172,6 +176,7 @@ public final class VitruviusApi {
         return SHAPE_OUTPUTS;
     }
 
+    @Deprecated
     public static List<ShapeAction> shapeActions() {
         return SHAPE_ACTIONS;
     }

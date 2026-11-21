@@ -38,8 +38,8 @@ import java.util.function.Function;
  *   <li>The open projects are remembered per world in {@code config/vitruvius/editor-session.json} and opened again
  *       by {@link #enterWorld}.
  *   <li>Loose is not part of a project: it is kept per world in {@code config/vitruvius/editor-loose/<world>.lasm}.
- *       The first time a world is entered, it is built from the 1.x folders.json and arrays.json
- *       ({@link Migration1x}); those files are left as they are, so a downgrade still works.
+ *       The first time a world is entered, it is built from folders.json and the live placements
+ *       ({@link Migration1x}); the file is left as it is.
  * </ul>
  */
 public final class ProjectManager {
@@ -304,7 +304,7 @@ public final class ProjectManager {
         }
         Path cfg = env.configDir().resolve("vitruvius");
         try {
-            Migration1x.Result r = Migration1x.migrate(cfg.resolve("folders.json"), cfg.resolve("arrays.json"), existingIds, lookup);
+            Migration1x.Result r = Migration1x.migrate(cfg.resolve("folders.json"), existingIds, lookup);
             LooseNode loose = r.loose();
             // 1.x hides a folder by switching rendering off (Folders.tick keeps doing that); a hidden node here would
             // remove the placements instead

@@ -1,11 +1,9 @@
 package dev.vitruvius.mixin;
 
-import dev.vitruvius.ArraySync;
 import dev.vitruvius.Folders;
 import dev.vitruvius.WidgetFolderRow;
 import dev.vitruvius.api.ListEntry;
 import dev.vitruvius.api.VitruviusApi;
-import dev.vitruvius.shape.mc.ShapePreview;
 import fi.dy.masa.litematica.gui.GuiSchematicPlacementsList;
 import fi.dy.masa.litematica.gui.widgets.WidgetListSchematicPlacements;
 import fi.dy.masa.litematica.gui.widgets.WidgetSchematicPlacement;
@@ -44,7 +42,7 @@ abstract class WidgetListSchematicPlacementsMixin {
         Collection<SchematicPlacement> all = cir.getReturnValue();
         if (all == null) return;
         List<Object> out = new ArrayList<>(all.size());
-        for (SchematicPlacement p : all) if (!ArraySync.isCopy(p) && !ShapePreview.isPreview(p)) out.add(p);
+        for (SchematicPlacement p : all) if (!Folders.isCopy(p)) out.add(p);
         boolean removed = out.size() != all.size();
         var entries = VitruviusApi.allEntries();
         out.addAll(entries);

@@ -7,13 +7,11 @@ import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 
 /** Block state strings <-> Minecraft block states, for the screen and the schematic builder. */
 public final class BlockParsing {
     private BlockParsing() {}
 
-    private static List<String> sortedIds;
 
     /** Parses "oak_log[axis=x]" (namespace optional). Null if invalid. */
     public static BlockState parse(String blockState) {
@@ -36,26 +34,6 @@ public final class BlockParsing {
         } catch (RuntimeException e) {
             return "Invalid block";
         }
-    }
-
-    /** Block ids ("minecraft:stone", ...) starting with the typed prefix (namespace optional), sorted, at most limit. */
-    public static List<String> suggest(String prefix, int limit) {
-        String p = prefix == null ? "" : prefix.trim().toLowerCase(Locale.ROOT);
-        if (p.indexOf('[') >= 0 || limit <= 0) return List.of();
-        if (sortedIds == null) {
-            sortedIds = Compat.blockIds();
-            sortedIds.sort(null);
-        }
-        boolean withNamespace = p.indexOf(':') >= 0;
-        List<String> out = new ArrayList<>();
-        for (String id : sortedIds) {
-            String match = withNamespace ? id : id.substring(id.indexOf(':') + 1);
-            if (match.startsWith(p)) {
-                out.add(id);
-                if (out.size() >= limit) break;
-            }
-        }
-        return out;
     }
 
     /** The block state string of the item in the player's main hand (with its default state), or null. */

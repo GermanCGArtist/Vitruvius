@@ -5,7 +5,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/** A pure port of {@code ArraySync.cells/steps/copyCountOf} (Blender array semantics), on a size and modifiers. */
+/** The cells of an array (Blender array semantics), on a size and modifiers. */
 public final class ArrayCells {
     private ArrayCells() {}
 

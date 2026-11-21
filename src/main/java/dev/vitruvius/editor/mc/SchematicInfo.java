@@ -127,7 +127,7 @@ public final class SchematicInfo implements SizeSource {
             int[] pp = {p.getX(), p.getY(), p.getZ()}, ss = {sz.getX(), sz.getY(), sz.getZ()};
             int[] lo = new int[3], hi = new int[3];
             for (int i = 0; i < 3; i++) {
-                int end = ss[i] >= 0 ? pp[i] + ss[i] - 1 : pp[i] + ss[i] + 1;   // the last block, as in ArraySync.size
+                int end = ss[i] >= 0 ? pp[i] + ss[i] - 1 : pp[i] + ss[i] + 1;   // the last block
                 lo[i] = Math.min(pp[i], end);
                 hi[i] = Math.max(pp[i], end) + 1;
             }

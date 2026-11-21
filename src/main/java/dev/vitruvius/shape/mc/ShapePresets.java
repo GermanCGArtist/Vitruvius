@@ -25,7 +25,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Last settings and named presets in config/vitruvius/shapes.json: {"last": settings, "ghost": bool, "folder": "sub/dir", "presets": {name: settings}}.
+ * Last settings and named presets in config/vitruvius/shapes.json: {"last": settings, "folder": "sub/dir", "presets": {name: settings}}.
  * The records are mapped to JSON by hand and read back tolerantly: a missing or broken field falls back to its
  * default, so an old or hand-edited file never loses the rest.
  */
@@ -35,7 +35,6 @@ public final class ShapePresets {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static boolean loaded;
     private static GeneratorSettings last = GeneratorSettings.defaults();
-    private static boolean ghost = true;
     private static String folder = "";
     private static final Map<String, GeneratorSettings> PRESETS = new LinkedHashMap<>();
 
@@ -53,7 +52,6 @@ public final class ShapePresets {
             if (root == null || !root.isJsonObject()) return;
             JsonObject o = root.getAsJsonObject();
             if (o.get("last") instanceof JsonObject l) last = readSettings(l);
-            ghost = bool(o, "ghost", true);
             folder = str(o, "folder", "");
             if (o.get("presets") instanceof JsonObject p) {
                 for (var e : p.entrySet()) if (e.getValue() instanceof JsonObject s) PRESETS.put(e.getKey(), readSettings(s));
@@ -67,7 +65,6 @@ public final class ShapePresets {
         Path f = file();
         JsonObject root = new JsonObject();
         root.add("last", writeSettings(last));
-        root.addProperty("ghost", ghost);
         root.addProperty("folder", folder);
         JsonObject presets = new JsonObject();
         for (var e : PRESETS.entrySet()) presets.add(e.getKey(), writeSettings(e.getValue()));
@@ -91,18 +88,6 @@ public final class ShapePresets {
     public static void setLast(GeneratorSettings settings) {
         load();
         last = settings;
-        save();
-    }
-
-    /** Whether the in-world ghost is switched on (default true). */
-    public static boolean ghost() {
-        load();
-        return ghost;
-    }
-
-    public static void setGhost(boolean on) {
-        load();
-        ghost = on;
         save();
     }
 
