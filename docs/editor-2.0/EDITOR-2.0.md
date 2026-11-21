@@ -86,7 +86,7 @@ Modifier = Array { enabled, count, relative[3], useRelative, constant[3], useCon
   - Orbit: target, distance, yaw and pitch.
   - Fly: position, yaw and pitch, WASD/QE, Shift ×3, wheel speed.
   - Hold the right mouse button to fly, with the mouse grabbed while held. A right click under 4 px of movement opens the context menu.
-- **Spectator:** each tick, send the player to the camera position (client-side movement is accepted in spectator), so chunks load. In other game modes the player stays put.
+- **Spectator:** each tick, move the player towards the camera position (client-side movement is accepted in spectator), so chunks load, at most 8 blocks per tick: the server refuses 10 or more per movement packet with "moved too quickly", spectators included (`FollowStep`). In other game modes the player stays put.
 - **Input priority:** ImGui windows (when hovered or focused) > typed-transform modal > gizmo > viewport tools > camera. Vanilla keybinds are blocked while the editor is active, except chat and F-keys.
 - **Picking:**
   1. Raycast against Litematica's schematic world. Map the hit block to the cells whose box contains it, and choose by front order.

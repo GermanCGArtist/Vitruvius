@@ -568,7 +568,7 @@ public final class EditorChrome {
         Minecraft mc = Minecraft.getInstance();
         boolean loading = SpectatorFollow.chunksLoading(mc, cam);
         String speed = String.format(Locale.ROOT, "%.1f×", cam.speed());
-        String tail = loading ? "loading chunks…" : null;
+        String tail = loading ? "loading chunks…" : SpectatorFollow.catchingUp(mc, cam) ? "player catching up…" : null;
 
         Theme.push(UiHost.theme().mono());
         float fh = ImGui.getFontSize();

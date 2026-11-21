@@ -8,7 +8,7 @@ whole projects over Syncmatica, and generate shapes from blocks, all on top of L
 > `vitruvius` and the Java package `dev.vitruvius`. The mod id is kept on purpose so that mods built against it
 > (Heavymatica) keep working.
 >
-> **Status.** This is the **2.0 line, currently alpha** (`2.0.0-alpha.33`, Minecraft 26.3).
+> **Status.** This is the **2.0 line, currently alpha** (`2.0.0-alpha.34`, Minecraft 26.3).
 
 ## What it does
 

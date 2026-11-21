@@ -37,8 +37,10 @@ Press **F6** (rebindable under *Controls → Key Binds → Vitruvius → Toggle 
 Press **F6** again, or click the **EDITOR F6** chip in the toolbar, to leave. **Esc** does nothing in editor mode (no
 pause menu), so you cannot leave by accident.
 
-In **spectator** mode the real player follows the camera, so chunks load around the camera. In other game modes the
-player stays where they are; the camera can only see what the client has already loaded.
+In **spectator** mode the real player follows the camera, so chunks load around the camera. A server refuses moves of
+10 blocks or more at once, so the player follows at up to 8 blocks per tick (160 blocks per second). After a long jump of
+the camera, the fly pill shows *player catching up* until the player has arrived. In other game modes the player stays
+where they are; the camera can only see what the client has already loaded.
 
 Vanilla controls (movement, inventory, attack) are blocked while the editor is open. The F-keys, chat and commands still
 work.
@@ -330,6 +332,7 @@ Limits:
 |---|---|
 | Nothing happens on F6 | Check *Controls → Key Binds → Vitruvius*. Make sure a world is loaded. |
 | An object is greyed out with `!` | Its Litematica placement was deleted. Right-click → **Delete**, or re-create the placement. |
+| The server log says *moved too quickly* | Update to 2.0.0-alpha.34 or newer. Older versions moved the spectator player to the camera in one jump. |
 | A shape or object looks cut off | It is being trimmed by something in front of it. Check front order and Booleans, and the Issues list. |
 | A Boolean or trim does not show yet | The derived file is still being written. Watch the status bar. |
 | A node has a **MOD** badge and is grey | It belongs to another mod that is not installed. It keeps its data and can still be moved, hidden and deleted. |
