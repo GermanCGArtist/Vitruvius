@@ -86,7 +86,16 @@ public final class ProjectLayout {
             sb.append(c);
         }
         String s = sb.toString().strip();
-        if (s.length() > MAX_NAME) s = s.substring(0, MAX_NAME).strip();
+        if (s.length() > MAX_NAME) {
+            int lastDot = s.lastIndexOf('.');
+            if (lastDot > 0 && s.length() - lastDot <= 16) {
+                String ext = s.substring(lastDot);
+                int maxStem = Math.max(1, MAX_NAME - ext.length());
+                s = s.substring(0, Math.min(lastDot, maxStem)).strip() + ext;
+            } else {
+                s = s.substring(0, MAX_NAME).strip();
+            }
+        }
         while (s.endsWith(".") || s.endsWith(" ")) s = s.substring(0, s.length() - 1);
         if (s.isEmpty()) return "unnamed";
         int dot = s.indexOf('.');

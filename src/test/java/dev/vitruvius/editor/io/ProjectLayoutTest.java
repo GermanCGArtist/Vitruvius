@@ -62,6 +62,9 @@ class ProjectLayoutTest {
     void longNamesAreCapped() {
         String s = ProjectLayout.safeName("x".repeat(500));
         assertEquals(120, s.length());
+        String withExt = ProjectLayout.safeName("x".repeat(500) + ".litematic");
+        assertEquals(120, withExt.length());
+        assertTrue(withExt.endsWith(".litematic"));
     }
 
     @Test

@@ -113,4 +113,28 @@ class NioFileSystemPortTest {
         // Unrelated paths outside both root and allowed open projects are still refused
         assertThrows(IllegalArgumentException.class, () -> fs.exists("../../unrelated/secret.txt"));
     }
+
+    @Test
+    void resizeShapeDoesNotGrowFilenameAcrossRepeatedEdits() throws Exception {
+        NioFileSystemPort fs = new NioFileSystemPort(dir);
+        Scene scene = new Scene();
+        ProjectNode p = new ProjectNode("P");
+        p.setPath("Projects/P");
+        scene.openProject(p);
+        ObjectNode o = new ObjectNode("shape", "files/a61fc7d3_40x7x14 2_40x8x14 2_40x9x14.lit.litematic");
+        p.addChild(o);
+        fs.writeString("Projects/P/files/a61fc7d3_40x7x14 2_40x8x14 2_40x9x14.lit.litematic", "v0");
+        UndoStack stack = new UndoStack(new EditContext(scene, fs, null));
+
+        for (int i = 1; i <= 15; i++) {
+            String tmp = ResizeShape.CACHE_DIR + "/tmp" + i + ".litematic";
+            fs.writeString(tmp, "v" + i);
+            // keep a collision file around on the same size so uniqueName appends " 2"
+            if (i == 2) fs.writeString("Projects/P/files/a61fc7d3_40x9x14.litematic", "collision");
+            assertTrue(stack.execute(new ResizeShape(o.id(), tmp, Vec3i.ZERO, "40x9x14", true)).isEmpty());
+            assertTrue(o.file().length() < 40, "filename grew unexpectedly: " + o.file());
+            assertTrue(o.file().endsWith(".litematic"));
+            assertFalse(o.file().contains(".lit.litematic"));
+        }
+    }
 }

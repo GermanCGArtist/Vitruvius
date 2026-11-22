@@ -56,7 +56,11 @@ public final class ResizeShape extends BaseCommand {
             String stem = FileSystemPort.nameOf(oldFile);
             int dot = stem.lastIndexOf('.');
             if (dot > 0) stem = stem.substring(0, dot);
-            stem = stem.replaceAll("_[0-9]+x[0-9]+x[0-9]+(_[0-9]+)?$", "");        // not "a_3x3x3_5x5x5_9x9x9"
+            // Strip any previous .lit truncation artifacts and repeated _WxHxD (with optional " 2" or "_2" collision suffix)
+            stem = stem.replaceAll("(\\.lit)+$", "");
+            stem = stem.replaceAll("(?:_[0-9]+x[0-9]+x[0-9]+(?:[ _][0-9]+)?)+$", "");
+            if (stem.length() > 48) stem = stem.substring(0, 48).strip();
+            if (stem.isEmpty()) stem = "shape";
             String dir = ctx.baseDir(o);
             newRel = FileOps.freeFilesPath(ctx, dir, stem + "_" + sizeText + ProjectLayout.SCHEMATIC_EXT);
             journal().copy(tempPath, FileSystemPort.join(dir, newRel));
