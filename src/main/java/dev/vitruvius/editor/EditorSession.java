@@ -428,7 +428,7 @@ public final class EditorSession {
         String name = target.getFileName().toString();
         if (name.toLowerCase().endsWith(ProjectLayout.ASSEMBLY_EXT)) name = name.substring(0, name.length() - ProjectLayout.ASSEMBLY_EXT.length());
         String link = LinkPaths.relativeLink(projectDir(proj), target);
-        var cmd = new dev.vitruvius.editor.ops.LinkAssembly(parentId, -1, name, link, LinkPaths.identity(target), cameraBlock());
+        var cmd = new dev.vitruvius.editor.ops.LinkAssembly(parentId, -1, name, link, LinkPaths.identity(target), spawnBlock());
         return runLink(cmd, cmd.assemblyId(), name);
     }
 
@@ -442,7 +442,7 @@ public final class EditorSession {
         }
         Path file = projectDir(other).resolve(ProjectLayout.PROJECT_FILE);
         String link = LinkPaths.relativeLink(projectDir(proj), file);
-        var cmd = new dev.vitruvius.editor.ops.LinkProject(parentId, -1, other, link, cameraBlock());
+        var cmd = new dev.vitruvius.editor.ops.LinkProject(parentId, -1, other, link, spawnBlock());
         return runLink(cmd, cmd.assemblyId(), other.name());
     }
 
@@ -456,8 +456,43 @@ public final class EditorSession {
         return true;
     }
 
-    private Vec3i cameraBlock() {
-        var pos = EditorCamera.get().target();
+    /**
+     * World block where newly added schematics/assemblies spawn: raycasts from the editor camera to the surface it
+     * looks at (up to 256 blocks), falling back to a point in front of the camera clamped inside the world's build
+     * height so objects never spawn underground or under the world.
+     */
+    public Vec3i spawnBlock() {
+        EditorCamera cam = EditorCamera.get();
+        Minecraft mc = Minecraft.getInstance();
+        var level = mc == null ? null : mc.level;
+        if (level != null) {
+            var from = cam.position();
+            var to = cam.target();
+            var dir = to.subtract(from);
+            double len = dir.length();
+            if (len > 1e-4) {
+                var fwd = dir.scale(1.0 / len);
+                try {
+                    var hit = level.clip(new net.minecraft.world.level.ClipContext(
+                            from, from.add(fwd.scale(256.0)),
+                            net.minecraft.world.level.ClipContext.Block.OUTLINE,
+                            net.minecraft.world.level.ClipContext.Fluid.NONE,
+                            net.minecraft.world.phys.shapes.CollisionContext.empty()));
+                    if (hit != null && hit.getType() == net.minecraft.world.phys.HitResult.Type.BLOCK) {
+                        var b = hit.getBlockPos().relative(hit.getDirection());
+                        return new Vec3i(b.getX(), b.getY(), b.getZ());
+                    }
+                } catch (RuntimeException ignored) {
+                    // fall back below
+                }
+                var p = len > 64.0 ? from.add(fwd.scale(16.0)) : to;
+                int minY = level.getMinY();
+                int maxY = level.getMaxY() - 1;
+                int y = Math.max(minY, Math.min(maxY, (int) Math.floor(p.y)));
+                return new Vec3i((int) Math.floor(p.x), y, (int) Math.floor(p.z));
+            }
+        }
+        var pos = cam.target();
         return new Vec3i((int) Math.floor(pos.x), (int) Math.floor(pos.y), (int) Math.floor(pos.z));
     }
 

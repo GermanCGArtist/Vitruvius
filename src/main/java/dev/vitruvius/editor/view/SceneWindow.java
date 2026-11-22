@@ -1004,8 +1004,7 @@ public final class SceneWindow {
             }
             return;
         }
-        var pos = dev.vitruvius.editor.cam.EditorCamera.get().target();
-        dev.vitruvius.editor.core.Vec3i p = new dev.vitruvius.editor.core.Vec3i((int) Math.floor(pos.x), (int) Math.floor(pos.y), (int) Math.floor(pos.z));
+        dev.vitruvius.editor.core.Vec3i p = s.spawnBlock();
         UUID parent = addParent != null && s.scene().byId(addParent) != null ? addParent : (s.scene().activeProject() != null ? s.scene().activeProject().id() : s.scene().loose().id());
         AddObject cmd = new AddObject(parent, -1, null, path, p);
         if (s.actions.execute(cmd)) {
