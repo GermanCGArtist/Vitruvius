@@ -120,6 +120,39 @@ class WorldBoxesAssemblyTest {
     }
 
     @Test
+    void externalObjectsInsideAnArrayedAssemblyExpandInBoundsAndViews() {
+        String typeId = "test:heavymatic";
+        dev.vitruvius.api.ObjectTypes.register(new dev.vitruvius.api.SceneObjectType() {
+            @Override public String id() { return typeId; }
+            @Override public String displayName() { return "Test"; }
+            @Override public com.google.gson.JsonObject create() { return new com.google.gson.JsonObject(); }
+            @Override public Box bounds(com.google.gson.JsonObject data) { return Box.ofSize(new Vec3i(4, 3, 2)); }
+            @Override public void renderOutline(com.google.gson.JsonObject data, Transform world, dev.vitruvius.api.OverlayDrawer d, boolean selected) {}
+            @Override public void drawProperties(com.google.gson.JsonObject data, dev.vitruvius.api.PropertyUi ui) {}
+        });
+        try {
+            AssemblyNode a = new AssemblyNode("tunnel");
+            a.setTransform(at(10, 0, 0));
+            dev.vitruvius.editor.core.ExternalNode h = new dev.vitruvius.editor.core.ExternalNode(UUID.randomUUID(), "cut", typeId);
+            a.addChild(h);
+            a.mods().add(array(3));
+            proj.addChild(a);
+
+            WorldBoxes wb = boxes();
+            assertEquals(3, wb.cellBoxes(a.id()).size());
+            assertEquals(new Box(new Vec3i(10, 0, 0), new Vec3i(22, 3, 2)), wb.ownerBoxes(a.id()).union());
+
+            var views = dev.vitruvius.api.ObjectTypes.viewsIn(scene, typeId);
+            assertEquals(3, views.size());
+            assertEquals(new Vec3i(10, 0, 0), views.get(0).world().pos());
+            assertEquals(new Vec3i(14, 0, 0), views.get(1).world().pos());
+            assertEquals(new Vec3i(18, 0, 0), views.get(2).world().pos());
+        } finally {
+            dev.vitruvius.api.ObjectTypes.clear();
+        }
+    }
+
+    @Test
     void withoutAnEnvironmentTheOldConstructorIgnoresLinkedAssemblies() {
         AssemblyNode a = new AssemblyNode("linked");
         a.setSource(new AssemblyNode.Link("files/x.lasm"));

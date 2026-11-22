@@ -94,6 +94,7 @@ public final class Reconciler {
         core.setLooseCache(FabricLoader.getInstance().getConfigDir().resolve("vitruvius").resolve("editor-loose"));
         DerivedFiles.shared().bind(core);
         dev.vitruvius.api.ObjectTypes.setSceneSource(() -> pm == null ? null : pm.scene());
+        dev.vitruvius.api.ObjectTypes.setEnvSource(scene -> core == null || scene == null ? null : core.boundsEnv(scene));
         pm.setSaveHook(DerivedFiles.shared()::cleanup);
     }
 

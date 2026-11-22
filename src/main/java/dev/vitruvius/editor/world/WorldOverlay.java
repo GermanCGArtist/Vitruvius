@@ -95,7 +95,9 @@ public final class WorldOverlay {
     // ------------------------------------------------------------------ objects of other mods (API 2)
 
     private static boolean hasExternals(EditorSession s) {
-        for (Node n : s.scene().allNodes()) if (n instanceof dev.vitruvius.editor.core.ExternalNode && !TreeModel.effectivelyHidden(n)) return true;
+        for (var p : dev.vitruvius.api.ObjectTypes.placedIn(s.scene(), null, s.boundsEnv())) {
+            if (!p.hidden()) return true;
+        }
         return false;
     }
 
@@ -122,25 +124,20 @@ public final class WorldOverlay {
     }
 
     private static void drawExternals(EditorSession s) {
-        var scene = s.scene();
-        WorldBoxes wb = s.boxes();
         Drawer d = new Drawer();
-        for (Node n : scene.allNodes()) {
-            if (!(n instanceof dev.vitruvius.editor.core.ExternalNode x) || TreeModel.effectivelyHidden(x)) continue;
-            var type = dev.vitruvius.api.ObjectTypes.get(x.typeId());
+        for (var p : dev.vitruvius.api.ObjectTypes.placedIn(s.scene(), null, s.boundsEnv())) {
+            if (p.hidden()) continue;
+            var type = dev.vitruvius.api.ObjectTypes.get(p.typeId());
             if (type == null) {                                     // the mod is not installed: a grey dashed box, the data stays
-                for (Box b : wb.objectBoxes(x.id())) ghostBox(b, Theme.GUTTER, 0.8f, 1.5f, 0.04f);
+                Box b = Box.ofSize(new dev.vitruvius.editor.core.Vec3i(1, 1, 1)).transformed(p.world());
+                ghostBox(b, Theme.GUTTER, 0.8f, 1.5f, 0.04f);
                 continue;
             }
-            boolean sel = s.selection.isSelected(x.id());
-            var world = scene.worldTransform(x);
+            boolean sel = s.selection.isSelected(p.id()) || s.selection.isSelected(p.ownerId());
             try {
-                type.renderOutline(x.data(), world, d, sel);
-                for (var c : dev.vitruvius.api.ObjectTypes.cellsOf(x).values()) {
-                    type.renderOutline(x.data(), new dev.vitruvius.editor.core.Transform(world.apply(c), world.rot(), world.mirror()), d, sel);
-                }
+                type.renderOutline(p.data(), p.world(), d, sel);
             } catch (RuntimeException | LinkageError e) {
-                if (FAILED_TYPES.add(x.typeId())) System.out.println("[Vitruvius] object type " + x.typeId() + " failed to draw: " + e);
+                if (FAILED_TYPES.add(p.typeId())) System.out.println("[Vitruvius] object type " + p.typeId() + " failed to draw: " + e);
             }
         }
     }

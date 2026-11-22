@@ -1,7 +1,10 @@
 package dev.vitruvius.api;
 
+import com.google.gson.JsonObject;
 import dev.vitruvius.editor.core.ArrayCells;
 import dev.vitruvius.editor.core.ArrayModifier;
+import dev.vitruvius.editor.core.AssemblyBounds;
+import dev.vitruvius.editor.core.AssemblyNode;
 import dev.vitruvius.editor.core.Box;
 import dev.vitruvius.editor.core.ExternalNode;
 import dev.vitruvius.editor.core.Modifier;
@@ -10,20 +13,27 @@ import dev.vitruvius.editor.core.Scene;
 import dev.vitruvius.editor.core.Transform;
 import dev.vitruvius.editor.core.Vec3i;
 
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 /** The registry of {@link SceneObjectType}s and the views of their objects. No Minecraft types, so it is unit-tested. */
 public final class ObjectTypes {
     private ObjectTypes() {}
 
+    /** One placed copy of an external object (including copies produced by ancestor assembly arrays and linked assemblies). */
+    public record Placed(UUID id, UUID ownerId, String typeId, String name, String cell, Transform world, JsonObject data, boolean hidden) {}
+
     private static final Map<String, SceneObjectType> TYPES = Collections.synchronizedMap(new LinkedHashMap<>());
     private static volatile Supplier<Scene> sceneSource = () -> null;
+    private static volatile Function<Scene, AssemblyBounds.Env> envSource = s -> null;
 
     /** Registers a type; a second one with the same id replaces the first. */
     public static void register(SceneObjectType type) {
@@ -46,32 +56,91 @@ public final class ObjectTypes {
         sceneSource = source == null ? () -> null : source;
     }
 
+    /** Where {@link #viewsOf} resolves assembly sizes and linked assemblies (set by the reconciler). */
+    public static void setEnvSource(Function<Scene, AssemblyBounds.Env> source) {
+        envSource = source == null ? s -> null : source;
+    }
+
     /** Test hook: forgets every registered type. */
     public static void clear() {
         TYPES.clear();
     }
 
-    /** The objects of a type in the open scene (every array copy), or an empty list. */
+    /** The objects of a type in the open scene (every array copy, including inside arrayed/linked assemblies), or empty. */
     public static List<SceneObjectView> viewsOf(String typeId) {
         Scene s = sceneSource.get();
-        return s == null ? List.of() : viewsIn(s, typeId);
+        return s == null ? List.of() : viewsIn(s, typeId, envSource.apply(s));
     }
 
     /** The objects of a type in a scene: one view per placed copy (the base copy first, then the array copies). */
     public static List<SceneObjectView> viewsIn(Scene scene, String typeId) {
+        return viewsIn(scene, typeId, null);
+    }
+
+    /** Same as {@link #viewsIn(Scene, String)} with an {@link AssemblyBounds.Env} for measuring assemblies and links. */
+    public static List<SceneObjectView> viewsIn(Scene scene, String typeId, AssemblyBounds.Env env) {
         List<SceneObjectView> out = new ArrayList<>();
-        for (Node n : scene.allNodes()) {
-            if (!(n instanceof ExternalNode x) || !x.typeId().equals(typeId)) continue;
-            boolean hidden = false;
-            for (Node a = x; a != null; a = a.parent()) if (a.hidden()) hidden = true;
-            Transform world = scene.worldTransform(x);
-            out.add(new SceneObjectView(x.id(), x.name(), "base", world, x.data().deepCopy(), hidden));
-            for (var c : cellsOf(x).entrySet()) {
-                out.add(new SceneObjectView(x.id(), x.name(), c.getKey(), new Transform(world.apply(c.getValue()), world.rot(), world.mirror()),
-                        x.data().deepCopy(), hidden));
-            }
+        for (Placed p : placedIn(scene, typeId, env)) {
+            out.add(new SceneObjectView(p.id(), p.name(), p.cell(), p.world(), p.data(), p.hidden()));
         }
         return out;
+    }
+
+    /**
+     * All placed copies of external objects in {@code scene} (matching {@code typeId}, or all types when {@code typeId}
+     * is null), expanding both the object's own array modifiers and any ancestor assembly arrays / linked assemblies.
+     */
+    public static List<Placed> placedIn(Scene scene, String typeId, AssemblyBounds.Env env) {
+        List<Placed> out = new ArrayList<>();
+        if (scene == null) return out;
+        for (Node root : scene.projects()) {
+            collectPlaced(root, null, null, Transform.IDENTITY, "", root.hidden(), 0, typeId, env, out);
+        }
+        Node loose = scene.loose();
+        if (loose != null) {
+            collectPlaced(loose, null, null, Transform.IDENTITY, "", loose.hidden(), 0, typeId, env, out);
+        }
+        return out;
+    }
+
+    private static void collectPlaced(Node n, UUID topOwner, Path base, Transform parentWorld, String cellPrefix,
+                                      boolean hidden, int depth, String typeId, AssemblyBounds.Env env, List<Placed> out) {
+        boolean nextHidden = hidden || n.hidden();
+        if (n instanceof ExternalNode x) {
+            if (typeId != null && !x.typeId().equals(typeId)) return;
+            UUID owner = topOwner != null ? topOwner : x.id();
+            Transform world = parentWorld.then(x.transform());
+            out.add(new Placed(x.id(), owner, x.typeId(), x.name(),
+                    cellPrefix.isEmpty() ? "base" : cellPrefix, world, x.data().deepCopy(), nextHidden));
+            for (var c : cellsOf(x).entrySet()) {
+                String cell = cellPrefix.isEmpty() ? c.getKey() : cellPrefix + "/" + c.getKey();
+                Transform ct = new Transform(world.apply(c.getValue()), world.rot(), world.mirror());
+                out.add(new Placed(x.id(), owner, x.typeId(), x.name(), cell, ct, x.data().deepCopy(), nextHidden));
+            }
+        } else if (n instanceof AssemblyNode a) {
+            if (depth > AssemblyBounds.MAX_DEPTH) return;
+            UUID owner = topOwner != null ? topOwner : a.id();
+            AssemblyBounds.Linked parts = AssemblyBounds.partsOf(a, base, env);
+            if (parts == null) return;
+            Transform aw = parentWorld.then(a.transform());
+            for (Node child : parts.parts()) {
+                collectPlaced(child, owner, parts.base(), aw, cellPrefix, nextHidden, depth + 1, typeId, env, out);
+            }
+            if (AssemblyBounds.hasEnabledArray(a)) {
+                AssemblyBounds.Frame f = AssemblyBounds.frame(a, base, env);
+                for (var c : f.cells().entrySet()) {
+                    Transform cw = new Transform(aw.apply(c.getValue()), aw.rot(), aw.mirror());
+                    String nextPrefix = cellPrefix.isEmpty() ? c.getKey() : cellPrefix + "/" + c.getKey();
+                    for (Node child : parts.parts()) {
+                        collectPlaced(child, owner, parts.base(), cw, nextPrefix, nextHidden, depth + 1, typeId, env, out);
+                    }
+                }
+            }
+        } else {
+            for (Node child : n.children()) {
+                collectPlaced(child, topOwner, base, parentWorld, cellPrefix, nextHidden, depth, typeId, env, out);
+            }
+        }
     }
 
     /** The array cells of an external node (offset per cell key, the base cell not included). */

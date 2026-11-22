@@ -58,7 +58,7 @@ public final class AssemblyBounds {
 
     /** The assembly's parts and the base their files are relative to; null for a linked assembly that cannot be read. */
     public static Linked partsOf(AssemblyNode a, Path base, Env env) {
-        if (a.isLinked()) return env.linked(a, base);
+        if (a.isLinked()) return env == null ? null : env.linked(a, base);
         return new Linked(a.children(), base);
     }
 
@@ -86,12 +86,19 @@ public final class AssemblyBounds {
 
     private static void boxesIn(Node n, Path base, Env env, int depth, List<Box> out) {
         if (n instanceof ObjectNode o) {
-            Vec3i size = env.size(o, base);
+            Vec3i size = env == null ? null : env.size(o, base);
             if (size == null || size.x() <= 0 || size.y() <= 0 || size.z() <= 0) return;
             Transform t = o.transform();
             Box box = Box.ofSize(size);
             out.add(box.transformed(t));
             for (Vec3i off : ArrayCells.cells(arrays(o.mods()), size).values()) {
+                out.add(box.transformed(new Transform(t.apply(off), t.rot(), t.mirror())));
+            }
+        } else if (n instanceof ExternalNode x) {
+            Box box = dev.vitruvius.api.ObjectTypes.localBounds(x);
+            Transform t = x.transform();
+            out.add(box.transformed(t));
+            for (Vec3i off : dev.vitruvius.api.ObjectTypes.cellsOf(x).values()) {
                 out.add(box.transformed(new Transform(t.apply(off), t.rot(), t.mirror())));
             }
         } else if (n instanceof AssemblyNode a) {
