@@ -291,7 +291,15 @@ public final class EditorSession {
         scene = now;
         gizmo.cancel();
         if (localOwners != null) setLocalOwners(null);          // a new world: the filter's ids do not exist there
-        port = new NioFileSystemPort(schematicsDir);
+        port = new NioFileSystemPort(schematicsDir, () -> {
+            List<Path> roots = new ArrayList<>();
+            if (scene != null) {
+                for (ProjectNode p : scene.projects()) {
+                    if (p.path() != null && !p.path().isEmpty()) roots.add(projectDir(p));
+                }
+            }
+            return roots;
+        });
         ctx = new EditContext(scene, port, new ChangeSink() {
             @Override
             public void markDirty(UUID projectId) {

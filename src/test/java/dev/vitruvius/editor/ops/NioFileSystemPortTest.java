@@ -79,4 +79,38 @@ class NioFileSystemPortTest {
         assertEquals("blocks", Files.readString(dir.resolve("Projects/P/files/o 2.litematic")));
         assertEquals(2, p.children().size());
     }
+
+    @Test
+    void openProjectOutsideProfileSchematicsFolderWorksAndStillBlocksUnrelatedPaths() throws Exception {
+        Path currentSchem = dir.resolve("profile-26.3").resolve("schematics");
+        Path otherProject = dir.resolve("Bestes_projekt_1.26.0").resolve("schematics").resolve("Projects").resolve("New project 3");
+        Files.createDirectories(currentSchem);
+        Files.createDirectories(otherProject.resolve("files"));
+        Files.writeString(otherProject.resolve("files").resolve("bamboo_farm.litematic"), "bamboo");
+
+        Scene scene = new Scene();
+        ProjectNode p = new ProjectNode("New project 3");
+        p.setPath(otherProject.toAbsolutePath().normalize().toString());
+        scene.openProject(p);
+        ObjectNode o = new ObjectNode("bamboo_farm", "files/bamboo_farm.litematic");
+        o.setTransform(Transform.IDENTITY.withPos(new Vec3i(1, 2, 3)));
+        p.addChild(o);
+
+        NioFileSystemPort fs = new NioFileSystemPort(currentSchem, () -> List.of(otherProject));
+        EditContext ctx = new EditContext(scene, fs, null).setPortRoot(currentSchem);
+        UndoStack stack = new UndoStack(ctx);
+
+        Duplicate dup = new Duplicate(List.of(o.id()), new Vec3i(4, 0, 0));
+        assertTrue(stack.execute(dup).isEmpty());
+        assertEquals("bamboo", Files.readString(otherProject.resolve("files").resolve("bamboo_farm 2.litematic")));
+
+        stack.undo();
+        assertFalse(Files.exists(otherProject.resolve("files").resolve("bamboo_farm 2.litematic")));
+        try (var s = Files.list(otherProject.resolve(".trash"))) {
+            assertEquals(1, s.count());
+        }
+
+        // Unrelated paths outside both root and allowed open projects are still refused
+        assertThrows(IllegalArgumentException.class, () -> fs.exists("../../unrelated/secret.txt"));
+    }
 }

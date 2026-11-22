@@ -242,14 +242,6 @@ public final class ShapeWindow {
         }
         UUID parent = parentId != null && s.scene().byId(parentId) != null ? parentId
                 : (s.scene().activeProject() != null ? s.scene().activeProject().id() : s.scene().loose().id());
-        Node parentNode = s.scene().byId(parent);
-        String baseDir = parentNode == null ? "" : s.undoStack().context().baseDir(parentNode);
-        if (baseDir.equals("..") || baseDir.startsWith("../")) {
-            // a project that lives outside this profile's schematics folder (opened from another profile) cannot take files
-            s.toast(ToastQueue.Level.WARN, "The project \"" + (s.scene().projectOf(parentNode) == null ? "" : s.scene().projectOf(parentNode).name())
-                    + "\" is outside this profile's schematics folder, so the shape was added to Loose. Move the project folder into schematics/Projects to use it.");
-            parent = s.scene().loose().id();
-        }
         AddObject cmd = new AddObject(parent, -1, base, dev.vitruvius.editor.ops.ResizeShape.CACHE_DIR + "/" + tmpName + ".litematic", pos);
         if (!s.actions.execute(cmd)) return;
         s.selection.set(cmd.objectId());

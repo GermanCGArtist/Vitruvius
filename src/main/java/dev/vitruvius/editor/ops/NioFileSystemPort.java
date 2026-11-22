@@ -8,21 +8,29 @@ import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 /**
- * The real {@link FileSystemPort}: plain java.nio below one root folder. Every path goes through
- * {@link ProjectLayout#resolveInside}, so an absolute path or one with {@code ..} is refused with an
- * {@link IllegalArgumentException} before anything is touched.
+ * The real {@link FileSystemPort}: plain java.nio below one root folder, plus optional extra allowed roots (open
+ * projects that live outside this profile's schematics folder). Any path outside both {@code root} and the allowed
+ * extra roots is refused with an {@link IllegalArgumentException} before anything is touched.
  */
 public final class NioFileSystemPort implements FileSystemPort {
     private final Path root;
+    private final Supplier<? extends Collection<Path>> extraRoots;
 
     public NioFileSystemPort(Path root) {
+        this(root, List::of);
+    }
+
+    public NioFileSystemPort(Path root, Supplier<? extends Collection<Path>> extraRoots) {
         this.root = root.toAbsolutePath().normalize();
+        this.extraRoots = extraRoots == null ? List::of : extraRoots;
     }
 
     public Path root() {
@@ -33,8 +41,37 @@ public final class NioFileSystemPort implements FileSystemPort {
         return path.replace('\\', '/');
     }
 
+    private Path matchingExtraRoot(Path candidate) {
+        Collection<Path> extras = extraRoots.get();
+        if (extras == null) return null;
+        for (Path raw : extras) {
+            if (raw == null) continue;
+            Path extra = raw.toAbsolutePath().normalize();
+            if (candidate.startsWith(extra) && !candidate.equals(extra)) return extra;
+        }
+        return null;
+    }
+
     private Path at(String path) {
-        return ProjectLayout.resolveInside(root, slashes(path));
+        String rel = slashes(path);
+        try {
+            return ProjectLayout.resolveInside(root, rel);
+        } catch (IllegalArgumentException e) {
+            if (rel.isEmpty()) throw e;
+            Path p = Path.of(rel);
+            Path candidate = (p.isAbsolute() ? p : root.resolve(rel)).toAbsolutePath().normalize();
+            if (matchingExtraRoot(candidate) != null) return candidate;
+            throw e;
+        }
+    }
+
+    private String toPortPath(Path abs) {
+        Path norm = abs.toAbsolutePath().normalize();
+        try {
+            return slashes(root.relativize(norm).toString());
+        } catch (IllegalArgumentException e) {
+            return slashes(norm.toString());
+        }
     }
 
     private static void makeParent(Path p) throws IOException {
@@ -66,8 +103,16 @@ public final class NioFileSystemPort implements FileSystemPort {
         String rel = slashes(path);
         Path p = at(rel);
         if (!Files.exists(p)) throw new NoSuchFileException(path);
-        String trash = FileSystemPort.join(FileSystemPort.trashDirOf(rel), UUID.randomUUID() + "-" + p.getFileName());
-        Path t = at(trash);
+        Path extra = p.startsWith(root) ? null : matchingExtraRoot(p);
+        String trash;
+        Path t;
+        if (extra != null) {
+            t = extra.resolve(ProjectLayout.TRASH_DIR).resolve(UUID.randomUUID() + "-" + p.getFileName()).normalize();
+            trash = toPortPath(t);
+        } else {
+            trash = FileSystemPort.join(FileSystemPort.trashDirOf(rel), UUID.randomUUID() + "-" + p.getFileName());
+            t = at(trash);
+        }
         makeParent(t);
         Files.move(p, t);
         return FileSystemPort.token(trash, rel);
@@ -99,7 +144,7 @@ public final class NioFileSystemPort implements FileSystemPort {
         if (!Files.isDirectory(d)) return List.of();
         List<String> out = new ArrayList<>();
         try (Stream<Path> s = Files.list(d)) {
-            s.forEach(p -> out.add(slashes(root.relativize(p).toString())));
+            s.forEach(p -> out.add(toPortPath(p)));
         }
         Collections.sort(out);
         return out;
