@@ -70,6 +70,7 @@ public final class LitematicaAdapter implements PlacementPort {
     }
 
     private final Map<Path, Handle> loaded = new HashMap<>();
+    private final Map<Path, Long> failedMtime = new HashMap<>();
     private final Map<String, SchematicPlacement> byId = new HashMap<>();
 
     // ------------------------------------------------------------------------------------------ schematics
@@ -88,10 +89,17 @@ public final class LitematicaAdapter implements PlacementPort {
         try {
             mtime = Files.getLastModifiedTime(f).toMillis();
         } catch (IOException e) {
+            failedMtime.remove(f);
             return null;
         }
+        if (Long.valueOf(mtime).equals(failedMtime.get(f))) return null;
         LitematicaSchematic s = SchematicHolder.getInstance().getOrLoad(f);
-        return s == null ? null : new Handle(s, f, mtime);
+        if (s == null) {
+            failedMtime.put(f, mtime);
+            return null;
+        }
+        failedMtime.remove(f);
+        return new Handle(s, f, mtime);
     }
 
     /**
@@ -108,16 +116,20 @@ public final class LitematicaAdapter implements PlacementPort {
             mtime = Files.getLastModifiedTime(f).toMillis();
         } catch (IOException e) {
             loaded.remove(f);
+            failedMtime.remove(f);
             return null;
         }
+        if (Long.valueOf(mtime).equals(failedMtime.get(f))) return null;
         Handle h = loaded.get(f);
         if (h != null && h.mtime == mtime) return h;
         Path dir = f.getParent();
         LitematicaSchematic s = dir == null ? null : LitematicaSchematic.createFromFile(dir, f.getFileName().toString());
         if (s == null) {
             loaded.remove(f);
+            failedMtime.put(f, mtime);
             return null;
         }
+        failedMtime.remove(f);
         h = new Handle(s, f, mtime);
         loaded.put(f, h);
         return h;
