@@ -62,7 +62,7 @@ public final class HistoryWindow {
         ImGui.setNextWindowPos(vp.getPosX() + vp.getSizeX() * 0.5f - 260 * sc, vp.getPosY() + 80 * sc, ImGuiCond.FirstUseEver);
         ImGui.setNextWindowSize(520 * sc, 600 * sc, ImGuiCond.FirstUseEver);
         ImGui.setNextWindowSizeConstraints(360 * sc, 320 * sc, 4000, 4000);
-        if (Ui.beginWindow("History", OPEN, 0, 0.96f)) drawContent(s);
+        if (Ui.beginWindow("06 HISTORY###History", OPEN, 0, 0.96f)) drawContent(s);
         Ui.endWindow();
         s.showHistory = OPEN.get();
     }
@@ -212,9 +212,10 @@ public final class HistoryWindow {
             }
             boolean hov = ImGui.isItemHovered();
             if (isSel) {
-                dl.addRectFilled(originX, ry + 1, originX + availW, ry + rowH - 1, Ui.c(Theme.ACCENT, 0.16f), 4 * sc);
+                dl.addRectFilled(originX, ry + 1, originX + availW, ry + rowH - 1, Ui.c(Theme.SEL), 0f);
+                dl.addRectFilled(originX, ry + 1, originX + 2 * sc, ry + rowH - 1, Ui.c(Theme.ACCENT), 0f);
             } else if (hov) {
-                dl.addRectFilled(originX, ry + 1, originX + availW, ry + rowH - 1, Ui.c(Theme.FG, 0.06f), 4 * sc);
+                dl.addRectFilled(originX, ry + 1, originX + availW, ry + rowH - 1, Ui.c(Theme.SURFACE), 0f);
             }
             if (hov) {
                 StringBuilder tip = new StringBuilder();
@@ -329,15 +330,24 @@ public final class HistoryWindow {
             return x;
         }
         float by = ry + (rowH - bh) * 0.5f;
-        dl.addRectFilled(x, by, x + bw, by + bh, Ui.c(rgb, current ? 0.28f : 0.14f), 4 * sc);
-        dl.addRect(x, by, x + bw, by + bh, Ui.c(rgb, current ? 0.85f : 0.45f), 4 * sc);
+        dl.addRectFilled(x, by, x + bw, by + bh, Ui.c(rgb, current ? 0.24f : 0.14f), 0f);
+        dl.addRect(x, by, x + bw, by + bh, Ui.c(rgb, current ? 0.90f : 0.55f), 0f);
         dl.addText(x + 5 * sc, by + (bh - ImGui.getFontSize()) * 0.5f, Ui.c(warn ? Theme.WARN : (current ? Theme.FG : rgb)), text);
         ImGui.popFont();
         return x + bw + 5 * sc;
     }
 
     private static int laneColor(int index) {
-        return LANE_COLORS[Math.floorMod(index, LANE_COLORS.length)];
+        return switch (Math.floorMod(index, 8)) {
+            case 0 -> Ui.LINK;
+            case 1 -> Ui.AX_Y;
+            case 2 -> Ui.AREA;
+            case 3 -> Ui.BOOL;
+            case 4 -> Ui.AX_X;
+            case 5 -> Theme.ACCENT;
+            case 6 -> Theme.META;
+            default -> Theme.WARN;
+        };
     }
 
     private static List<String> append(List<String> l, String x) {

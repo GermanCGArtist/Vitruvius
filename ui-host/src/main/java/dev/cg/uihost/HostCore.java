@@ -254,12 +254,15 @@ public final class HostCore {
     }
 
     private static void refreshScale() {
-        if (!Theme.needsFonts(scale)) return;
-        ImGuiIO io = ImGui.getIO();
-        io.getFonts().clear();
-        Theme.loadFonts(io, scale);
-        renderer.createFontTexture(io);
-        Theme.apply(ImGui.getStyle(), scale);
+        if (Theme.needsFonts(scale)) {
+            ImGuiIO io = ImGui.getIO();
+            io.getFonts().clear();
+            Theme.loadFonts(io, scale);
+            renderer.createFontTexture(io);
+            Theme.apply(ImGui.getStyle(), scale);
+        } else if (Theme.needsStyleApply()) {
+            Theme.apply(ImGui.getStyle(), scale);
+        }
     }
 
     private static void platformNewFrame(Minecraft mc, ImGuiIO io) {

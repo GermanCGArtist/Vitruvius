@@ -58,7 +58,7 @@ public final class PropertiesWindow {
     private static final Set<String> COLLAPSED = new HashSet<>();
     private static final String[] ROT = {"0°", "90°", "180°", "270°"};
     private static final String[] AXES = {"X", "Y", "Z"};
-    private static final int[] AXIS_COL = {Ui.AX_X, Ui.AX_Y, Ui.AX_Z};
+    private static int axisCol(int a) { return a == 0 ? Ui.AX_X : a == 1 ? Ui.AX_Y : Ui.AX_Z; }
 
     public static void draw(EditorSession s) {
         float sc = Ui.s();
@@ -68,7 +68,7 @@ public final class PropertiesWindow {
         ImGui.setNextWindowPos(vp.getPosX() + vp.getSizeX() - 332 * sc, vp.getPosY() + 56 * sc, (s.resetLayout ? imgui.flag.ImGuiCond.Always : imgui.flag.ImGuiCond.FirstUseEver));
         ImGui.setNextWindowSize(320 * sc, Math.max(220 * sc, 0.58f * h), (s.resetLayout ? imgui.flag.ImGuiCond.Always : imgui.flag.ImGuiCond.FirstUseEver));
         ImGui.setNextWindowSizeConstraints(260 * sc, 160 * sc, 4000, 4000);
-        if (Ui.beginWindow("Properties", OPEN, 0, 0.96f)) {
+        if (Ui.beginWindow("02 PROPERTIES###Properties", OPEN, 0, 0.96f)) {
             drawContent(s);
         }
         Ui.endWindow();
@@ -148,9 +148,9 @@ public final class PropertiesWindow {
         Theme.push(UiHost.theme().small());
         float lh = ImGui.getFontSize() + 5 * sc, pad = 10 * sc;
         float h = pad * 2 + ImGui.getFontSize() + 6 * sc + rows.length * lh;
-        dl.addRectFilled(x0, y0, x0 + w, y0 + h, Ui.c(Theme.PANEL2), 6 * sc);
-        dl.addRect(x0, y0, x0 + w, y0 + h, Ui.c(Theme.LINE), 6 * sc);
-        dl.addText(x0 + pad, y0 + pad, Ui.c(Theme.DIM), "FROM LITEMATICA?");
+        dl.addRectFilled(x0, y0, x0 + w, y0 + h, Ui.c(Theme.SURFACE), 0f);
+        dl.addRect(x0, y0, x0 + w, y0 + h, Ui.c(Theme.BORDER_HI), 0f);
+        dl.addText(x0 + pad, y0 + pad, Ui.c(Theme.GUTTER), "── FROM LITEMATICA?");
         float y = y0 + pad + ImGui.getFontSize() + 6 * sc;
         float leftW = 0;
         for (String[] r : rows) leftW = Math.max(leftW, ImGui.calcTextSizeX(r[0]));
@@ -273,8 +273,8 @@ public final class PropertiesWindow {
         float lineH = ImGui.getFontSize();
         int lines = Math.max(1, (int) Math.ceil(ImGui.calcTextSizeX(text) / tw));
         float h = lines * lineH + 16 * sc;
-        dl.addRectFilled(x0, y0, x0 + w, y0 + h, Ui.c(Theme.PANEL2), 6 * sc);
-        dl.addRect(x0, y0, x0 + w, y0 + h, Ui.c(Ui.LINK, 0.5f), 6 * sc);
+        dl.addRectFilled(x0, y0, x0 + w, y0 + h, Ui.c(Theme.SURFACE), 0f);
+        dl.addRect(x0, y0, x0 + w, y0 + h, Ui.c(Ui.LINK), 0f);
         EditorIcons.draw(dl, "lock", x0 + 16 * sc, y0 + 14 * sc, 7 * sc, Ui.c(Ui.LINK));
         ImGui.setCursorScreenPos(x0 + 30 * sc, y0 + 8 * sc);
         ImGui.pushTextWrapPos(ImGui.getCursorPosX() + tw);
@@ -352,9 +352,11 @@ public final class PropertiesWindow {
         float fieldW = Math.max(60 * sc, ImGui.getContentRegionAvailX() - tag - 2 * btn - 3 * gap);
         ImDrawList dl = ImGui.getWindowDrawList();
         float x = ImGui.getCursorScreenPosX(), y = ImGui.getCursorScreenPosY(), h = 25 * sc;
-        dl.addRectFilled(x, y, x + tag, y + h, Ui.c(AXIS_COL[axis], 0.13f), 4 * sc);
+        int axRgb = axisCol(axis);
+        dl.addRectFilled(x, y, x + tag, y + h, Ui.c(axRgb, 0.16f), 0f);
+        dl.addRect(x, y, x + tag, y + h, Ui.c(axRgb), 0f);
         Theme.push(UiHost.theme().monoS());
-        dl.addText(x + (tag - ImGui.calcTextSizeX(AXES[axis])) * 0.5f, y + (h - ImGui.getFontSize()) * 0.5f, Ui.c(AXIS_COL[axis]), AXES[axis]);
+        dl.addText(x + (tag - ImGui.calcTextSizeX(AXES[axis])) * 0.5f, y + (h - ImGui.getFontSize()) * 0.5f, Ui.c(axRgb), AXES[axis]);
         ImGui.popFont();
         ImGui.dummy(tag, h);
         ImGui.sameLine();
@@ -545,9 +547,11 @@ public final class PropertiesWindow {
         float fieldW = Math.max(60 * sc, ImGui.getContentRegionAvailX() - tag - 2 * btn - 3 * gap);
         ImDrawList dl = ImGui.getWindowDrawList();
         float x = ImGui.getCursorScreenPosX(), y = ImGui.getCursorScreenPosY(), h = 25 * sc;
-        dl.addRectFilled(x, y, x + tag, y + h, Ui.c(AXIS_COL[axis], 0.13f), 4 * sc);
+        int axRgb = axisCol(axis);
+        dl.addRectFilled(x, y, x + tag, y + h, Ui.c(axRgb, 0.16f), 0f);
+        dl.addRect(x, y, x + tag, y + h, Ui.c(axRgb), 0f);
         Theme.push(UiHost.theme().monoS());
-        dl.addText(x + (tag - ImGui.calcTextSizeX(AXES[axis])) * 0.5f, y + (h - ImGui.getFontSize()) * 0.5f, Ui.c(AXIS_COL[axis]), AXES[axis]);
+        dl.addText(x + (tag - ImGui.calcTextSizeX(AXES[axis])) * 0.5f, y + (h - ImGui.getFontSize()) * 0.5f, Ui.c(axRgb), AXES[axis]);
         ImGui.popFont();
         ImGui.dummy(tag, h);
         ImGui.sameLine();
@@ -959,7 +963,7 @@ public final class PropertiesWindow {
             dl.addText(x0 + 58 * sc + tw + 8 * sc, y0 + (hh - ImGui.getFontSize()) * 0.5f, Ui.c(Theme.DIM), Ui.fitEnd(summary, w - 58 * sc - tw - 100 * sc));
             ImGui.popFont();
         }
-        ImGui.setCursorScreenPos(x0 + w - 62 * sc, y0 + (hh - 14 * sc) * 0.5f);
+        ImGui.setCursorScreenPos(x0 + w - 66 * sc, y0 + (hh - 20 * sc) * 0.5f);
         if (Ui.toggle("##en", enabled)) {
             s.actions.execute(new ModifierEdits.SetModifierEnabled(n.id(), idx, !enabled));
             s.undoStack().breakMerge();
@@ -998,9 +1002,9 @@ public final class PropertiesWindow {
         ImGui.endGroup();
         float y1 = ImGui.getItemRectMaxY();
         dl.channelsSetCurrent(0);
-        dl.addRectFilled(x0, y0, x0 + w, y1, Ui.c(Theme.PANEL2), 6 * sc);
-        dl.addRect(x0, y0, x0 + w, y1, Ui.c(Theme.LINE), 6 * sc);
-        dl.addRectFilled(x0, y0 + 2 * sc, x0 + 2 * sc, y1 - 2 * sc, Ui.c(accent), 1 * sc);
+        dl.addRectFilled(x0, y0, x0 + w, y1, Ui.c(Theme.SURFACE), 0f);
+        dl.addRect(x0, y0, x0 + w, y1, Ui.c(Theme.LINE), 0f);
+        dl.addRectFilled(x0, y0, x0 + 2 * sc, y1, Ui.c(accent), 0f);
         dl.channelsMerge();
         ImGui.setCursorScreenPos(x0, y1);
         ImGui.dummy(w, 0);
@@ -1075,9 +1079,11 @@ public final class PropertiesWindow {
             ImGui.pushID(ax);
             ImDrawList dl = ImGui.getWindowDrawList();
             float x = ImGui.getCursorScreenPosX(), y = ImGui.getCursorScreenPosY(), tag = 18 * sc, h = 25 * sc;
-            dl.addRectFilled(x, y, x + tag, y + h, Ui.c(AXIS_COL[ax], 0.13f), 4 * sc);
+            int axRgb = axisCol(ax);
+            dl.addRectFilled(x, y, x + tag, y + h, Ui.c(axRgb, 0.16f), 0f);
+            dl.addRect(x, y, x + tag, y + h, Ui.c(axRgb), 0f);
             Theme.push(UiHost.theme().monoS());
-            dl.addText(x + (tag - ImGui.calcTextSizeX(AXES[ax])) * 0.5f, y + (h - ImGui.getFontSize()) * 0.5f, Ui.c(AXIS_COL[ax]), AXES[ax]);
+            dl.addText(x + (tag - ImGui.calcTextSizeX(AXES[ax])) * 0.5f, y + (h - ImGui.getFontSize()) * 0.5f, Ui.c(axRgb), AXES[ax]);
             ImGui.popFont();
             ImGui.dummy(tag, h);
             ImGui.sameLine();

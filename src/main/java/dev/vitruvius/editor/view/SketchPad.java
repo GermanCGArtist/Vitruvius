@@ -444,7 +444,7 @@ public final class SketchPad {
         ImGui.setNextWindowPos(vp.getPosX() + 360 * sc, vp.getPosY() + 80 * sc, ImGuiCond.FirstUseEver);
         ImGui.setNextWindowSize(Math.min(820 * sc, vp.getSizeX() * 0.6f), Math.min(640 * sc, vp.getSizeY() * 0.8f), ImGuiCond.FirstUseEver);
         ImGui.setNextWindowSizeConstraints(420 * sc, 320 * sc, 4000, 4000);
-        boolean visible = Ui.beginWindow("Sketchpad", OPEN, 0, 0.97f);
+        boolean visible = Ui.beginWindow("SKETCHPAD###Sketchpad", OPEN, 0, 0.97f);
         if (visible) {
             hotForKeys = ImGui.isWindowFocused(imgui.flag.ImGuiFocusedFlags.RootAndChildWindows) || ImGui.isWindowHovered(imgui.flag.ImGuiHoveredFlags.RootAndChildWindows);
             content(sc, sizeText);
@@ -745,7 +745,7 @@ public final class SketchPad {
     private static void draw(float x0, float y0, float cw, float ch, float cs, int hc, int hr, boolean inside, float sc) {
         ImDrawList dl = ImGui.getWindowDrawList();
         dl.pushClipRect(x0, y0, x0 + cw, y0 + ch, true);
-        dl.addRectFilled(x0, y0, x0 + cw, y0 + ch, Ui.c(Theme.SLOT), 6 * sc);
+        dl.addRectFilled(x0, y0, x0 + cw, y0 + ch, Ui.c(Theme.BG), 0f);
         float ox = x0 + cw / 2 + panX, oy = y0 + ch / 2 + panY;
 
         if (cs >= 7 * sc) {
@@ -798,7 +798,7 @@ public final class SketchPad {
             dl.addRect(px0, py0, px0 + cs, py0 + cs, Ui.c(0xffffff, 0.8f), 0f, 0, 1.5f);
         }
         dl.popClipRect();
-        dl.addRect(x0, y0, x0 + cw, y0 + ch, Ui.c(Theme.LINE), 6 * sc);
+        dl.addRect(x0, y0, x0 + cw, y0 + ch, Ui.c(Theme.BORDER_HI), 0f);
 
         if (inside && !stroking) {
             String v = px.get(Sketch.key(hc, hr));

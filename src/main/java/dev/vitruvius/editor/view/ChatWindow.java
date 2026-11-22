@@ -81,7 +81,7 @@ public final class ChatWindow {
         ImGui.setNextWindowPos(vp.getPosX() + 12 * sc, vp.getPosY() + vp.getSizeY() - 300 * sc, s.resetLayout ? ImGuiCond.Always : ImGuiCond.FirstUseEver);
         ImGui.setNextWindowSize(460 * sc, 250 * sc, s.resetLayout ? ImGuiCond.Always : ImGuiCond.FirstUseEver);
         ImGui.setNextWindowSizeConstraints(240 * sc, 120 * sc, 4000, 4000);
-        boolean visible = Ui.beginWindow("Chat", OPEN, 0, 0.92f);
+        boolean visible = Ui.beginWindow("04 CHAT###Chat", OPEN, 0, 0.94f);
         if (visible) drawContent(s, sc);
         Ui.endWindow();
         s.showChat = OPEN.get();
@@ -103,8 +103,15 @@ public final class ChatWindow {
             ImGui.setKeyboardFocusHere();
             focusInput = false;
         }
+        float ix = ImGui.getCursorScreenPosX(), iy = ImGui.getCursorScreenPosY();
         ImGui.setNextItemWidth(-1);
+        ImGui.pushStyleVar(imgui.flag.ImGuiStyleVar.FramePadding, 20 * sc, 4.5f * sc);
         boolean enter = ImGui.inputTextWithHint("##chatinput", "Type a message, or / for a command (Enter sends)", INPUT, ImGuiInputTextFlags.EnterReturnsTrue);
+        ImGui.popStyleVar();
+        float ih = ImGui.getItemRectSizeY();
+        dev.cg.uihost.Theme.push(dev.cg.uihost.UiHost.theme().mono());
+        ImGui.getWindowDrawList().addText(ix + 7 * sc, iy + (ih - ImGui.getFontSize()) * 0.5f, Ui.c(dev.cg.uihost.Theme.ACCENT), ">");
+        ImGui.popFont();
         boolean active = ImGui.isItemActive();
         if (swallowFrames > 0) {
             swallowFrames--;

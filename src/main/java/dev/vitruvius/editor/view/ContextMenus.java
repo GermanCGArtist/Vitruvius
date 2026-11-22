@@ -89,12 +89,12 @@ public final class ContextMenus {
             if (hasAnchor) ImGui.setNextWindowPos(anchorX, anchorY, imgui.flag.ImGuiCond.Always);
             hasAnchor = false;
         }
-        ImGui.pushStyleVar(ImGuiStyleVar.PopupRounding, 7 * sc);
+        ImGui.pushStyleVar(ImGuiStyleVar.PopupRounding, 0f);
         ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, 4 * sc, 4 * sc);
         ImGui.pushStyleVar(ImGuiStyleVar.ItemSpacing, 8 * sc, 2 * sc);
-        ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 9 * sc, 5 * sc);
-        ImGui.pushStyleColor(ImGuiCol.PopupBg, Ui.c(Theme.PANEL2));
-        ImGui.pushStyleColor(ImGuiCol.Border, Ui.c(Theme.LINE));
+        ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 8 * sc, 4.5f * sc);
+        ImGui.pushStyleColor(ImGuiCol.PopupBg, Ui.c(Theme.PANEL));
+        ImGui.pushStyleColor(ImGuiCol.Border, Ui.c(Theme.BORDER_HI));
         ImGui.setNextWindowSizeConstraints(240 * sc, 0, 4000, 4000);
         if (ImGui.beginPopup(POPUP, ImGuiWindowFlags.NoSavedSettings)) {
             s.popupOpen = true;

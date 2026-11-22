@@ -98,7 +98,7 @@ public final class SceneWindow {
         ImGui.setNextWindowPos(vp.getPosX() + 12 * sc, vp.getPosY() + 56 * sc, (s.resetLayout ? imgui.flag.ImGuiCond.Always : imgui.flag.ImGuiCond.FirstUseEver));
         ImGui.setNextWindowSize(300 * sc, Math.max(200 * sc, vp.getSizeY() - 56 * sc - 24 * sc - 12 * sc), (s.resetLayout ? imgui.flag.ImGuiCond.Always : imgui.flag.ImGuiCond.FirstUseEver));
         ImGui.setNextWindowSizeConstraints(220 * sc, 160 * sc, 4000, 4000);
-        boolean visible = Ui.beginWindow("Scene", OPEN, 0, 0.96f);
+        boolean visible = Ui.beginWindow("01 SCENE###Scene", OPEN, 0, 0.96f);
         if (visible) {
             drawContent(s);
         }
@@ -119,19 +119,23 @@ public final class SceneWindow {
             s.focusFilter = false;
         }
         float sx = ImGui.getCursorScreenPosX(), sy = ImGui.getCursorScreenPosY();
-        ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 26 * sc, 5 * sc);
-        if (ImGui.inputTextWithHint("##filter", "Filter  (Ctrl F)", SEARCH)) tree.setSearch(SEARCH.get());
+        ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 22 * sc, 4.5f * sc);
+        if (ImGui.inputTextWithHint("##filter", "filter... (Ctrl+F)", SEARCH)) tree.setSearch(SEARCH.get());
         ImGui.popStyleVar();
         float fh = ImGui.getItemRectSizeY(), fw = ImGui.getItemRectSizeX();
-        EditorIcons.draw(ImGui.getWindowDrawList(), "search", sx + 14 * sc, sy + fh * 0.5f, 6 * sc, Ui.c(Theme.DIM));
+        Theme.push(UiHost.theme().mono());
+        ImGui.getWindowDrawList().addText(sx + 8 * sc, sy + (fh - ImGui.getFontSize()) * 0.5f, Ui.c(Theme.ACCENT), ">");
+        ImGui.popFont();
         if (!SEARCH.isEmpty()) {
-            float bx = sx + fw - 22 * sc;
+            float bx = sx + fw - 26 * sc;
             ImGui.setCursorScreenPos(bx, sy + 2 * sc);
-            if (ImGui.invisibleButton("##clearsearch", 20 * sc, fh - 4 * sc)) {
+            if (ImGui.invisibleButton("##clearsearch", 24 * sc, fh - 4 * sc)) {
                 SEARCH.set("");
                 tree.setSearch("");
             }
-            EditorIcons.draw(ImGui.getWindowDrawList(), "close", bx + 10 * sc, sy + fh * 0.5f, 5 * sc, Ui.c(ImGui.isItemHovered() ? Theme.FG : Theme.DIM));
+            Theme.push(UiHost.theme().monoS());
+            ImGui.getWindowDrawList().addText(bx + 2 * sc, sy + (fh - ImGui.getFontSize()) * 0.5f, Ui.c(ImGui.isItemHovered() ? Theme.ERR : Theme.GUTTER), "[×]");
+            ImGui.popFont();
             ImGui.setCursorScreenPos(sx, sy + fh + ImGui.getStyle().getItemSpacingY());
         }
 
@@ -187,7 +191,7 @@ public final class SceneWindow {
         dl.addLine(fx, fy, fx + ImGui.getWindowWidth() - 2, fy, Ui.c(Theme.LINE2), 1f);
         ImGui.dummy(0, 8 * sc);
         float bw = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX()) * 0.5f;
-        if (ImGui.button("New project", bw, 0) || s.newProjectRequest) {
+        if (Ui.button("+ New project", true, true, bw, null) || s.newProjectRequest) {
             s.newProjectRequest = false;
             NEW_NAME.set("New project");
             focusNewName = true;
@@ -252,16 +256,18 @@ public final class SceneWindow {
         float cx = x;
         for (Chip c : chips) {
             String label = chipName(c, nIssues);
-            float w = ImGui.calcTextSizeX(label) + 18 * sc;
+            float w = ImGui.calcTextSizeX(label) + 14 * sc;
             if (cx + w > maxX && cx > x) break;
             ImGui.setCursorScreenPos(cx, y);
             boolean hit = ImGui.invisibleButton("##chip" + c, w, h);
             boolean on = c == tree.chip(), hot = ImGui.isItemHovered();
-            int fill = on ? (c == Chip.ISSUES ? Theme.ERR : Theme.SEL) : Theme.CHIP;
-            dl.addRectFilled(cx, y, cx + w, y + h, Ui.c(fill, on && c == Chip.ISSUES ? 0.25f : hot ? 1f : 0.7f), h * 0.5f);
-            if (on) dl.addRect(cx, y, cx + w, y + h, Ui.c(c == Chip.ISSUES ? Theme.ERR : Theme.ACCENT, 0.5f), h * 0.5f);
+            int fill = on ? (c == Chip.ISSUES ? Theme.ERR : Theme.SEL) : (hot ? Theme.SURFACE : Theme.BG);
+            float fillA = on && c == Chip.ISSUES ? 0.22f : 1f;
+            int brd = on ? (c == Chip.ISSUES ? Theme.ERR : Theme.ACCENT) : (hot ? Theme.BORDER_HI : Theme.LINE);
+            dl.addRectFilled(cx, y, cx + w, y + h, Ui.c(fill, fillA), 0f);
+            dl.addRect(cx, y, cx + w, y + h, Ui.c(brd), 0f);
             int rgb = on ? (c == Chip.ISSUES ? Theme.ERR : Theme.ACCENT) : hot ? Theme.FG : Theme.DIM;
-            dl.addText(cx + 9 * sc, y + (h - ImGui.getFontSize()) * 0.5f, Ui.c(rgb), label);
+            dl.addText(cx + 7 * sc, y + (h - ImGui.getFontSize()) * 0.5f, Ui.c(rgb), label);
             if (hit) tree.setChip(c);
             cx += w + gap;
         }
@@ -334,7 +340,7 @@ public final class SceneWindow {
             ImGui.pushID("legacy:" + e.id());
             ImGui.invisibleButton("##legacyrow", w, rowH);
             boolean hovered = ImGui.isItemHovered();
-            if (hovered) dl.addRectFilled(x0, y0, x0 + w, y0 + rowH, Ui.c(0xffffff, 0.03f), 4 * sc);
+            if (hovered) dl.addRectFilled(x0, y0, x0 + w, y0 + rowH, Ui.c(Theme.SURFACE), 0f);
             float tx = x0 + 14 * sc, iconCx = tx + 16 * sc + 2 * sc + 7 * sc, nameX = iconCx + 7 * sc + 6 * sc;
             EditorIcons.draw(dl, "areas", iconCx, y0 + rowH * 0.5f, 7 * sc, Ui.c(Theme.GUTTER, 0.8f));
             float fh = ImGui.getFontSize();
@@ -367,7 +373,8 @@ public final class SceneWindow {
     }
 
     private static void legacyChip(ImDrawList dl, float x, float y, float w, float h, String text, boolean on, boolean hot, float sc) {
-        dl.addRectFilled(x, y, x + w, y + h, Ui.c(on ? Theme.ACCENT : Theme.BTN, on ? (hot ? 0.35f : 0.22f) : (hot ? 1f : 0.7f)), 5 * sc);
+        dl.addRectFilled(x, y, x + w, y + h, Ui.c(on ? Theme.SEL : (hot ? Theme.SURFACE : Theme.BG)), 0f);
+        dl.addRect(x, y, x + w, y + h, Ui.c(on ? Theme.ACCENT : (hot ? Theme.BORDER_HI : Theme.LINE)), 0f);
         dl.addText(x + 7 * sc, y + (h - ImGui.getFontSize()) * 0.5f, Ui.c(on ? Theme.ACCENT : Theme.DIM), text);
     }
 
@@ -492,12 +499,12 @@ public final class SceneWindow {
 
         // ---- background
         if (selected) {
-            dl.addRectFilled(x0, y0, x0 + w, y0 + rowH, Ui.c(Theme.SEL, active ? 1f : 0.6f), 4 * sc);
-            if (active) dl.addRectFilled(x0, y0 + (rowH - 14 * sc) * 0.5f, x0 + 2 * sc, y0 + (rowH + 14 * sc) * 0.5f, Ui.c(Theme.ACCENT), 1 * sc);
+            dl.addRectFilled(x0, y0, x0 + w, y0 + rowH, Ui.c(Theme.SEL, active ? 1f : 0.65f), 0f);
+            if (active) dl.addRectFilled(x0, y0, x0 + 2 * sc, y0 + rowH, Ui.c(Theme.ACCENT), 0f);
         } else if (owner) {
-            dl.addRectFilled(x0, y0, x0 + w, y0 + rowH, Ui.c(Theme.SEL, 0.35f), 4 * sc);
+            dl.addRectFilled(x0, y0, x0 + w, y0 + rowH, Ui.c(Theme.SEL, 0.35f), 0f);
         } else if (hovered && dragIds == null) {
-            dl.addRectFilled(x0, y0, x0 + w, y0 + rowH, Ui.c(0xffffff, 0.03f), 4 * sc);
+            dl.addRectFilled(x0, y0, x0 + w, y0 + rowH, Ui.c(Theme.SURFACE), 0f);
         }
 
         // ---- input: press
@@ -624,12 +631,13 @@ public final class SceneWindow {
     private static void drawBadge(ImDrawList dl, Badge b, float x, float y, float w, float sc) {
         float h = 17 * sc;
         if (b.dot()) {
-            dl.addCircleFilled(x + 3.5f * sc, y + h * 0.5f, 3.5f * sc, Ui.c(b.rgb()), 12);
+            dl.addRectFilled(x, y + (h - 6 * sc) * 0.5f, x + 6 * sc, y + (h + 6 * sc) * 0.5f, Ui.c(b.rgb()), 0f);
             return;
         }
         if (b.fill()) {
             boolean mods = !b.icon().isEmpty();
-            dl.addRectFilled(x, y, x + w, y + h, Ui.c(mods ? Theme.CHIP : b.rgb(), mods ? 1f : b.alpha()), 4 * sc);
+            dl.addRectFilled(x, y, x + w, y + h, Ui.c(mods ? Theme.CHIP : b.rgb(), mods ? 1f : b.alpha()), 0f);
+            dl.addRect(x, y, x + w, y + h, Ui.c(b.rgb(), mods ? 0.7f : 0.85f), 0f);
         }
         float cx = x + 5 * sc;
         if (!b.icon().isEmpty()) {
@@ -642,7 +650,6 @@ public final class SceneWindow {
             dl.addText(cx, y + (h - ImGui.getFontSize()) * 0.5f, Ui.c(rgb), b.text());
             ImGui.popFont();
         }
-        if (b.dot()) return;
     }
 
     /** Draws a name; the search match in ACCENT (up to three runs). */
@@ -716,7 +723,7 @@ public final class SceneWindow {
             TreeRules.Plan plan = TreeRules.plan(s.context(), dragIds, n, zone);
             ImDrawList dl = ImGui.getWindowDrawList();
             if (!plan.valid()) {
-                dl.addRectFilled(x0, y0, x0 + w, y0 + rowH, Ui.c(Theme.ERR, 0.10f), 4 * sc);
+                dl.addRectFilled(x0, y0, x0 + w, y0 + rowH, Ui.c(Theme.ERR, 0.14f), 0f);
                 UiHost.setCursor(UiHost.Cursor.NOT_ALLOWED);
                 ImGui.beginTooltip();
                 ImGui.pushStyleColor(ImGuiCol.Text, Ui.c(Theme.ERR));
@@ -724,8 +731,8 @@ public final class SceneWindow {
                 ImGui.popStyleColor();
                 ImGui.endTooltip();
             } else if (zone == TreeRules.Zone.INTO) {
-                dl.addRectFilled(x0, y0, x0 + w, y0 + rowH, Ui.c(Theme.SEL, 0.5f), 4 * sc);
-                dl.addRect(x0, y0, x0 + w, y0 + rowH, Ui.c(Theme.ACCENT), 4 * sc);
+                dl.addRectFilled(x0, y0, x0 + w, y0 + rowH, Ui.c(Theme.SEL, 0.65f), 0f);
+                dl.addRect(x0, y0, x0 + w, y0 + rowH, Ui.c(Theme.ACCENT), 0f);
                 if (r.container() && r.hasChildren() && !tree.isOpen(n)) {
                     if (!n.id().equals(expandCandidate)) {
                         expandCandidate = n.id();

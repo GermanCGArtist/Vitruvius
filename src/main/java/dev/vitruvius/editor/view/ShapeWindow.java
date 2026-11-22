@@ -274,7 +274,7 @@ public final class ShapeWindow {
         ImGui.setNextWindowPos(vp.getPosX() + vp.getSizeX() - 340 * sc - 12 * sc, vp.getPosY() + 56 * sc, s.resetLayout ? ImGuiCond.Always : ImGuiCond.FirstUseEver);
         ImGui.setNextWindowSize(330 * sc, Math.max(300 * sc, vp.getSizeY() * 0.7f), s.resetLayout ? ImGuiCond.Always : ImGuiCond.FirstUseEver);
         ImGui.setNextWindowSizeConstraints(280 * sc, 200 * sc, 4000, 4000);
-        boolean visible = Ui.beginWindow("Shape generator", OPEN, 0, 0.96f);
+        boolean visible = Ui.beginWindow("05 SHAPE GENERATOR###Shape generator", OPEN, 0, 0.96f);
         if (visible) {
             init();
             sync(s);

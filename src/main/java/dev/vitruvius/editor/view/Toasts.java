@@ -57,18 +57,20 @@ public final class Toasts {
                 case ERROR -> 0.7f;
             };
             int border = switch (t.level) {
-                case INFO -> Theme.LINE;
+                case INFO -> Theme.BORDER_HI;
                 case WARN -> Theme.WARN;
                 case ERROR -> Theme.ERR;
             };
-            dl.addRectFilled(x0, y0, right, y, Theme.u32(0x14161a, 0.92f * a), 12 * sc);
-            dl.addRect(x0, y0, right, y, Theme.u32(border, borderA * a), 12 * sc);
-            dl.addRectFilled(x0 + 8 * sc, y0 + 9 * sc, x0 + 11 * sc, y - 9 * sc, Theme.u32(bar, a), 2 * sc);
-            drawWrapped(dl, t.text, x0 + padX + 6 * sc, y0 + padY, wrapW, Theme.u32(Theme.FG, a));
+            dl.addRectFilled(x0, y0, right, y, Theme.u32(Theme.BG, 0.96f * a), 0f);
+            dl.addRect(x0, y0, right, y, Theme.u32(border, borderA * a), 0f);
+            dl.addRectFilled(x0, y0, x0 + 3 * sc, y, Theme.u32(bar, a), 0f);
+            drawWrapped(dl, t.text, x0 + padX + 4 * sc, y0 + padY, wrapW, Theme.u32(Theme.FG, a));
             if (t.hasAction()) {
                 float bx = right - actW - 6 * sc, by = y0 + (h - lineH) * 0.5f;
                 boolean hotBtn = over && mx >= bx - 4 * sc;
-                dl.addText(bx, by, Theme.u32(Theme.ACCENT, hotBtn ? a : a * 0.85f), t.actionLabel);
+                dl.addRectFilled(bx - 4 * sc, by - 2 * sc, right - 6 * sc, by + lineH + 2 * sc, Theme.u32(Theme.SEL, (hotBtn ? 1f : 0.7f) * a), 0f);
+                dl.addRect(bx - 4 * sc, by - 2 * sc, right - 6 * sc, by + lineH + 2 * sc, Theme.u32(Theme.ACCENT, a), 0f);
+                dl.addText(bx, by, Theme.u32(Theme.ACCENT, a), t.actionLabel.toUpperCase(java.util.Locale.ROOT));
             }
             if (over && ImGui.isMouseClicked(0)) clicked = t;
             y = y0 - gap;

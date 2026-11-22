@@ -71,7 +71,7 @@ public final class TopViewWindow {
         ImGui.setNextWindowPos(vp.getPosX() + vp.getSizeX() - 332 * sc, top, cond);
         ImGui.setNextWindowSize(320 * sc, h, cond);
         ImGui.setNextWindowSizeConstraints(200 * sc, 180 * sc, 4000, 4000);
-        if (Ui.beginWindow("Top view", OPEN, 0, 0.96f)) drawContent(s);
+        if (Ui.beginWindow("03 TOP VIEW###Top view", OPEN, 0, 0.96f)) drawContent(s);
         Ui.endWindow();
         s.showTopView = OPEN.get();
     }
@@ -114,7 +114,7 @@ public final class TopViewWindow {
         // ---- draw
         ImDrawList dl = ImGui.getWindowDrawList();
         dl.pushClipRect(x0, y0, x0 + cw, y0 + ch, true);
-        dl.addRectFilled(x0, y0, x0 + cw, y0 + ch, Ui.c(Theme.SLOT), 6 * sc);
+        dl.addRectFilled(x0, y0, x0 + cw, y0 + ch, Ui.c(Theme.BG), 0f);
         drawGrid(dl, x0, y0, cw, ch, sc);
         if (items.isEmpty()) {
             String t = "Nothing placed yet.";
@@ -126,7 +126,7 @@ public final class TopViewWindow {
         if (dragging) drawDragGhost(s, dl, x0, y0, cw, ch, mx, my, sc);
         drawCamera(dl, x0, y0, cw, ch, camPos, cam, sc);
         dl.popClipRect();
-        dl.addRect(x0, y0, x0 + cw, y0 + ch, Ui.c(Theme.LINE), 6 * sc);
+        dl.addRect(x0, y0, x0 + cw, y0 + ch, Ui.c(Theme.BORDER_HI), 0f);
 
         if (legendH > 0) drawLegend(dl, sc);
     }

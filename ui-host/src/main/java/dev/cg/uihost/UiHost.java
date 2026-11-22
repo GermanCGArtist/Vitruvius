@@ -14,6 +14,16 @@ public final class UiHost {
         return Theme.INSTANCE;
     }
 
+    /** The active terminal theme preset. */
+    public static Theme.Preset themePreset() {
+        return Theme.preset();
+    }
+
+    /** Switches the active terminal theme preset; applied on the next ImGui frame. */
+    public static void setThemePreset(Theme.Preset preset) {
+        Theme.setPreset(preset);
+    }
+
     /** The UI scale (1.0 = 100 %). */
     public static float scale() {
         return HostCore.scale();

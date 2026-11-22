@@ -121,8 +121,13 @@ public final class EditorChrome {
         float x = ImGui.getCursorScreenPosX(), y = ImGui.getCursorScreenPosY();
         boolean hit = ImGui.invisibleButton("##tb_" + b.id(), w, h);
         boolean hot = ImGui.isItemHovered() && b.enabled();
-        if (b.active() || hot) dl.addRectFilled(x, y, x + w, y + h, Ui.c(Theme.BTN), 6 * sc);
-        if (b.active()) dl.addRect(x + 1, y + 1, x + w - 1, y + h - 1, Ui.c(Theme.ACCENT, 0.33f), 6 * sc);
+        if (b.active()) {
+            dl.addRectFilled(x, y, x + w, y + h, Ui.c(Theme.SEL), 0f);
+            dl.addRect(x, y, x + w, y + h, Ui.c(Theme.ACCENT), 0f);
+        } else if (hot) {
+            dl.addRectFilled(x, y, x + w, y + h, Ui.c(Theme.HOVER), 0f);
+            dl.addRect(x, y, x + w, y + h, Ui.c(Theme.BORDER_HI), 0f);
+        }
         int rgb = !b.enabled() ? Theme.GUTTER : b.active() ? Theme.ACCENT : hot ? Theme.FG : Theme.DIM;
         float cx = x + 8 * sc;
         EditorIcons.draw(dl, b.icon(), cx + 7.5f * sc, y + h * 0.5f, 7.5f * sc, Ui.c(rgb));
@@ -134,12 +139,12 @@ public final class EditorChrome {
         }
         if (caps && b.cap() != null) {
             cx += 6 * sc;
-            Ui.keyCap(dl, cx, y + (h - 18 * sc) * 0.5f, b.cap(), b.enabled() ? Theme.DIM : Theme.GUTTER);
+            Ui.keyCap(dl, cx, y + (h - 17 * sc) * 0.5f, b.cap(), b.enabled() ? Theme.DIM : Theme.GUTTER);
         }
         if (b.pill() != null) {
             cx += 6 * sc;
             float pw = pillWidth(b.pill(), sc), ph = 17 * sc, py = y + (h - ph) * 0.5f;
-            dl.addRectFilled(cx, py, cx + pw, py + ph, Ui.c(b.pillRgb()), ph * 0.5f);
+            dl.addRectFilled(cx, py, cx + pw, py + ph, Ui.c(b.pillRgb()), 0f);
             Theme.push(UiHost.theme().small());
             dl.addText(cx + (pw - ImGui.calcTextSizeX(b.pill())) * 0.5f, py + (ph - ImGui.getFontSize()) * 0.5f, Ui.c(b.pillText()), b.pill());
             ImGui.popFont();
@@ -221,23 +226,24 @@ public final class EditorChrome {
         ImGui.setNextWindowPos(vp.getPosX() + (vp.getSizeX() - w) * 0.5f, top);
         ImGui.setNextWindowSize(w, barH);
         ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, pad, pad);
-        ImGui.pushStyleVar(ImGuiStyleVar.WindowRounding, 8 * sc);
+        ImGui.pushStyleVar(ImGuiStyleVar.WindowRounding, 0f);
         ImGui.pushStyleVar(ImGuiStyleVar.WindowBorderSize, 1f);
         ImGui.pushStyleVar(ImGuiStyleVar.ItemSpacing, 4 * sc, 0);
-        ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 9 * sc, 5 * sc);
-        ImGui.pushStyleColor(ImGuiCol.WindowBg, Theme.u32(Theme.PANEL, 0.94f));
-        ImGui.pushStyleColor(ImGuiCol.Border, Theme.u32(Theme.LINE));
+        ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 8 * sc, 4.5f * sc);
+        ImGui.pushStyleColor(ImGuiCol.WindowBg, Theme.u32(Theme.PANEL, 0.95f));
+        ImGui.pushStyleColor(ImGuiCol.Border, Theme.u32(Theme.BORDER_HI));
         if (ImGui.begin("##la_toolbar", FIXED | ImGuiWindowFlags.NoFocusOnAppearing | ImGuiWindowFlags.NoNav)) {
             ImDrawList dl = ImGui.getWindowDrawList();
             float x = ImGui.getCursorScreenPosX(), y = ImGui.getCursorScreenPosY();
             // 1. mode chip
             boolean clicked = ImGui.invisibleButton("##chip", chipW, h);
             boolean hot = ImGui.isItemHovered();
-            dl.addRectFilled(x, y, x + chipW, y + h, Theme.u32(Theme.SEL, hot ? 1f : 0.85f), 6 * sc);
+            dl.addRectFilled(x, y, x + chipW, y + h, Theme.u32(Theme.SEL, hot ? 1f : 0.92f), 0f);
+            dl.addRect(x, y, x + chipW, y + h, Theme.u32(Theme.ACCENT), 0f);
             Theme.push(UiHost.theme().small());
             dl.addText(x + 8 * sc, y + (h - ImGui.getFontSize()) * 0.5f, Theme.u32(Theme.ACCENT), label);
             ImGui.popFont();
-            Ui.keyCap(dl, x + 8 * sc + labelW + 6 * sc, y + (h - 18 * sc) * 0.5f, "F6", Theme.DIM);
+            Ui.keyCap(dl, x + 8 * sc + labelW + 6 * sc, y + (h - 17 * sc) * 0.5f, "F6", Theme.ACCENT);
             if (hot) ImGui.setTooltip("Leave the editor (F6)");
             if (clicked) EditorMode.exit(Minecraft.getInstance(), true);
 
@@ -340,6 +346,16 @@ public final class EditorChrome {
         }
         if (ImGui.menuItem("History", "", s.showHistory)) s.showHistory = !s.showHistory;
         ImGui.separator();
+        if (ImGui.beginMenu("Theme")) {
+            Theme.Preset current = UiHost.themePreset();
+            for (Theme.Preset p : Theme.Preset.values()) {
+                if (ImGui.menuItem(p.displayName + "  (" + p.subtitle + ")", "", p == current)) {
+                    s.setThemePreset(p);
+                }
+            }
+            ImGui.endMenu();
+        }
+        ImGui.separator();
         if (ImGui.menuItem("Hide all windows", "Tab")) s.windowsHidden = !s.windowsHidden;
         ImGui.separator();
         if (ImGui.menuItem("Reset layout")) {
@@ -423,12 +439,12 @@ public final class EditorChrome {
         ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, 10 * sc, 0f);
         ImGui.pushStyleVar(ImGuiStyleVar.WindowRounding, 0f);
         ImGui.pushStyleVar(ImGuiStyleVar.WindowBorderSize, 0f);
-        ImGui.pushStyleColor(ImGuiCol.WindowBg, Theme.u32(Theme.PANEL2));
+        ImGui.pushStyleColor(ImGuiCol.WindowBg, Theme.u32(Theme.BG));
         if (ImGui.begin("##la_status", FIXED | ImGuiWindowFlags.NoBringToFrontOnFocus | ImGuiWindowFlags.NoFocusOnAppearing
                 | ImGuiWindowFlags.NoNav | ImGuiWindowFlags.NoInputs)) {
             ImDrawList dl = ImGui.getWindowDrawList();
             float x0 = ImGui.getWindowPosX(), y0 = ImGui.getWindowPosY(), w = ImGui.getWindowWidth();
-            dl.addLine(x0, y0 + 0.5f, x0 + w, y0 + 0.5f, Theme.u32(Theme.LINE), 1f);
+            dl.addLine(x0, y0 + 0.5f, x0 + w, y0 + 0.5f, Theme.u32(Theme.BORDER_HI), 1f);
 
             Theme.push(UiHost.theme().small());
             String summary = summary(s);
@@ -447,7 +463,7 @@ public final class EditorChrome {
                 float dx = limit - tw - 14 * sc;
                 int col = bad > 0 ? Theme.ERR : Theme.WARN;
                 if (dx > x0 + 220 * sc) {
-                    dl.addCircleFilled(dx + 3.5f * sc, y0 + h * 0.5f, 3.5f * sc, Theme.u32(col));
+                    dl.addRectFilled(dx, y0 + h * 0.5f - 3 * sc, dx + 6 * sc, y0 + h * 0.5f + 3 * sc, Theme.u32(col), 0f);
                     dl.addText(dx + 11 * sc, y0 + (h - fh) * 0.5f, Theme.u32(col), dt);
                     limit = dx - 10 * sc;
                 }
@@ -467,7 +483,7 @@ public final class EditorChrome {
                 float dx = limit - tw - 14 * sc;
                 int col = Integer.parseInt(note[1]);
                 if (dx > x0 + 220 * sc) {
-                    dl.addCircleFilled(dx + 3.5f * sc, y0 + h * 0.5f, 3.5f * sc, Theme.u32(col));
+                    dl.addRectFilled(dx, y0 + h * 0.5f - 3 * sc, dx + 6 * sc, y0 + h * 0.5f + 3 * sc, Theme.u32(col), 0f);
                     dl.addText(dx + 11 * sc, y0 + (h - fh) * 0.5f, Theme.u32(col), note[0]);
                     limit = dx - 10 * sc;
                 }
@@ -579,16 +595,20 @@ public final class EditorChrome {
         float x = vp.getPosX() + (vp.getSizeX() - w) * 0.5f, y = toolbarBottom + 10 * s;
 
         ImDrawList dl = ImGui.getForegroundDrawList();
-        dl.addRectFilled(x, y, x + w, y + h, Theme.u32(0x14161a, 0.82f), h * 0.5f);
-        dl.addRect(x, y, x + w, y + h, Theme.u32(0xffffff, 0.10f), h * 0.5f);
+        dl.addRectFilled(x, y, x + w, y + h, Theme.u32(Theme.BG, 0.94f), 0f);
+        dl.addRect(x, y, x + w, y + h, Theme.u32(Theme.BORDER_HI), 0f);
         float tx = x + padX, ty = y + (h - fh) * 0.5f;
-        dl.addText(tx, ty, Theme.u32(Theme.FG), "Fly");
+        dl.addText(tx, ty, Theme.u32(Theme.FG), "FLY");
         tx += flyW + gap;
-        float by = y + (h - barH) * 0.5f;
-        dl.addRectFilled(tx, by, tx + barW, by + barH, Theme.u32(Theme.TRACK), barH * 0.5f);
+        float by = y + (h - 8 * s) * 0.5f;
         double t = Math.log(cam.speed() / EditorCamera.SPEED_MIN) / Math.log(EditorCamera.SPEED_MAX / EditorCamera.SPEED_MIN);
-        float fill = (float) Math.max(0.03, Math.min(1.0, t)) * barW;
-        dl.addRectFilled(tx, by, tx + fill, by + barH, Theme.u32(Theme.ACCENT), barH * 0.5f);
+        int segs = 10;
+        int filled = Math.max(1, Math.min(segs, (int) Math.round(Math.max(0.0, Math.min(1.0, t)) * segs)));
+        float segGap = 2 * s, segW = (barW - segGap * (segs - 1)) / segs;
+        for (int i = 0; i < segs; i++) {
+            float sx0 = tx + i * (segW + segGap);
+            dl.addRectFilled(sx0, by, sx0 + segW, by + 8 * s, Theme.u32(i < filled ? Theme.ACCENT : Theme.LINE), 0f);
+        }
         tx += barW + gap;
         dl.addText(tx, ty, Theme.u32(Theme.ACCENT), speed);
         if (tail != null) dl.addText(tx + speedW + 10 * s, ty, Theme.u32(Theme.DIM), tail);

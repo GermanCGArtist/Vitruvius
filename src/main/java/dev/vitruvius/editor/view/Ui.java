@@ -9,13 +9,27 @@ import imgui.flag.ImGuiHoveredFlags;
 import imgui.flag.ImGuiStyleVar;
 import imgui.type.ImBoolean;
 
-/** Small drawing and widget helpers shared by the editor windows (DESIGN 3 and 15.2). Render thread only. */
+/** Small drawing and widget helpers shared by the editor windows (vintage terminal aesthetic). Render thread only. */
 public final class Ui {
     private Ui() {}
 
-    /** Tokens that DESIGN 2.2 adds on top of the host theme. */
-    public static final int AX_X = 0xf0605e, AX_Y = 0x8ad27e, AX_Z = 0x5b9cf0, BOOL = 0xb48cf0, LINK = 0x7fc8f0,
-            T_FOLDER = 0xc9b27a, T_OBJECT = 0x9fb4c9, DIM_ON_SEL = 0xa8afb8, AREA = 0xf2b35e, OVERLAP = 0xf07470;
+    /** Semantic editor tokens synced with the active {@link Theme.Preset}. */
+    public static int AX_X = Theme.ERR, AX_Y = Theme.OK, AX_Z = Theme.PLAYER, BOOL = Theme.BOT, LINK = Theme.PLAYER,
+            T_FOLDER = Theme.META, T_OBJECT = Theme.PLAYER, DIM_ON_SEL = Theme.DIM, AREA = Theme.CF, OVERLAP = Theme.ERR;
+
+    /** Syncs editor semantic tokens with the active {@link Theme} palette. */
+    public static void syncTheme() {
+        AX_X = Theme.ERR;
+        AX_Y = Theme.OK;
+        AX_Z = Theme.PLAYER;
+        BOOL = Theme.BOT;
+        LINK = Theme.PLAYER;
+        T_FOLDER = Theme.META;
+        T_OBJECT = Theme.PLAYER;
+        DIM_ON_SEL = Theme.DIM;
+        AREA = Theme.CF;
+        OVERLAP = Theme.ERR;
+    }
 
     public static float s() {
         return UiHost.scale();
@@ -32,41 +46,51 @@ public final class Ui {
     // ------------------------------------------------------------------ windows
 
     private static int styleVars, styleColors;
+    private static boolean drawFocusFrame;
 
     /**
-     * Begins an editor window with the style of DESIGN 3.1. Always pair with {@link #endWindow()}, also when this
-     * returns false.
+     * Begins an editor window with 0px sharp terminal geometry and 1px border. Always pair with {@link #endWindow()},
+     * also when this returns false.
      */
     public static boolean beginWindow(String title, ImBoolean open, int flags, float alpha) {
         float s = s();
-        ImGui.pushStyleVar(ImGuiStyleVar.WindowRounding, 8 * s);
+        ImGui.pushStyleVar(ImGuiStyleVar.WindowRounding, 0f);
         ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, 10 * s, 8 * s);
         ImGui.pushStyleVar(ImGuiStyleVar.WindowBorderSize, 1f);
-        ImGui.pushStyleVar(ImGuiStyleVar.ItemSpacing, 8 * s, 6 * s);
-        ImGui.pushStyleVar(ImGuiStyleVar.ItemInnerSpacing, 6 * s, 5 * s);
-        ImGui.pushStyleVar(ImGuiStyleVar.FrameRounding, 5 * s);
-        ImGui.pushStyleVar(ImGuiStyleVar.PopupRounding, 7 * s);
-        ImGui.pushStyleVar(ImGuiStyleVar.ScrollbarSize, 10 * s);
-        ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 9 * s, 6.5f * s);
+        ImGui.pushStyleVar(ImGuiStyleVar.ItemSpacing, 6 * s, 6 * s);
+        ImGui.pushStyleVar(ImGuiStyleVar.ItemInnerSpacing, 5 * s, 4 * s);
+        ImGui.pushStyleVar(ImGuiStyleVar.FrameRounding, 0f);
+        ImGui.pushStyleVar(ImGuiStyleVar.PopupRounding, 0f);
+        ImGui.pushStyleVar(ImGuiStyleVar.ScrollbarSize, 8 * s);
+        ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 8 * s, 5.5f * s);
         styleVars = 9;
         ImGui.pushStyleColor(ImGuiCol.WindowBg, c(Theme.PANEL, alpha));
-        ImGui.pushStyleColor(ImGuiCol.Border, c(Theme.LINE));
-        ImGui.pushStyleColor(ImGuiCol.TitleBg, c(Theme.PANEL2));
-        ImGui.pushStyleColor(ImGuiCol.TitleBgActive, c(Theme.PANEL2));
-        ImGui.pushStyleColor(ImGuiCol.TitleBgCollapsed, c(Theme.PANEL2));
+        ImGui.pushStyleColor(ImGuiCol.Border, c(Theme.BORDER_HI));
+        ImGui.pushStyleColor(ImGuiCol.TitleBg, c(Theme.BG));
+        ImGui.pushStyleColor(ImGuiCol.TitleBgActive, c(Theme.BG));
+        ImGui.pushStyleColor(ImGuiCol.TitleBgCollapsed, c(Theme.BG));
         styleColors = 5;
         Theme.push(UiHost.theme().uiBold());
         boolean visible = ImGui.begin(title, open, flags | imgui.flag.ImGuiWindowFlags.NoCollapse);
         ImGui.popFont();
         ImGui.popStyleVar();                       // the taller title frame padding
         styleVars--;
-        ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 9 * s, 5 * s);
+        ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 8 * s, 4.5f * s);
         styleVars++;
         Theme.push(UiHost.theme().ui());
+        drawFocusFrame = visible && ImGui.isWindowFocused(imgui.flag.ImGuiFocusedFlags.RootAndChildWindows);
         return visible;
     }
 
     public static void endWindow() {
+        if (drawFocusFrame) {
+            ImDrawList dl = ImGui.getWindowDrawList();
+            float x = ImGui.getWindowPosX(), y = ImGui.getWindowPosY(), w = ImGui.getWindowWidth(), h = ImGui.getWindowHeight();
+            dl.pushClipRectFullScreen();
+            dl.addRect(x, y, x + w, y + h, c(Theme.ACCENT), 0f, 0, 1f);
+            dl.popClipRect();
+        }
+        drawFocusFrame = false;
         ImGui.popFont();
         ImGui.end();
         ImGui.popStyleColor(styleColors);
@@ -75,22 +99,22 @@ public final class Ui {
 
     // ------------------------------------------------------------------ text and rules
 
-    /** An upper-case small DIM heading (Widgets.label). */
+    /** An upper-case terminal section heading (`── TITLE`). */
     public static void label(String text) {
         Theme.push(UiHost.theme().small());
-        ImGui.pushStyleColor(ImGuiCol.Text, c(Theme.DIM));
-        ImGui.text(text.toUpperCase(java.util.Locale.ROOT));
+        ImGui.pushStyleColor(ImGuiCol.Text, c(Theme.GUTTER));
+        ImGui.text("── " + text.toUpperCase(java.util.Locale.ROOT));
         ImGui.popStyleColor();
         ImGui.popFont();
     }
 
-    /** A section start: a 1 px LINE2 rule, then the heading. */
+    /** A section start: a 1 px LINE rule, then the `── HEADING`. */
     public static void section(String heading) {
         float s = s();
         ImGui.dummy(0, 3 * s);
         ImDrawList dl = ImGui.getWindowDrawList();
         float x = ImGui.getWindowPosX() + 1, w = ImGui.getWindowWidth() - 2, y = ImGui.getCursorScreenPosY();
-        dl.addLine(x, y, x + w, y, c(Theme.LINE2), 1f);
+        dl.addLine(x, y, x + w, y, c(Theme.LINE), 1f);
         ImGui.dummy(0, 5 * s);
         label(heading);
     }
@@ -142,13 +166,13 @@ public final class Ui {
 
     // ------------------------------------------------------------------ widgets
 
-    /** A key cap (18 high, CHIP fill, LINE border, monoS). Returns its right edge. */
+    /** A sharp 0px key cap (17 high, BG fill, BORDER_HI border, monoS). Returns its right edge. */
     public static float keyCap(ImDrawList dl, float x, float y, String text, int textRgb) {
         float s = s();
         Theme.push(UiHost.theme().monoS());
-        float w = ImGui.calcTextSizeX(text) + 10 * s, h = 18 * s, fh = ImGui.getFontSize();
-        dl.addRectFilled(x, y, x + w, y + h, c(Theme.CHIP), 4 * s);
-        dl.addRect(x, y, x + w, y + h, c(Theme.LINE), 4 * s);
+        float w = ImGui.calcTextSizeX(text) + 10 * s, h = 17 * s, fh = ImGui.getFontSize();
+        dl.addRectFilled(x, y, x + w, y + h, c(Theme.BG), 0f);
+        dl.addRect(x, y, x + w, y + h, c(Theme.BORDER_HI), 0f);
         dl.addText(x + 5 * s, y + (h - fh) * 0.5f, c(textRgb), text);
         ImGui.popFont();
         return x + w;
@@ -161,26 +185,28 @@ public final class Ui {
         return w;
     }
 
-    /** A pill/badge with text (17 high). Returns the width drawn. */
+    /** A sharp 0px bordered badge with text (17 high). Returns the width drawn. */
     public static float badge(ImDrawList dl, float x, float y, String text, int fillRgb, float fillAlpha, int textRgb) {
         float s = s();
         Theme.push(UiHost.theme().monoS());
         float w = ImGui.calcTextSizeX(text) + 10 * s, h = 17 * s, fh = ImGui.getFontSize();
-        dl.addRectFilled(x, y, x + w, y + h, c(fillRgb, fillAlpha), 4 * s);
+        dl.addRectFilled(x, y, x + w, y + h, c(fillRgb, fillAlpha), 0f);
+        dl.addRect(x, y, x + w, y + h, c(textRgb, 0.7f), 0f);
         dl.addText(x + 5 * s, y + (h - fh) * 0.5f, c(textRgb), text);
         ImGui.popFont();
         return w;
     }
 
     /**
-     * A normal 25 px button. {@code primary}: ACCENT fill. A disabled button shows its reason as a tooltip.
+     * A sharp 0px terminal button. {@code primary}: ModsUndBots CTA fill. A disabled button shows its reason as a tooltip.
      */
     public static boolean button(String label, boolean primary, boolean enabled, float w, String disabledTip) {
         if (primary) {
-            ImGui.pushStyleColor(ImGuiCol.Button, c(Theme.ACCENT));
-            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, c(Theme.ACCENT, 0.85f));
-            ImGui.pushStyleColor(ImGuiCol.ButtonActive, c(Theme.ACCENT, 0.7f));
-            ImGui.pushStyleColor(ImGuiCol.Text, c(Theme.ON_ACCENT));
+            ImGui.pushStyleColor(ImGuiCol.Button, c(Theme.CTA_BG));
+            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, c(Theme.CTA_BG, 0.86f));
+            ImGui.pushStyleColor(ImGuiCol.ButtonActive, c(Theme.CTA_BG, 0.74f));
+            ImGui.pushStyleColor(ImGuiCol.Text, c(Theme.CTA_FG));
+            ImGui.pushStyleColor(ImGuiCol.Border, c(Theme.CTA_BG));
         }
         if (!enabled) ImGui.beginDisabled();
         boolean clicked = ImGui.button(label, w, 0);
@@ -188,34 +214,37 @@ public final class Ui {
             ImGui.endDisabled();
             if (disabledTip != null && !disabledTip.isEmpty()) tooltip(disabledTip);
         }
-        if (primary) ImGui.popStyleColor(4);
+        if (primary) ImGui.popStyleColor(5);
         return clicked && enabled;
     }
 
-    /** The segmented control of DESIGN 8.2. Returns the clicked segment or -1; {@code active} -1 lights none. */
+    /** Sharp 0px segmented terminal control. Returns the clicked segment or -1; {@code active} -1 lights none. */
     public static int segmented(String id, String[] labels, int active, float totalW, boolean enabled) {
         float s = s();
-        float gap = 2 * s, pad = 2 * s, h = 25 * s;
-        float segW = (totalW - pad * 2 - gap * (labels.length - 1)) / labels.length;
+        float h = 24 * s;
+        float segW = totalW / labels.length;
         float x0 = ImGui.getCursorScreenPosX(), y0 = ImGui.getCursorScreenPosY();
         ImDrawList dl = ImGui.getWindowDrawList();
-        dl.addRectFilled(x0, y0, x0 + totalW, y0 + h, c(Theme.PANEL2), 5 * s);
-        dl.addRect(x0, y0, x0 + totalW, y0 + h, c(Theme.LINE), 5 * s);
+        dl.addRectFilled(x0, y0, x0 + totalW, y0 + h, c(Theme.BG), 0f);
+        dl.addRect(x0, y0, x0 + totalW, y0 + h, c(Theme.BORDER_HI), 0f);
         int clicked = -1;
         for (int i = 0; i < labels.length; i++) {
-            float sx = x0 + pad + i * (segW + gap);
-            ImGui.setCursorScreenPos(sx, y0 + pad);
-            boolean hit = ImGui.invisibleButton(id + i, segW, h - pad * 2);
+            float sx = x0 + i * segW;
+            ImGui.setCursorScreenPos(sx, y0);
+            boolean hit = ImGui.invisibleButton(id + i, segW, h);
             boolean hot = ImGui.isItemHovered() && enabled;
             boolean on = i == active;
             if (on) {
-                dl.addRectFilled(sx, y0 + pad, sx + segW, y0 + h - pad, c(Theme.BTN), 4 * s);
-                dl.addRect(sx, y0 + pad, sx + segW, y0 + h - pad, c(Theme.LINE), 4 * s);
+                dl.addRectFilled(sx + 1, y0 + 1, sx + segW - 1, y0 + h - 1, c(Theme.SEL), 0f);
+                dl.addRect(sx, y0, sx + segW, y0 + h, c(Theme.ACCENT), 0f);
             } else if (hot) {
-                dl.addRectFilled(sx, y0 + pad, sx + segW, y0 + h - pad, c(Theme.CHIP), 4 * s);
+                dl.addRectFilled(sx + 1, y0 + 1, sx + segW - 1, y0 + h - 1, c(Theme.SURFACE), 0f);
+            }
+            if (i > 0 && !on && (i - 1) != active) {
+                dl.addLine(sx, y0 + 1, sx, y0 + h - 1, c(Theme.LINE), 1f);
             }
             float tw = ImGui.calcTextSizeX(labels[i]), fh = ImGui.getFontSize();
-            int rgb = !enabled ? Theme.GUTTER : on ? Theme.FG : Theme.DIM;
+            int rgb = !enabled ? Theme.GUTTER : on ? Theme.ACCENT : hot ? Theme.FG : Theme.DIM;
             dl.addText(sx + (segW - tw) * 0.5f, y0 + (h - fh) * 0.5f, c(rgb), labels[i]);
             if (hit && enabled) clicked = i;
         }
@@ -224,28 +253,43 @@ public final class Ui {
         return clicked;
     }
 
-    /** The 26 x 14 enable switch of DESIGN 8.11. Returns true when clicked. */
+    /** Crisp terminal `[×]` / `[ ]` toggle matching ModsUndBots `term_toggle`. Returns true when clicked. */
     public static boolean toggle(String id, boolean on) {
         float s = s();
-        float w = 26 * s, h = 14 * s;
+        Theme.push(UiHost.theme().monoS());
+        String txt = on ? "[×]" : "[ ]";
+        float w = Math.max(28 * s, ImGui.calcTextSizeX(txt) + 10 * s), h = 20 * s;
         float x = ImGui.getCursorScreenPosX(), y = ImGui.getCursorScreenPosY();
         boolean clicked = ImGui.invisibleButton(id, w, h);
+        boolean hot = ImGui.isItemHovered();
         ImDrawList dl = ImGui.getWindowDrawList();
-        dl.addRectFilled(x, y, x + w, y + h, c(on ? Theme.ACCENT : Theme.TRACK), h * 0.5f);
-        float kr = 5 * s, kx = on ? x + w - h * 0.5f : x + h * 0.5f;
-        dl.addCircleFilled(kx, y + h * 0.5f, kr, c(on ? Theme.ON_ACCENT : Theme.FG), 16);
+        if (on) {
+            dl.addRectFilled(x, y, x + w, y + h, c(Theme.SEL), 0f);
+            dl.addRect(x, y, x + w, y + h, c(Theme.ACCENT), 0f);
+        } else {
+            if (hot) dl.addRectFilled(x, y, x + w, y + h, c(Theme.SURFACE), 0f);
+            dl.addRect(x, y, x + w, y + h, c(hot ? Theme.BORDER_HI : Theme.LINE), 0f);
+        }
+        float tw = ImGui.calcTextSizeX(txt), fh = ImGui.getFontSize();
+        int rgb = on ? Theme.ACCENT : hot ? Theme.FG : Theme.GUTTER;
+        dl.addText(x + (w - tw) * 0.5f, y + (h - fh) * 0.5f, c(rgb), txt);
+        ImGui.popFont();
         return clicked;
     }
 
-    /** An icon-only button of {@code size}; draws the icon in the given colour states. Returns true when clicked. */
+    /** A sharp 0px icon-only terminal button of {@code size}. Returns true when clicked. */
     public static boolean iconButton(String id, String icon, float size, boolean active, boolean enabled, String tip) {
-        float s = s();
         float x = ImGui.getCursorScreenPosX(), y = ImGui.getCursorScreenPosY();
         boolean clicked = ImGui.invisibleButton(id, size, size);
         boolean hot = ImGui.isItemHovered() && enabled;
         ImDrawList dl = ImGui.getWindowDrawList();
-        if (active) dl.addRectFilled(x, y, x + size, y + size, c(Theme.BTN), 5 * s);
-        else if (hot) dl.addRectFilled(x, y, x + size, y + size, c(Theme.BTN), 5 * s);
+        if (active) {
+            dl.addRectFilled(x, y, x + size, y + size, c(Theme.SEL), 0f);
+            dl.addRect(x, y, x + size, y + size, c(Theme.ACCENT), 0f);
+        } else if (hot) {
+            dl.addRectFilled(x, y, x + size, y + size, c(Theme.SURFACE), 0f);
+            dl.addRect(x, y, x + size, y + size, c(Theme.BORDER_HI), 0f);
+        }
         int rgb = !enabled ? Theme.GUTTER : active ? Theme.ACCENT : hot ? Theme.FG : Theme.DIM;
         EditorIcons.draw(dl, icon, x + size * 0.5f, y + size * 0.5f, size * 0.30f, c(rgb));
         if (tip != null) tooltip(tip);

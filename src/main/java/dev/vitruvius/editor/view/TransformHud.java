@@ -23,7 +23,9 @@ public final class TransformHud {
             | ImGuiWindowFlags.NoSavedSettings | ImGuiWindowFlags.NoFocusOnAppearing | ImGuiWindowFlags.NoNav
             | ImGuiWindowFlags.NoBringToFrontOnFocus | ImGuiWindowFlags.NoScrollbar;
 
-    private static final int[] AX = {Ui.AX_X, Ui.AX_Y, Ui.AX_Z};
+    private static int axisCol(int a) {
+        return a == 0 ? Ui.AX_X : a == 1 ? Ui.AX_Y : Ui.AX_Z;
+    }
     private static final String[] AX_NAME = {"X", "Y", "Z"};
 
     public static void draw(EditorSession s) {
@@ -54,23 +56,25 @@ public final class TransformHud {
         ImGui.setNextWindowSize(w, hgt);
         ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, 0f, 0f);
         ImGui.pushStyleVar(ImGuiStyleVar.WindowBorderSize, 0f);
-        ImGui.pushStyleVar(ImGuiStyleVar.WindowRounding, hgt * 0.5f);
+        ImGui.pushStyleVar(ImGuiStyleVar.WindowRounding, 0f);
         ImGui.pushStyleColor(ImGuiCol.WindowBg, 0);
         int flags = FLAGS | (h.typed() ? 0 : ImGuiWindowFlags.NoInputs);
         if (ImGui.begin("##la_transform_hud", flags)) {
             ImDrawList dl = ImGui.getWindowDrawList();
-            dl.addRectFilled(x, y, x + w, y + hgt, Theme.u32(0x14161a, 0.82f), hgt * 0.5f);
-            dl.addRect(x, y, x + w, y + hgt, Theme.u32(0xffffff, 0.10f), hgt * 0.5f);
+            dl.addRectFilled(x, y, x + w, y + hgt, Theme.u32(Theme.BG, 0.95f), 0f);
+            dl.addRect(x, y, x + w, y + hgt, Theme.u32(h.typed() ? Theme.ACCENT : Theme.BORDER_HI), 0f);
             float tx = x + pad, ty = y + (hgt - fh) * 0.5f;
-            dl.addText(tx, ty, Theme.u32(Theme.FG), h.verb());
+            dl.addText(tx, ty, Theme.u32(Theme.FG), h.verb().toUpperCase(java.util.Locale.ROOT));
             tx += verbW + gap;
             if (h.chips() >= 0) {
                 for (int a = 0; a < 3; a++) {
                     boolean lit = (h.chips() & (1 << a)) != 0;
+                    int axRgb = axisCol(a);
                     float cy = y + (hgt - chip) * 0.5f;
-                    dl.addRectFilled(tx, cy, tx + chip, cy + chip, lit ? Theme.u32(AX[a], 0.25f) : Theme.u32(Theme.CHIP), 4 * sc);
+                    dl.addRectFilled(tx, cy, tx + chip, cy + chip, lit ? Theme.u32(axRgb, 0.22f) : Theme.u32(Theme.SURFACE), 0f);
+                    dl.addRect(tx, cy, tx + chip, cy + chip, lit ? Theme.u32(axRgb) : Theme.u32(Theme.LINE), 0f);
                     float lw = ImGui.calcTextSizeX(AX_NAME[a]);
-                    dl.addText(tx + (chip - lw) * 0.5f, cy + (chip - fh) * 0.5f, Theme.u32(lit ? AX[a] : Theme.DIM), AX_NAME[a]);
+                    dl.addText(tx + (chip - lw) * 0.5f, cy + (chip - fh) * 0.5f, Theme.u32(lit ? axRgb : Theme.GUTTER), AX_NAME[a]);
                     if (h.typed()) {
                         ImGui.setCursorScreenPos(tx, cy);
                         if (ImGui.invisibleButton("##hudaxis" + a, chip, chip)) {
@@ -87,7 +91,7 @@ public final class TransformHud {
             tx += amountW;
             if (h.typed()) {
                 boolean on = (System.currentTimeMillis() / 500) % 2 == 0;
-                if (on) dl.addRectFilled(tx + 3 * sc, y + (hgt - 14 * sc) * 0.5f, tx + 5 * sc, y + (hgt + 14 * sc) * 0.5f, Theme.u32(Theme.FG));
+                if (on) dl.addRectFilled(tx + 2 * sc, y + (hgt - 13 * sc) * 0.5f, tx + 8 * sc, y + (hgt + 13 * sc) * 0.5f, Theme.u32(Theme.ACCENT));
                 tx += caretW;
             }
             if (!tail.isEmpty()) {

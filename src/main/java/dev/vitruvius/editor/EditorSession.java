@@ -151,6 +151,9 @@ public final class EditorSession {
     private EditorSession() {
         actions = new EditorActions(this::undoStack, selection, new HostImpl());
         loadConfig();
+        dev.cg.uihost.Theme.Preset savedTheme = dev.cg.uihost.Theme.Preset.fromId(config.getProperty("theme", dev.cg.uihost.Theme.Preset.SYNTH_TERMINAL.id));
+        dev.cg.uihost.UiHost.setThemePreset(savedTheme);
+        dev.vitruvius.editor.view.Ui.syncTheme();
         snap = flag("snap", false);
         try {
             pivotMode = Pivots.Mode.valueOf(config.getProperty("pivot", Pivots.Mode.MEDIAN.name()));
@@ -164,6 +167,15 @@ public final class EditorSession {
     public void saveToolbarState() {
         config.setProperty("pivot", pivotMode.name());
         setFlag("snap", snap);
+    }
+
+    /** Switches the active terminal theme preset and saves it in editor-ui.properties. */
+    public void setThemePreset(dev.cg.uihost.Theme.Preset preset) {
+        if (preset == null) return;
+        dev.cg.uihost.UiHost.setThemePreset(preset);
+        dev.vitruvius.editor.view.Ui.syncTheme();
+        config.setProperty("theme", preset.id);
+        saveConfig();
     }
 
     // ------------------------------------------------------------------------------------------ pivot, lock, local view
