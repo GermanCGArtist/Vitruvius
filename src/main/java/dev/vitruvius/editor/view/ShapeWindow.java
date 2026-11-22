@@ -402,7 +402,7 @@ public final class ShapeWindow {
         error = blockError;
         if (json != null && o != null) {
             boolean changed = !json.equals(syncedJson);
-            boolean needResult = out != null && !json.equals(resultJson);
+            boolean needResult = !json.equals(resultJson);
             if ((changed || needResult) && !json.equals(requestedJson)) {
                 requestedJson = json;
                 syncedJson = json;
