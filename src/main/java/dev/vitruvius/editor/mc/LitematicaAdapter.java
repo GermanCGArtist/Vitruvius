@@ -143,6 +143,35 @@ public final class LitematicaAdapter implements PlacementPort {
         return d == null ? "" : d;
     }
 
+    /**
+     * The non-air blocks of a schematic by block id ({@code stone}, or {@code namespace:id} outside minecraft), over all
+     * sub-regions. Reads only the loaded schematic, so it may run off the client thread once the handle is loaded.
+     */
+    public static java.util.Map<String, Long> blockCounts(Handle h) {
+        java.util.Map<String, Long> out = new java.util.HashMap<>();
+        for (SchematicInfo.Region r : SchematicInfo.regionsOf(h.schematic)) {
+            fi.dy.masa.litematica.schematic.container.LitematicaBlockStateContainer c = h.schematic.getSubRegionContainer(r.name());
+            if (c == null) continue;
+            net.minecraft.core.Vec3i sz = c.getSize();
+            java.util.Map<net.minecraft.world.level.block.Block, long[]> n = new java.util.HashMap<>();
+            for (int y = 0; y < Math.abs(sz.getY()); y++) {
+                for (int z = 0; z < Math.abs(sz.getZ()); z++) {
+                    for (int x = 0; x < Math.abs(sz.getX()); x++) {
+                        net.minecraft.world.level.block.state.BlockState st = c.get(x, y, z);
+                        if (st == null || st.isAir()) continue;
+                        n.computeIfAbsent(st.getBlock(), k -> new long[1])[0]++;
+                    }
+                }
+            }
+            for (var e : n.entrySet()) {
+                var key = net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(e.getKey());
+                String id = "minecraft".equals(key.getNamespace()) ? key.getPath() : key.toString();
+                out.merge(id, e.getValue()[0], Long::sum);
+            }
+        }
+        return out;
+    }
+
     /** The enclosing size of the schematic: its total size, else the box around its sub-regions. */
     public Vec3i size(Handle h) {
         net.minecraft.core.Vec3i t = h.schematic.getTotalSize();
@@ -275,7 +304,7 @@ public final class LitematicaAdapter implements PlacementPort {
 
     // ------------------------------------------------------------------------------------------ mapping
 
-    static Rotation toMc(Rot r) {
+    public static Rotation toMc(Rot r) {
         return switch (r) {
             case NONE -> Rotation.NONE;
             case CW_90 -> Rotation.CLOCKWISE_90;
@@ -293,7 +322,7 @@ public final class LitematicaAdapter implements PlacementPort {
         };
     }
 
-    static net.minecraft.world.level.block.Mirror toMc(Mirror m) {
+    public static net.minecraft.world.level.block.Mirror toMc(Mirror m) {
         return switch (m) {
             case NONE -> net.minecraft.world.level.block.Mirror.NONE;
             case LEFT_RIGHT -> net.minecraft.world.level.block.Mirror.LEFT_RIGHT;

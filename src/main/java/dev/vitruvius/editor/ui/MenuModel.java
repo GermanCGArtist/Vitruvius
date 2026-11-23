@@ -329,8 +329,8 @@ public final class MenuModel {
         if (!area) {
             m.add(sep());
             m.add(sub("Export", "export", single
-                    ? List.of(item("export.schem", "Schematic (.litematic)", "", "export"), item("export.bake", "Baked with modifiers (.litematic)", "", "export"))
-                    : List.of(item("export.zip", "Selection (.zip)", "", "export"), item("export.bake", "Bake into one .litematic", "", "export"))));
+                    ? List.of(item("export.schem", "Schematic (.litematic)", "", "export"), item("export.bake", "Baked with modifiers (.litematic)", "", "export"), item("export.manhattan", "Build job for Manhattan / LLM", "", "export"))
+                    : List.of(item("export.zip", "Selection (.zip)", "", "export"), item("export.bake", "Bake into one .litematic", "", "export"), item("export.manhattan", "Build job for Manhattan / LLM", "", "export"))));
         }
         m.addAll(extActions(c));
         m.add(sep());
@@ -373,7 +373,7 @@ public final class MenuModel {
         m.add(item("local", "Local view", "/", "local"));
         m.add(item("frame", "Frame selected", "F", "frame"));
         m.add(sep());
-        m.add(sub("Export", "export", List.of(item("export.zip", "Assembly (.zip)", "", "export"), item("export.bake", "Bake to one .litematic", "", "export"))));
+        m.add(sub("Export", "export", List.of(item("export.zip", "Assembly (.zip)", "", "export"), item("export.bake", "Bake to one .litematic", "", "export"), item("export.manhattan", "Build job for Manhattan / LLM", "", "export"))));
         m.addAll(extActions(c));
         m.add(sep());
         m.add(danger("delete", "Delete", "X"));
@@ -407,6 +407,7 @@ public final class MenuModel {
         m.add(item("folder.toproject", "Convert to project", "", "project", !ro, "Read-only"));
         m.add(sep());
         m.add(item("export.zip", "Export folder (.zip)", "", "export", !f.children().isEmpty(), "The folder is empty"));
+        m.add(item("export.manhattan", "Build job for Manhattan / LLM", "", "export", !f.children().isEmpty(), "The folder is empty"));
         m.addAll(extActions(c));
         m.add(sep());
         m.add(danger("delete", "Delete folder", "X"));
@@ -430,7 +431,7 @@ public final class MenuModel {
             m.add(item("proj.share", shared ? "Stop sharing" : "Share on Syncmatica", "", "sync", shared || sh.usable(), sh.reason().isEmpty() ? "Syncmatica is not usable" : sh.reason()));
             m.add(sep());
         }
-        m.add(sub("Export", "export", List.of(item("export.zip", "Project (.zip)", "", "export"), item("export.bake", "Bake to one .litematic", "", "export"))));
+        m.add(sub("Export", "export", List.of(item("export.zip", "Project (.zip)", "", "export"), item("export.bake", "Bake to one .litematic", "", "export"), item("export.manhattan", "Build job for Manhattan / LLM", "", "export"))));
         m.add(item("proj.explorer", "Show in file explorer", "", ""));
         m.addAll(extActions(c));
         m.add(sep());
@@ -446,6 +447,7 @@ public final class MenuModel {
         m.add(item("show.hidden", "Show hidden", "Alt H", "eye", c.hasHidden(), "Nothing is hidden"));
         m.add(sep());
         m.add(item("loose.toproject", "Convert to project…", "", "project", !c.selection().get(0).children().isEmpty(), "Nothing is loose"));
+        m.add(item("export.manhattan", "Build job for Manhattan / LLM", "", "export", !c.selection().get(0).children().isEmpty(), "Nothing is loose"));
         m.addAll(extActions(c));
         return clean(m);
     }

@@ -395,6 +395,11 @@ public final class PropertiesWindow {
         if (!o.wire()) frontSection(s, o);
         else cutterSection(s, o);
         modifiersSection(s, o, o.mods(), true, o.wire() ? false : true, locked);
+        if (!o.wire()) {
+            ImGui.dummy(0, 4 * Ui.s());
+            if (ImGui.button("Build job for Manhattan / LLM")) s.actions.run("export.manhattan");
+            Ui.tooltip("Copies every placement here, array copies included, with position, size and blocks: paste it to an LLM to write the Manhattan build script");
+        }
     }
 
     private static void assemblyBody(EditorSession s, AssemblyNode a, boolean locked) {
@@ -431,6 +436,8 @@ public final class PropertiesWindow {
         if (ImGui.button("Export .zip")) s.actions.run("export.zip");
         ImGui.sameLine();
         if (ImGui.button("Bake to .litematic")) s.actions.run("export.bake");
+        if (ImGui.button("Build job for Manhattan / LLM")) s.actions.run("export.manhattan");
+        Ui.tooltip("Copies every placement here, array copies included, with position, size and blocks: paste it to an LLM to write the Manhattan build script");
         frontSection(s, a);
         modifiersSection(s, a, a.mods(), true, true, locked);
     }
@@ -877,6 +884,7 @@ public final class PropertiesWindow {
         if (ImGui.beginPopup("##projexport")) {
             if (ImGui.menuItem("Project (.zip)")) s.actions.run("export.zip");
             if (ImGui.menuItem("Bake to one .litematic")) s.actions.run("export.bake");
+            if (ImGui.menuItem("Build job for Manhattan / LLM")) s.actions.run("export.manhattan");
             ImGui.endPopup();
         }
         ImGui.dummy(0, 4 * sc);
@@ -895,6 +903,8 @@ public final class PropertiesWindow {
         if (ImGui.button("Convert to project")) s.actions.run("folder.toproject");
         ImGui.sameLine();
         if (Ui.button("Export .zip", false, !f.children().isEmpty(), 0, "The folder is empty")) s.actions.run("export.zip");
+        if (Ui.button("Build job for Manhattan / LLM", false, !f.children().isEmpty(), 0, "The folder is empty")) s.actions.run("export.manhattan");
+        Ui.tooltip("Copies every placement here, array copies included, with position, size and blocks: paste it to an LLM to write the Manhattan build script");
         ImGui.dummy(0, 4 * sc);
         Ui.smallDim("Folders only organise. Front order decides which blocks count.");
     }

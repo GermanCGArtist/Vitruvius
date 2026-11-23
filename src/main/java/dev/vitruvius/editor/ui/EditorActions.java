@@ -178,7 +178,7 @@ public final class EditorActions {
                  "t.move", "box", "local", "local.leave",
                  "part.makelocal", "folder.toproject", "loose.toproject", "proj.active", "proj.explorer", "proj.close",
                  "add.assembly", "add.link", "proj.link", "asm.realise", "asm.reload", "asm.open", "asm.savelasm", "assembly.createlinked",
-                 "export.zip", "export.bake", "export.schem", "proj.push", "proj.share" -> true;
+                 "export.zip", "export.bake", "export.schem", "export.manhattan", "proj.push", "proj.share" -> true;
             default -> false;
         };
     }
@@ -462,6 +462,9 @@ private static boolean hasArray(Node n) {        List<dev.vitruvius.editor.core.
                 return true;
             case "export.schem":
                 host.export("litematic", nodes);
+                return true;
+            case "export.manhattan":
+                host.export("manhattan", nodes);
                 return true;
             case "add.schematic":
                 host.requestAddSchematic(addParent().id());

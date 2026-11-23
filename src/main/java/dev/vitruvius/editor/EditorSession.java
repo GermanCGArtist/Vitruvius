@@ -1047,6 +1047,7 @@ public final class EditorSession {
                     if (one instanceof ProjectNode p) exports.bakeProject(p);
                     else exports.bake(nodes, one != null ? one.name() : "Bake");
                 }
+                case "manhattan" -> exports.buildJob(nodes, one != null ? one.name() : nodes.size() + " objects");
                 case "litematic" -> {
                     if (one instanceof ObjectNode o) exports.exportLitematic(o);
                     else EditorSession.this.toast(ToastQueue.Level.INFO, "Select one object to export its schematic");

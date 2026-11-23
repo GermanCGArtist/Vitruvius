@@ -224,6 +224,84 @@ public final class EditorExports {
         return out;
     }
 
+    // ------------------------------------------------------------------------------------------ Manhattan
+
+    /**
+     * Build job for Manhattan / LLM: the Litematica placements of the selection (every array copy and every copy made
+     * by an arrayed or linked assembly) as a text an LLM can turn into a Manhattan build script. Copied to the
+     * clipboard and saved to {@code exports/<label>.manhattan.txt}. Placements are read now; the blocks are counted on
+     * the worker.
+     */
+    public void buildJob(List<Node> nodes, String label) {
+        var core = dev.vitruvius.editor.mc.Reconciler.core();
+        if (core == null || nodes.isEmpty()) {
+            s.toast(ToastQueue.Level.INFO, "Nothing selected to export");
+            return;
+        }
+        java.util.Set<java.util.UUID> roots = new java.util.HashSet<>();
+        for (Node n : nodes) roots.add(n.id());
+        var ad = dev.vitruvius.editor.mc.LitematicaAdapter.shared();
+        record Pending(dev.vitruvius.editor.mc.PlacementState st, String object, String cell, String project,
+                       dev.vitruvius.editor.core.Box world, dev.vitruvius.editor.mc.LitematicaAdapter.Handle handle) {}
+        List<Pending> todo = new ArrayList<>();
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        int notPlaced = 0;
+        for (var r : core.cellRefs()) {
+            boolean inScene = s.scene().byId(r.object().id()) == r.object();
+            if (!under(inScene ? r.object() : r.owner(), roots)) continue;
+            String id = r.placementId();
+            var st = id == null ? null : ad.read(id);
+            if (st == null || st.file() == null) {
+                notPlaced++;
+                continue;
+            }
+            if (!seen.add(id)) continue;
+            var h = ad.loadPrivate(st.file());
+            dev.vitruvius.editor.core.Vec3i size = h == null ? new dev.vitruvius.editor.core.Vec3i(1, 1, 1) : ad.size(h);
+            todo.add(new Pending(st, r.object().name(), r.cell(), r.project() == null ? null : r.project().name(),
+                    dev.vitruvius.editor.core.Box.ofSize(size).transformed(r.world()), h));
+        }
+        if (todo.isEmpty()) {
+            s.toast(ToastQueue.Level.INFO, notPlaced > 0 ? "The schematics are not placed in Litematica yet (wrong world or dimension?)"
+                    : "No schematics in the selection");
+            return;
+        }
+        Path file = dir().resolve(safe(label) + ".manhattan.txt");
+        int skipped = notPlaced;
+        async(() -> {
+            java.util.Map<Path, java.util.Map<String, Long>> counts = new java.util.HashMap<>();
+            List<dev.vitruvius.editor.io.BuildJobText.Entry> entries = new ArrayList<>();
+            for (Pending p : todo) {
+                java.util.Map<String, Long> blocks = p.handle() == null ? null
+                        : counts.computeIfAbsent(p.st().file(), f -> dev.vitruvius.editor.mc.LitematicaAdapter.blockCounts(p.handle()));
+                entries.add(new dev.vitruvius.editor.io.BuildJobText.Entry(p.st().name(), p.object(), p.cell(), p.project(),
+                        shown(p.st().file()), dev.vitruvius.editor.mc.LitematicaAdapter.toMc(p.st().rot()).name(),
+                        dev.vitruvius.editor.mc.LitematicaAdapter.toMc(p.st().mirror()).name(), p.st().enabled(), p.world(), blocks));
+            }
+            String text = dev.vitruvius.editor.io.BuildJobText.build(label, entries);
+            Minecraft.getInstance().execute(() -> Minecraft.getInstance().keyboardHandler.setClipboard(text));
+            String where;
+            try {
+                Files.createDirectories(file.getParent());
+                Files.writeString(file, text, java.nio.charset.StandardCharsets.UTF_8);
+                where = ", saved to " + shown(file);
+            } catch (IOException e) {
+                where = "; saving failed: " + e.getMessage();
+            }
+            return "Copied the build job for Manhattan / LLM (" + entries.size() + " placements" + (skipped > 0 ? ", " + skipped + " not placed yet" : "") + ")" + where;
+        }, ToastQueue.Level.INFO);
+    }
+
+    private boolean under(Node n, java.util.Set<java.util.UUID> roots) {
+        for (; n != null; n = n.parent()) if (roots.contains(n.id())) return true;
+        return false;
+    }
+
+    private static String safe(String name) {
+        String t = name == null ? "" : name.strip().replaceAll("[^A-Za-z0-9._ -]", "_");
+        return t.isBlank() ? "build-job" : t;
+    }
+
     private void async(Callable<String> job, ToastQueue.Level okLevel) {
         Thread t = new Thread(() -> {
             String msg;
