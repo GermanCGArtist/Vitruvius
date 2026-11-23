@@ -259,6 +259,30 @@ public final class MenuModel {
         }
     }
 
+    /**
+     * The menu entries other mods registered for selections ({@code ext.sel:<index>}), for the action types found in
+     * the selection or below it. An assembly may hide its parts in a linked file, so it always offers them.
+     */
+    private static List<Item> extActions(Ctx c) {
+        List<Item> out = new ArrayList<>();
+        List<dev.vitruvius.api.VitruviusApi.SelectionAction> actions = dev.vitruvius.api.VitruviusApi.selectionActions();
+        for (int i = 0; i < actions.size(); i++) {
+            var a = actions.get(i);
+            if (holds(c.selection(), a.typeId())) out.add(new Item("ext.sel:" + i, a.label(), "", "export", State.ENABLED, false, a.hover(), List.of()));
+        }
+        if (!out.isEmpty()) out.add(0, sep());
+        return out;
+    }
+
+    private static boolean holds(List<Node> nodes, String typeId) {
+        for (Node n : nodes) {
+            if (n instanceof ExternalNode x && x.typeId().equals(typeId)) return true;
+            if (n instanceof AssemblyNode) return true;
+            if (holds(n.children(), typeId)) return true;
+        }
+        return false;
+    }
+
     /** One or several objects, mixed with assemblies or areas (10.2, 10.3). */
     private static List<Item> objects(Ctx c) {
         List<Node> sel = c.selection();
@@ -308,6 +332,7 @@ public final class MenuModel {
                     ? List.of(item("export.schem", "Schematic (.litematic)", "", "export"), item("export.bake", "Baked with modifiers (.litematic)", "", "export"))
                     : List.of(item("export.zip", "Selection (.zip)", "", "export"), item("export.bake", "Bake into one .litematic", "", "export"))));
         }
+        m.addAll(extActions(c));
         m.add(sep());
         m.add(danger("delete", "Delete", "X"));
         return clean(m);
@@ -349,6 +374,7 @@ public final class MenuModel {
         m.add(item("frame", "Frame selected", "F", "frame"));
         m.add(sep());
         m.add(sub("Export", "export", List.of(item("export.zip", "Assembly (.zip)", "", "export"), item("export.bake", "Bake to one .litematic", "", "export"))));
+        m.addAll(extActions(c));
         m.add(sep());
         m.add(danger("delete", "Delete", "X"));
         return clean(m);
@@ -381,6 +407,7 @@ public final class MenuModel {
         m.add(item("folder.toproject", "Convert to project", "", "project", !ro, "Read-only"));
         m.add(sep());
         m.add(item("export.zip", "Export folder (.zip)", "", "export", !f.children().isEmpty(), "The folder is empty"));
+        m.addAll(extActions(c));
         m.add(sep());
         m.add(danger("delete", "Delete folder", "X"));
         return clean(m);
@@ -405,6 +432,7 @@ public final class MenuModel {
         }
         m.add(sub("Export", "export", List.of(item("export.zip", "Project (.zip)", "", "export"), item("export.bake", "Bake to one .litematic", "", "export"))));
         m.add(item("proj.explorer", "Show in file explorer", "", ""));
+        m.addAll(extActions(c));
         m.add(sep());
         m.add(item("proj.close", "Close project", "", "close"));
         return clean(m);
@@ -418,6 +446,7 @@ public final class MenuModel {
         m.add(item("show.hidden", "Show hidden", "Alt H", "eye", c.hasHidden(), "Nothing is hidden"));
         m.add(sep());
         m.add(item("loose.toproject", "Convert to project…", "", "project", !c.selection().get(0).children().isEmpty(), "Nothing is loose"));
+        m.addAll(extActions(c));
         return clean(m);
     }
 

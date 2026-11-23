@@ -169,7 +169,7 @@ public final class EditorActions {
 
     /** Which entry ids {@link #run} handles (the tests check every enabled menu entry is in it). */
     public static boolean handles(String id) {
-        if (id.startsWith("move.to:") || id.startsWith("add.ext:")) return true;
+        if (id.startsWith("move.to:") || id.startsWith("add.ext:") || id.startsWith("ext.sel:")) return true;
         return switch (id) {
             case "add.schematic", "add.shape", "add.folder", "select.all", "select.none", "select.contents", "frame.all", "frame",
                  "show.hidden", "undo", "redo", "duplicate", "dup.linked", "rename", "t.rot.cw", "t.rot.ccw", "t.mirror",
@@ -273,6 +273,34 @@ public final class EditorActions {
     }
 
 private static boolean hasArray(Node n) {        List<dev.vitruvius.editor.core.Modifier> mods = n instanceof ObjectNode o ? o.mods() : n instanceof AssemblyNode a ? a.mods() : n instanceof dev.vitruvius.editor.core.ExternalNode x ? x.mods() : List.of();        for (dev.vitruvius.editor.core.Modifier m : mods) if (m instanceof ArrayModifier) return true;        return false;    }
+    /** A menu entry another mod registered ({@code ext.sel:<index>}): hands it the visible copies of its objects in the selection. */
+    private boolean runSelectionAction(String id, List<Node> nodes) {
+        var actions = dev.vitruvius.api.VitruviusApi.selectionActions();
+        int i;
+        try {
+            i = Integer.parseInt(id.substring("ext.sel:".length()));
+        } catch (NumberFormatException e) {
+            return false;
+        }
+        if (i < 0 || i >= actions.size()) return false;
+        var a = actions.get(i);
+        List<UUID> roots = new ArrayList<>();
+        for (Node n : nodes) roots.add(n.id());
+        List<dev.vitruvius.api.SceneObjectView> views = new ArrayList<>();
+        for (var v : dev.vitruvius.api.ObjectTypes.viewsUnder(a.typeId(), roots)) if (!v.hidden()) views.add(v);
+        if (views.isEmpty()) {
+            host.toast(ToastQueue.Level.INFO, "Nothing for \"" + a.label() + "\" in the selection", null, null);
+            return false;
+        }
+        try {
+            a.action().accept(views);
+        } catch (RuntimeException | LinkageError e) {
+            host.toast(ToastQueue.Level.ERROR, a.label() + " failed: " + e, null, null);
+            return false;
+        }
+        return true;
+    }
+
     private <T extends Node> Optional<T> single(Class<T> type) {
         List<Node> n = nodes();
         if (n.size() != 1 || !type.isInstance(n.get(0))) return Optional.empty();
@@ -288,6 +316,9 @@ private static boolean hasArray(Node n) {        List<dev.vitruvius.editor.core.
             Vec3i s = host.sizeOfAssembly(a);
             if (s != null) return s;
         }
+        // objects of other mods (heavymatics): the size of one copy. boxOf is the union of every array copy, which
+        // made Realise array shift each copy by the whole array's extent.
+        if (n instanceof dev.vitruvius.editor.core.ExternalNode x) return dev.vitruvius.api.ObjectTypes.sizeOf(x);
         Box b = host.boxOf(List.of(n.id()));
         return b == null ? new Vec3i(1, 1, 1) : b.size();
     }
@@ -355,6 +386,7 @@ private static boolean hasArray(Node n) {        List<dev.vitruvius.editor.core.
         }
         Scene scene = scene();
         List<Node> nodes = nodes();
+        if (id.startsWith("ext.sel:")) return runSelectionAction(id, nodes);
         switch (id) {
             case "undo":
                 return undo();

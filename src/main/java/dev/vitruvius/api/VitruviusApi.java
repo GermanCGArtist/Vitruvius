@@ -28,6 +28,15 @@ public final class VitruviusApi {
     private static final List<ShapeAction> SHAPE_ACTIONS = new CopyOnWriteArrayList<>();
     private static final List<FolderAction> FOLDER_ACTIONS = new CopyOnWriteArrayList<>();
 
+    /**
+     * An entry in the editor's right-click menu, shown when the selection (or what is inside a selected folder,
+     * project or assembly) holds objects of {@code typeId}. The action gets every placed copy of those objects:
+     * array copies and copies made by arrayed or linked assemblies included, hidden ones left out.
+     */
+    public record SelectionAction(String typeId, String label, String hover, Consumer<List<SceneObjectView>> action) {}
+
+    private static final List<SelectionAction> SELECTION_ACTIONS = new CopyOnWriteArrayList<>();
+
     /** Adds the provider's entries to the placement list (mixed with the placements, in folders, sorted by name). */
     public static void registerListEntries(ListEntryProvider provider) {
         if (provider != null && !PROVIDERS.contains(provider)) PROVIDERS.add(provider);
@@ -183,5 +192,25 @@ public final class VitruviusApi {
 
     public static List<FolderAction> folderActions() {
         return FOLDER_ACTIONS;
+    }
+
+    /** Adds an entry to the editor's right-click menu for selections holding objects of a type (see {@link SelectionAction}). */
+    public static void registerSelectionAction(String typeId, String label, String hover, Consumer<List<SceneObjectView>> action) {
+        if (typeId == null || label == null || action == null) return;
+        SELECTION_ACTIONS.add(new SelectionAction(typeId, label, hover == null ? "" : hover, action));
+    }
+
+    public static List<SelectionAction> selectionActions() {
+        return SELECTION_ACTIONS;
+    }
+
+    /**
+     * Every placed copy of the objects of a type that are selected in the editor or sit inside a selected folder,
+     * project or assembly (array copies included, hidden ones too, flagged). Empty without an editor session.
+     */
+    public static List<SceneObjectView> selectedObjectsOfType(String typeId) {
+        dev.vitruvius.editor.EditorSession s = dev.vitruvius.editor.EditorMode.isActive() ? dev.vitruvius.editor.EditorSession.get() : null;
+        if (s == null) return List.of();
+        return ObjectTypes.viewsUnder(typeId, s.selection.ids());
     }
 }

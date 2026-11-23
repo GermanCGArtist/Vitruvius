@@ -175,4 +175,26 @@ class ObjectTypesTest {
         assertEquals(1, back.mods().size());
         assertEquals(6, back.data().get("d").getAsInt());
     }
+
+    @Test
+    void viewsUnderASelectedFolderIncludeArrayCopiesAndLeaveOutTheRest() {
+        dev.vitruvius.editor.core.FolderNode folder = new dev.vitruvius.editor.core.FolderNode("f");
+        proj.addChild(folder);
+        ExternalNode inside = new ExternalNode("tunnel", "test:area");
+        inside.setData(new AreaType().create());
+        inside.setTransform(Transform.IDENTITY.withPos(new Vec3i(100, 50, 0)));
+        ArrayModifier am = new ArrayModifier();
+        am.count = 5;
+        inside.mods().add(am);
+        folder.addChild(inside);
+        area("outside", 0, 0, 0);
+
+        List<SceneObjectView> v = ObjectTypes.viewsUnder(scene, "test:area", null, List.of(folder.id()));
+        assertEquals(5, v.size());
+        // one copy is one area wide (4), not the whole array: 100, 104, 108, ...
+        for (int i = 0; i < 5; i++) assertEquals(100 + 4 * i, v.get(i).world().pos().x());
+        assertEquals("base", v.get(0).cell());
+        assertTrue(ObjectTypes.viewsUnder(scene, "test:area", null, List.of()).isEmpty());
+        assertEquals(1, ObjectTypes.viewsUnder(scene, "test:area", null, List.of(proj.id())).stream().filter(x -> x.name().equals("outside")).count());
+    }
 }

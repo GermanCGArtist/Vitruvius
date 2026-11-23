@@ -72,6 +72,30 @@ public final class ObjectTypes {
         return s == null ? List.of() : viewsIn(s, typeId, envSource.apply(s));
     }
 
+    /** Like {@link #viewsOf}, but only the copies of objects that are one of {@code roots} or inside one of them. */
+    public static List<SceneObjectView> viewsUnder(String typeId, Collection<UUID> roots) {
+        Scene s = sceneSource.get();
+        return s == null ? List.of() : viewsUnder(s, typeId, envSource.apply(s), roots);
+    }
+
+    /** The copies of {@link #placedIn} whose object, or the scene node that owns it (a linked assembly), is or lies under one of {@code roots}. */
+    public static List<SceneObjectView> viewsUnder(Scene scene, String typeId, AssemblyBounds.Env env, Collection<UUID> roots) {
+        List<SceneObjectView> out = new ArrayList<>();
+        if (roots == null || roots.isEmpty()) return out;
+        java.util.Set<UUID> rootSet = new java.util.HashSet<>(roots);
+        for (Placed p : placedIn(scene, typeId, env)) {
+            if (under(scene, p.id(), rootSet) || (p.ownerId() != null && under(scene, p.ownerId(), rootSet))) {
+                out.add(new SceneObjectView(p.id(), p.name(), p.cell(), p.world(), p.data(), p.hidden()));
+            }
+        }
+        return out;
+    }
+
+    private static boolean under(Scene scene, UUID id, java.util.Set<UUID> roots) {
+        for (Node n = scene.byId(id); n != null; n = n.parent()) if (roots.contains(n.id())) return true;
+        return false;
+    }
+
     /** The objects of a type in a scene: one view per placed copy (the base copy first, then the array copies). */
     public static List<SceneObjectView> viewsIn(Scene scene, String typeId) {
         return viewsIn(scene, typeId, null);

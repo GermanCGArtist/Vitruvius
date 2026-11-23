@@ -1123,6 +1123,7 @@ public final class PropertiesWindow {
     private static Vec3i sizeOfNode(EditorSession s, Node n) {
         if (n instanceof ObjectNode o) return s.sizeOf(o);
         if (n instanceof AssemblyNode a) return s.assemblySize(a);
+        if (n instanceof dev.vitruvius.editor.core.ExternalNode x) return dev.vitruvius.api.ObjectTypes.sizeOf(x);   // one copy, not the array's union
         Box b = boxOf(s, List.of(n.id()));
         return b == null ? null : b.size();
     }
