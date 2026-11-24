@@ -30,7 +30,7 @@ public final class Compat {
      * updated while a screen handles the click, so it stays false inside menus.
      */
     public static boolean leftDown() {
-        return dev.cg.uihost.UiHost.isMouseDown(GLFW.GLFW_MOUSE_BUTTON_LEFT);
+        return dev.liskov.ui.host.LiskovUiHost.isMouseDown(GLFW.GLFW_MOUSE_BUTTON_LEFT);
     }
 
     /**

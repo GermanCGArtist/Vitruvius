@@ -1,6 +1,6 @@
 package dev.vitruvius.editor.view;
 
-import dev.cg.uihost.Theme;
+import dev.liskov.ui.theme.MubTheme;
 import imgui.ImGui;
 import imgui.flag.ImGuiCond;
 import imgui.flag.ImGuiTreeNodeFlags;
@@ -93,7 +93,7 @@ final class FolderPicker {
         if (!ImGui.beginPopupModal(popup, null, ImGuiWindowFlags.NoSavedSettings)) return;
         Node sel = root.find(selected);
         Ui.smallDim("Selected");
-        Ui.colored(Theme.ACCENT, sel == null ? root.label : path(sel));
+        Ui.colored(MubTheme.ACCENT, sel == null ? root.label : path(sel));
         ImGui.separator();
 
         float footer = 118 * sc;
@@ -119,7 +119,7 @@ final class FolderPicker {
                 message = null;
             }
         }
-        if (message != null) Ui.colored(Theme.ERR, message);
+        if (message != null) Ui.colored(MubTheme.ERR, message);
         else if (!bottomHint.isEmpty()) Ui.smallDim(bottomHint);
 
         if (Ui.button("Choose##pick" + id, true, true, 140 * sc, null)) {

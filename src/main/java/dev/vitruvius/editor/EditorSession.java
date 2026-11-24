@@ -32,7 +32,6 @@ import dev.vitruvius.editor.ui.EditorActions;
 import dev.vitruvius.editor.ui.SelectionModel;
 import dev.vitruvius.editor.ui.ToastQueue;
 import dev.vitruvius.editor.ui.TreeModel;
-import fi.dy.masa.litematica.data.DataManager;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.phys.AABB;
@@ -115,7 +114,7 @@ public final class EditorSession {
     private Tool tool = Tool.SELECT;
 
     public boolean windowsHidden;
-    public boolean showScene = true, showProperties = true, showTopView = true, showShape, showChat, showHistory;
+    public boolean showScene = true, showProperties = true, showTopView = true, showShape, showChat;
     /** Snapping toolbar toggle (Ctrl inverts it while dragging). Saved in the UI config. */
     public boolean snap;
     /** Local view is on (see {@link #toggleLocalView()}); runtime only. */
@@ -146,13 +145,13 @@ public final class EditorSession {
     private List<Overlaps.Overlap> overlapList = List.of();
 
     private final Properties config = new Properties();
-    private final Path configFile = FabricLoader.getInstance().getConfigDir().resolve("vitruvius").resolve("editor-ui.properties");
+    private final Path configFile = dev.vitruvius.VitruviusPaths.configDir().resolve("editor-ui.properties");
 
     private EditorSession() {
         actions = new EditorActions(this::undoStack, selection, new HostImpl());
         loadConfig();
-        dev.cg.uihost.Theme.Preset savedTheme = dev.cg.uihost.Theme.Preset.fromId(config.getProperty("theme", dev.cg.uihost.Theme.Preset.SYNTH_TERMINAL.id));
-        dev.cg.uihost.UiHost.setThemePreset(savedTheme);
+        dev.liskov.ui.theme.MubTheme.Preset savedTheme = dev.liskov.ui.theme.MubTheme.Preset.fromId(config.getProperty("theme", dev.liskov.ui.theme.MubTheme.Preset.SYNTH_TERMINAL.id));
+        dev.liskov.ui.host.LiskovUiHost.setThemePreset(savedTheme);
         dev.vitruvius.editor.view.Ui.syncTheme();
         snap = flag("snap", false);
         try {
@@ -170,9 +169,9 @@ public final class EditorSession {
     }
 
     /** Switches the active terminal theme preset and saves it in editor-ui.properties. */
-    public void setThemePreset(dev.cg.uihost.Theme.Preset preset) {
+    public void setThemePreset(dev.liskov.ui.theme.MubTheme.Preset preset) {
         if (preset == null) return;
-        dev.cg.uihost.UiHost.setThemePreset(preset);
+        dev.liskov.ui.host.LiskovUiHost.setThemePreset(preset);
         dev.vitruvius.editor.view.Ui.syncTheme();
         config.setProperty("theme", preset.id);
         saveConfig();
@@ -283,11 +282,25 @@ public final class EditorSession {
         return toasts.add(level, text);
     }
 
+    /**
+     * A project was read again from disk (a version restored in Liskov's explorer): its old nodes are gone, so the
+     * undo history (which points at them), the selection and the cached sizes start over. Client thread.
+     */
+    public static void projectReplaced(ProjectNode fresh) {
+        EditorSession s = instance;
+        if (s == null) return;
+        if (s.ctx != null) s.undo = new UndoStack(s.ctx);
+        s.selection.clear();
+        s.boxes = null;
+        s.lasms.clear();
+        s.toast(ToastQueue.Level.INFO, "Loaded the restored version of \"" + fresh.name() + "\" (undo history cleared)");
+    }
+
     /** Makes the context follow the project manager's scene (it is replaced when a world is entered). */
     private void sync() {
         Scene now = pm.scene();
         if (now == scene) return;
-        if (schematicsDir == null) schematicsDir = DataManager.getSchematicsBaseDirectory().toAbsolutePath().normalize();
+        if (schematicsDir == null) schematicsDir = dev.vitruvius.VitruviusPaths.schematicsDir();
         scene = now;
         gizmo.cancel();
         if (localOwners != null) setLocalOwners(null);          // a new world: the filter's ids do not exist there
@@ -440,7 +453,7 @@ public final class EditorSession {
             toast(ToastQueue.Level.WARN, "Links go into a project: make one active first");
             return false;
         }
-        Path file = projectDir(other).resolve(ProjectLayout.PROJECT_FILE);
+        Path file = ProjectLayout.projectFile(projectDir(other));
         String link = LinkPaths.relativeLink(projectDir(proj), file);
         var cmd = new dev.vitruvius.editor.ops.LinkProject(parentId, -1, other, link, spawnBlock());
         return runLink(cmd, cmd.assemblyId(), other.name());
@@ -506,7 +519,7 @@ public final class EditorSession {
             toast(ToastQueue.Level.WARN, "\"" + a.name() + "\" is not linked");
             return;
         }
-        if (target.getFileName().toString().equals(ProjectLayout.PROJECT_FILE)) {
+        if (ProjectLayout.isProjectFileName(target.getFileName().toString())) {
             try {
                 ProjectNode p = pm.open(target.getParent());
                 selection.set(p.id());
@@ -558,7 +571,7 @@ public final class EditorSession {
                 return dir.resolve(o.file()).normalize();
             }
             Path f = Path.of(o.file());
-            return f.isAbsolute() ? f.normalize() : schematicsDir.resolve(f).normalize();
+            return f.isAbsolute() ? dev.vitruvius.VitruviusPaths.remapLegacy(f.normalize()) : schematicsDir.resolve(f).normalize();
         } catch (RuntimeException e) {
             return null;
         }
@@ -804,8 +817,9 @@ public final class EditorSession {
                     return true;
                 }
                 case GLFW.GLFW_KEY_S -> {
-                    pm.saveAll();
-                    toast(ToastQueue.Level.INFO, "Saved all open projects");
+                    pm.checkpoint();
+                    for (ProjectNode sp : scene().projects()) dev.vitruvius.editor.sync.LiskovShare.get().checkpoint(sp);
+                    toast(ToastQueue.Level.INFO, "Saved all open projects (a version each in Liskov)");
                     return true;
                 }
                 case GLFW.GLFW_KEY_F -> {
@@ -915,18 +929,16 @@ public final class EditorSession {
 
         @Override
         public void syncPush(ProjectNode p) {
-            dev.vitruvius.editor.sync.SyncService.get().push(p);
+            dev.vitruvius.editor.sync.LiskovShare.get().push(p);
         }
 
         @Override
         public void syncShare(ProjectNode p) {
-            var svc = dev.vitruvius.editor.sync.SyncService.get();
+            var svc = dev.vitruvius.editor.sync.LiskovShare.get();
             if (p.sync() == ProjectNode.Sync.SHARED) {
                 svc.stopSharing(p);
-                toast(ToastQueue.Level.INFO, "Stopped tracking \"" + p.name() + "\". Its placements stay on the server; remove them in Syncmatica.s list.", null, null);
             } else {
                 svc.share(p);
-                toast(ToastQueue.Level.INFO, "\"" + p.name() + "\" is shared. Nothing is uploaded until you press Push.", null, null);
             }
         }
 
@@ -967,7 +979,8 @@ public final class EditorSession {
 
         @Override
         public void saveAll() {
-            pm.saveAll();
+            pm.checkpoint();
+            for (ProjectNode sp : scene().projects()) dev.vitruvius.editor.sync.LiskovShare.get().checkpoint(sp);
         }
 
         @Override

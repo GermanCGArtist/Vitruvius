@@ -1,7 +1,7 @@
 package dev.vitruvius.editor.view;
 
-import dev.cg.uihost.Theme;
-import dev.cg.uihost.UiHost;
+import dev.liskov.ui.theme.MubTheme;
+import dev.liskov.ui.host.LiskovUiHost;
 import dev.vitruvius.editor.EditorSession;
 import dev.vitruvius.editor.ui.ToastQueue;
 import dev.vitruvius.editor.ui.ToastQueue.Toast;
@@ -30,7 +30,7 @@ public final class Toasts {
         float right = vp.getPosX() + vp.getSizeX() - 12 * sc;
         float y = vp.getPosY() + vp.getSizeY() - 24 * sc - 12 * sc;
         float mx = ImGui.getMousePosX(), my = ImGui.getMousePosY();
-        Theme.push(UiHost.theme().ui());
+        MubTheme.push(MubTheme.ui());
         Toast clicked = null;
         for (int i = list.size() - 1; i >= 0; i--) {
             Toast t = list.get(i);
@@ -47,9 +47,9 @@ public final class Toasts {
             if (over) hovered = t;
             float a = t.alpha();
             int bar = switch (t.level) {
-                case INFO -> Theme.ACCENT;
-                case WARN -> Theme.WARN;
-                case ERROR -> Theme.ERR;
+                case INFO -> MubTheme.ACCENT;
+                case WARN -> MubTheme.WARN;
+                case ERROR -> MubTheme.ERR;
             };
             float borderA = switch (t.level) {
                 case INFO -> 1f;
@@ -57,20 +57,20 @@ public final class Toasts {
                 case ERROR -> 0.7f;
             };
             int border = switch (t.level) {
-                case INFO -> Theme.BORDER_HI;
-                case WARN -> Theme.WARN;
-                case ERROR -> Theme.ERR;
+                case INFO -> MubTheme.BORDER_HI;
+                case WARN -> MubTheme.WARN;
+                case ERROR -> MubTheme.ERR;
             };
-            dl.addRectFilled(x0, y0, right, y, Theme.u32(Theme.BG, 0.96f * a), 0f);
-            dl.addRect(x0, y0, right, y, Theme.u32(border, borderA * a), 0f);
-            dl.addRectFilled(x0, y0, x0 + 3 * sc, y, Theme.u32(bar, a), 0f);
-            drawWrapped(dl, t.text, x0 + padX + 4 * sc, y0 + padY, wrapW, Theme.u32(Theme.FG, a));
+            dl.addRectFilled(x0, y0, right, y, MubTheme.u32(MubTheme.BG, 0.96f * a), 0f);
+            dl.addRect(x0, y0, right, y, MubTheme.u32(border, borderA * a), 0f);
+            dl.addRectFilled(x0, y0, x0 + 3 * sc, y, MubTheme.u32(bar, a), 0f);
+            drawWrapped(dl, t.text, x0 + padX + 4 * sc, y0 + padY, wrapW, MubTheme.u32(MubTheme.FG, a));
             if (t.hasAction()) {
                 float bx = right - actW - 6 * sc, by = y0 + (h - lineH) * 0.5f;
                 boolean hotBtn = over && mx >= bx - 4 * sc;
-                dl.addRectFilled(bx - 4 * sc, by - 2 * sc, right - 6 * sc, by + lineH + 2 * sc, Theme.u32(Theme.SEL, (hotBtn ? 1f : 0.7f) * a), 0f);
-                dl.addRect(bx - 4 * sc, by - 2 * sc, right - 6 * sc, by + lineH + 2 * sc, Theme.u32(Theme.ACCENT, a), 0f);
-                dl.addText(bx, by, Theme.u32(Theme.ACCENT, a), t.actionLabel.toUpperCase(java.util.Locale.ROOT));
+                dl.addRectFilled(bx - 4 * sc, by - 2 * sc, right - 6 * sc, by + lineH + 2 * sc, MubTheme.u32(MubTheme.SEL, (hotBtn ? 1f : 0.7f) * a), 0f);
+                dl.addRect(bx - 4 * sc, by - 2 * sc, right - 6 * sc, by + lineH + 2 * sc, MubTheme.u32(MubTheme.ACCENT, a), 0f);
+                dl.addText(bx, by, MubTheme.u32(MubTheme.ACCENT, a), t.actionLabel.toUpperCase(java.util.Locale.ROOT));
             }
             if (over && ImGui.isMouseClicked(0)) clicked = t;
             y = y0 - gap;

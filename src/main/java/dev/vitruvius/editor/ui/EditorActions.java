@@ -68,10 +68,10 @@ public final class EditorActions {
 
         void focusFilter();
 
-        /** Pushes a shared project to Syncmatica. */
+        /** Pushes a shared project to its server drive (Liskov). */
         default void syncPush(ProjectNode p) {}
 
-        /** Starts or stops sharing a project on Syncmatica. */
+        /** Shares a project on the server drive, or switches a shared one to a local copy. */
         default void syncShare(ProjectNode p) {}
 
         /** The block the camera orbits (where new objects of other mods are put); null when unknown. */

@@ -30,15 +30,15 @@ public final class MenuModel {
 
     public static final String LATER = "Coming in a later 2.0 alpha";
 
-    /** What the menus need to know about Syncmatica (set by the sync service; by default it is not installed). */
+    /** What the menus need to know about sharing (set by the share service, {@code LiskovShare}; by default it is off). */
     public interface SyncHook {
-        /** The mod is present: the Push and Share entries show at all. */
+        /** Sharing is available at all: the Push and Share entries show. */
         boolean installed();
 
-        /** Its API was found: Share and Push can work. */
+        /** Share and Push can work. */
         boolean usable();
 
-        /** There is a Syncmatica server connection right now. */
+        /** The player is on a server with a Liskov drive right now. */
         boolean connected();
 
         /** Why Push or Share cannot run now (shown as a tip), else empty. */
@@ -63,7 +63,7 @@ public final class MenuModel {
 
         @Override
         public String reason() {
-            return "Syncmatica is not installed";
+            return "Sharing is not available";
         }
     };
 
@@ -427,8 +427,8 @@ public final class MenuModel {
         SyncHook sh = sync;
         if (sh.installed()) {                                  // hidden without the mod (DESIGN 10.7)
             boolean shared = p.sync() == ProjectNode.Sync.SHARED;
-            if (shared) m.add(item("proj.push", "Push changes to Syncmatica", "", "sync", sh.usable() && sh.connected(), sh.reason().isEmpty() ? "Not connected" : sh.reason()));
-            m.add(item("proj.share", shared ? "Stop sharing" : "Share on Syncmatica", "", "sync", shared || sh.usable(), sh.reason().isEmpty() ? "Syncmatica is not usable" : sh.reason()));
+            if (shared) m.add(item("proj.push", "Push changes to the server", "", "sync", sh.usable() && sh.connected(), sh.reason().isEmpty() ? "Not connected" : sh.reason()));
+            m.add(item("proj.share", shared ? "Stop sharing (edit a local copy)" : "Share on this server", "", "sync", shared || sh.connected(), sh.reason().isEmpty() ? "Not connected" : sh.reason()));
             m.add(sep());
         }
         m.add(sub("Export", "export", List.of(item("export.zip", "Project (.zip)", "", "export"), item("export.bake", "Bake to one .litematic", "", "export"), item("export.manhattan", "Build job for Manhattan / LLM", "", "export"))));

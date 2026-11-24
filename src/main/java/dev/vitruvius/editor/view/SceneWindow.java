@@ -1,7 +1,7 @@
 package dev.vitruvius.editor.view;
 
-import dev.cg.uihost.Theme;
-import dev.cg.uihost.UiHost;
+import dev.liskov.ui.theme.MubTheme;
+import dev.liskov.ui.host.LiskovUiHost;
 import dev.vitruvius.editor.EditorSession;
 import dev.vitruvius.editor.core.ArrayCells;
 import dev.vitruvius.editor.core.ArrayModifier;
@@ -123,8 +123,8 @@ public final class SceneWindow {
         if (ImGui.inputTextWithHint("##filter", "filter... (Ctrl+F)", SEARCH)) tree.setSearch(SEARCH.get());
         ImGui.popStyleVar();
         float fh = ImGui.getItemRectSizeY(), fw = ImGui.getItemRectSizeX();
-        Theme.push(UiHost.theme().mono());
-        ImGui.getWindowDrawList().addText(sx + 8 * sc, sy + (fh - ImGui.getFontSize()) * 0.5f, Ui.c(Theme.ACCENT), ">");
+        MubTheme.push(MubTheme.mono());
+        ImGui.getWindowDrawList().addText(sx + 8 * sc, sy + (fh - ImGui.getFontSize()) * 0.5f, Ui.c(MubTheme.ACCENT), ">");
         ImGui.popFont();
         if (!SEARCH.isEmpty()) {
             float bx = sx + fw - 26 * sc;
@@ -133,8 +133,8 @@ public final class SceneWindow {
                 SEARCH.set("");
                 tree.setSearch("");
             }
-            Theme.push(UiHost.theme().monoS());
-            ImGui.getWindowDrawList().addText(bx + 2 * sc, sy + (fh - ImGui.getFontSize()) * 0.5f, Ui.c(ImGui.isItemHovered() ? Theme.ERR : Theme.GUTTER), "[×]");
+            MubTheme.push(MubTheme.monoS());
+            ImGui.getWindowDrawList().addText(bx + 2 * sc, sy + (fh - ImGui.getFontSize()) * 0.5f, Ui.c(ImGui.isItemHovered() ? MubTheme.ERR : MubTheme.GUTTER), "[×]");
             ImGui.popFont();
             ImGui.setCursorScreenPos(sx, sy + fh + ImGui.getStyle().getItemSpacingY());
         }
@@ -188,7 +188,7 @@ public final class SceneWindow {
         // ---- footer
         ImDrawList dl = ImGui.getWindowDrawList();
         float fx = ImGui.getWindowPosX() + 1, fy = ImGui.getCursorScreenPosY() + 3 * sc;
-        dl.addLine(fx, fy, fx + ImGui.getWindowWidth() - 2, fy, Ui.c(Theme.LINE2), 1f);
+        dl.addLine(fx, fy, fx + ImGui.getWindowWidth() - 2, fy, Ui.c(MubTheme.LINE2), 1f);
         ImGui.dummy(0, 8 * sc);
         float bw = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX()) * 0.5f;
         if (Ui.button("+ New project", true, true, bw, null) || s.newProjectRequest) {
@@ -261,12 +261,12 @@ public final class SceneWindow {
             ImGui.setCursorScreenPos(cx, y);
             boolean hit = ImGui.invisibleButton("##chip" + c, w, h);
             boolean on = c == tree.chip(), hot = ImGui.isItemHovered();
-            int fill = on ? (c == Chip.ISSUES ? Theme.ERR : Theme.SEL) : (hot ? Theme.SURFACE : Theme.BG);
+            int fill = on ? (c == Chip.ISSUES ? MubTheme.ERR : MubTheme.SEL) : (hot ? MubTheme.SURFACE : MubTheme.BG);
             float fillA = on && c == Chip.ISSUES ? 0.22f : 1f;
-            int brd = on ? (c == Chip.ISSUES ? Theme.ERR : Theme.ACCENT) : (hot ? Theme.BORDER_HI : Theme.LINE);
+            int brd = on ? (c == Chip.ISSUES ? MubTheme.ERR : MubTheme.ACCENT) : (hot ? MubTheme.BORDER_HI : MubTheme.LINE);
             dl.addRectFilled(cx, y, cx + w, y + h, Ui.c(fill, fillA), 0f);
             dl.addRect(cx, y, cx + w, y + h, Ui.c(brd), 0f);
-            int rgb = on ? (c == Chip.ISSUES ? Theme.ERR : Theme.ACCENT) : hot ? Theme.FG : Theme.DIM;
+            int rgb = on ? (c == Chip.ISSUES ? MubTheme.ERR : MubTheme.ACCENT) : hot ? MubTheme.FG : MubTheme.DIM;
             dl.addText(cx + 7 * sc, y + (h - ImGui.getFontSize()) * 0.5f, Ui.c(rgb), label);
             if (hit) tree.setChip(c);
             cx += w + gap;
@@ -291,7 +291,7 @@ public final class SceneWindow {
         boolean noProjects = s.scene().projects().isEmpty() && s.scene().loose().children().isEmpty();
         if (tree.isFiltering()) {
             ImGui.dummy(0, 24 * sc);
-            centered("Nothing matches u201c" + (tree.search().isBlank() ? tree.chip().name().toLowerCase(Locale.ROOT) : tree.search()) + "u201d.", Theme.DIM);
+            centered("Nothing matches u201c" + (tree.search().isBlank() ? tree.chip().name().toLowerCase(Locale.ROOT) : tree.search()) + "u201d.", MubTheme.DIM);
             ImGui.dummy(0, 6 * sc);
             float cw = 120 * sc;
             ImGui.setCursorPosX((ImGui.getWindowWidth() - cw) * 0.5f);
@@ -304,7 +304,7 @@ public final class SceneWindow {
         }
         if (noProjects && !tree.isFiltering()) {
             ImGui.dummy(0, 30 * sc);
-            centered("No projects open.", Theme.DIM);
+            centered("No projects open.", MubTheme.DIM);
             ImGui.dummy(0, 6 * sc);
             float bw = 150 * sc;
             ImGui.setCursorPosX((ImGui.getWindowWidth() - bw) * 0.5f);
@@ -340,9 +340,9 @@ public final class SceneWindow {
             ImGui.pushID("legacy:" + e.id());
             ImGui.invisibleButton("##legacyrow", w, rowH);
             boolean hovered = ImGui.isItemHovered();
-            if (hovered) dl.addRectFilled(x0, y0, x0 + w, y0 + rowH, Ui.c(Theme.SURFACE), 0f);
+            if (hovered) dl.addRectFilled(x0, y0, x0 + w, y0 + rowH, Ui.c(MubTheme.SURFACE), 0f);
             float tx = x0 + 14 * sc, iconCx = tx + 16 * sc + 2 * sc + 7 * sc, nameX = iconCx + 7 * sc + 6 * sc;
-            EditorIcons.draw(dl, "areas", iconCx, y0 + rowH * 0.5f, 7 * sc, Ui.c(Theme.GUTTER, 0.8f));
+            EditorIcons.draw(dl, "areas", iconCx, y0 + rowH * 0.5f, 7 * sc, Ui.c(MubTheme.GUTTER, 0.8f));
             float fh = ImGui.getFontSize();
             // right to left: the show/hide toggle, the cutaway ("slice") button when the entry has one, the 1.x tag
             String vis = e.isRenderingEnabled() ? "Shown" : "Hidden";
@@ -366,27 +366,27 @@ public final class SceneWindow {
                 if (cutHot) ImGui.setTooltip("Terrain slice: ON (cut the terrain), WIREFRAME (outline only) or OFF. Click for the next.");
             }
             float rightEdge = rx - 8 * sc;
-            dl.addText(nameX, y0 + (rowH - fh) * 0.5f, Ui.c(Theme.DIM, e.isRenderingEnabled() ? 1f : 0.6f), Ui.fitEnd(e.name(), Math.max(20 * sc, rightEdge - nameX)));
+            dl.addText(nameX, y0 + (rowH - fh) * 0.5f, Ui.c(MubTheme.DIM, e.isRenderingEnabled() ? 1f : 0.6f), Ui.fitEnd(e.name(), Math.max(20 * sc, rightEdge - nameX)));
             if (hovered && !ImGui.isAnyItemActive()) ImGui.setTooltip("Added by another mod (1.x list). Its other settings live in Litematica's placement list.");
             ImGui.popID();
         }
     }
 
     private static void legacyChip(ImDrawList dl, float x, float y, float w, float h, String text, boolean on, boolean hot, float sc) {
-        dl.addRectFilled(x, y, x + w, y + h, Ui.c(on ? Theme.SEL : (hot ? Theme.SURFACE : Theme.BG)), 0f);
-        dl.addRect(x, y, x + w, y + h, Ui.c(on ? Theme.ACCENT : (hot ? Theme.BORDER_HI : Theme.LINE)), 0f);
-        dl.addText(x + 7 * sc, y + (h - ImGui.getFontSize()) * 0.5f, Ui.c(on ? Theme.ACCENT : Theme.DIM), text);
+        dl.addRectFilled(x, y, x + w, y + h, Ui.c(on ? MubTheme.SEL : (hot ? MubTheme.SURFACE : MubTheme.BG)), 0f);
+        dl.addRect(x, y, x + w, y + h, Ui.c(on ? MubTheme.ACCENT : (hot ? MubTheme.BORDER_HI : MubTheme.LINE)), 0f);
+        dl.addText(x + 7 * sc, y + (h - ImGui.getFontSize()) * 0.5f, Ui.c(on ? MubTheme.ACCENT : MubTheme.DIM), text);
     }
 
     private static int iconColor(Kind k) {
         return switch (k) {
-            case PROJECT -> Theme.ACCENT;
+            case PROJECT -> MubTheme.ACCENT;
             case FOLDER -> Ui.T_FOLDER;
             case OBJECT, ASSEMBLY -> Ui.T_OBJECT;
             case LINKED_ASSEMBLY -> Ui.LINK;
             case AREA -> Ui.AREA;
             case CUTTER -> Ui.BOOL;
-            case LOOSE -> Theme.GUTTER;
+            case LOOSE -> MubTheme.GUTTER;
         };
     }
 
@@ -413,15 +413,15 @@ public final class SceneWindow {
         List<Badge> out = new ArrayList<>();
         Node n = r.node();
         if (n instanceof ProjectNode p) {
-            if (p.active()) out.add(new Badge("", "ACTIVE", Theme.ACCENT, 1f, Theme.ON_ACCENT, true, "The active project: new objects go here", false));
-            if (p.sync() == ProjectNode.Sync.SHARED) out.add(new Badge("", "", Theme.OK, 1f, Theme.OK, false, "Shared on Syncmatica", true));
+            if (p.active()) out.add(new Badge("", "ACTIVE", MubTheme.ACCENT, 1f, MubTheme.ON_ACCENT, true, "The active project: new objects go here", false));
+            if (p.sync() == ProjectNode.Sync.SHARED) out.add(new Badge("", "", MubTheme.OK, 1f, MubTheme.OK, false, "Shared on the server drive", true));
             return out;
         }
         if (r.missing() && n instanceof ExternalNode x) {
-            out.add(new Badge("", "MOD", Theme.GUTTER, 0.3f, Theme.DIM, true, "Missing mod: " + x.typeId() + " is not installed. The object keeps its data "
+            out.add(new Badge("", "MOD", MubTheme.GUTTER, 0.3f, MubTheme.DIM, true, "Missing mod: " + x.typeId() + " is not installed. The object keeps its data "
                     + "and can still be moved, hidden and deleted.", false));
         } else if (r.missing()) {
-            out.add(new Badge("", "!", Theme.ERR, 0.2f, Theme.ERR, true, "Placement not found. Litematica no longer has this placement. It comes back "
+            out.add(new Badge("", "!", MubTheme.ERR, 0.2f, MubTheme.ERR, true, "Placement not found. Litematica no longer has this placement. It comes back "
                     + "when the placement does; Delete removes it from the scene.", false));
         }
         if (n instanceof AssemblyNode a && a.isLinked()) {
@@ -444,18 +444,18 @@ public final class SceneWindow {
             }
             boolean arrOn = arrays.stream().anyMatch(a -> a.enabled);
             String text = arrays.isEmpty() ? "" : "×" + (arrays.stream().filter(a -> a.enabled).count() == 0 ? arrays.get(0).count : ArrayCells.copyCountOf(arrays) + 1);
-            out.add(new Badge(arrays.isEmpty() ? "cutter" : "array", text, arrays.isEmpty() ? (boolOn ? Ui.BOOL : Theme.GUTTER) : (arrOn ? Theme.ACCENT : Theme.GUTTER),
+            out.add(new Badge(arrays.isEmpty() ? "cutter" : "array", text, arrays.isEmpty() ? (boolOn ? Ui.BOOL : MubTheme.GUTTER) : (arrOn ? MubTheme.ACCENT : MubTheme.GUTTER),
                     1f, 0, true, tip.toString(), anyBool && !arrays.isEmpty()));
         }
         if (n instanceof HasFront f && !s.overlapsOf(n.id()).isEmpty()) {
-            out.add(new Badge("", f.front() > 0 ? "P" + f.front() : "P-", Theme.FG, 0.12f, Theme.FG, true,
+            out.add(new Badge("", f.front() > 0 ? "P" + f.front() : "P-", MubTheme.FG, 0.12f, MubTheme.FG, true,
                     "Front order, not tree order, decides which object keeps overlapping blocks.", false));
         }
         var di = dev.vitruvius.editor.mc.DerivedFiles.shared().infoOf(n.id());
         if (di != null && di.status() == dev.vitruvius.editor.mc.DerivedFiles.Status.FAILED) {
-            out.add(new Badge("", "!", Theme.ERR, 0.2f, Theme.ERR, true, "The derived file failed: " + di.error(), false));
+            out.add(new Badge("", "!", MubTheme.ERR, 0.2f, MubTheme.ERR, true, "The derived file failed: " + di.error(), false));
         } else if (di != null && di.removed() > 0) {
-            out.add(new Badge("", String.format(Locale.ROOT, "−%,d", di.removed()), Theme.ERR, 0.15f, Theme.ERR, true,
+            out.add(new Badge("", String.format(Locale.ROOT, "−%,d", di.removed()), MubTheme.ERR, 0.15f, MubTheme.ERR, true,
                     "Blocks removed by objects in front and Booleans", false));
         }
         return out;
@@ -463,7 +463,7 @@ public final class SceneWindow {
 
     private static float badgeWidth(Badge b, float sc) {
         if (b.dot()) return 7 * sc;
-        Theme.push(UiHost.theme().monoS());
+        MubTheme.push(MubTheme.monoS());
         float w = b.text().isEmpty() ? 0 : ImGui.calcTextSizeX(b.text());
         ImGui.popFont();
         if (!b.icon().isEmpty()) w += 11 * sc + (b.text().isEmpty() ? 0 : 3 * sc);
@@ -499,12 +499,12 @@ public final class SceneWindow {
 
         // ---- background
         if (selected) {
-            dl.addRectFilled(x0, y0, x0 + w, y0 + rowH, Ui.c(Theme.SEL, active ? 1f : 0.65f), 0f);
-            if (active) dl.addRectFilled(x0, y0, x0 + 2 * sc, y0 + rowH, Ui.c(Theme.ACCENT), 0f);
+            dl.addRectFilled(x0, y0, x0 + w, y0 + rowH, Ui.c(MubTheme.SEL, active ? 1f : 0.65f), 0f);
+            if (active) dl.addRectFilled(x0, y0, x0 + 2 * sc, y0 + rowH, Ui.c(MubTheme.ACCENT), 0f);
         } else if (owner) {
-            dl.addRectFilled(x0, y0, x0 + w, y0 + rowH, Ui.c(Theme.SEL, 0.35f), 0f);
+            dl.addRectFilled(x0, y0, x0 + w, y0 + rowH, Ui.c(MubTheme.SEL, 0.35f), 0f);
         } else if (hovered && dragIds == null) {
-            dl.addRectFilled(x0, y0, x0 + w, y0 + rowH, Ui.c(Theme.SURFACE), 0f);
+            dl.addRectFilled(x0, y0, x0 + w, y0 + rowH, Ui.c(MubTheme.SURFACE), 0f);
         }
 
         // ---- input: press
@@ -520,13 +520,13 @@ public final class SceneWindow {
 
         // ---- twisty
         if (r.container() && r.hasChildren()) {
-            EditorIcons.draw(dl, r.open() ? "chevdown" : "chev", tx + 8 * sc, y0 + rowH * 0.5f, 5 * sc, Ui.c(Theme.GUTTER));
+            EditorIcons.draw(dl, r.open() ? "chevdown" : "chev", tx + 8 * sc, y0 + rowH * 0.5f, 5 * sc, Ui.c(MubTheme.GUTTER));
         }
 
         // ---- icon
         float alpha = r.hidden() ? 0.45f : 1f;
-        int ic = r.locked() ? Theme.GUTTER : iconColor(r.kind());
-        if (selected && !r.locked()) ic = r.kind() == Kind.PROJECT ? Theme.ACCENT : ic;
+        int ic = r.locked() ? MubTheme.GUTTER : iconColor(r.kind());
+        if (selected && !r.locked()) ic = r.kind() == Kind.PROJECT ? MubTheme.ACCENT : ic;
         EditorIcons.draw(dl, iconName(r.kind()), iconCx, y0 + rowH * 0.5f, 7 * sc, Ui.c(ic, alpha));
 
         // ---- right side: eye / lock, then badges
@@ -534,11 +534,11 @@ public final class SceneWindow {
         if (hasEye) {
             float ey = y0 + rowH * 0.5f;
             if (r.locked()) {
-                EditorIcons.draw(dl, "lock", eyeX + 10 * sc, ey, 7 * sc, Ui.c(Theme.GUTTER));
+                EditorIcons.draw(dl, "lock", eyeX + 10 * sc, ey, 7 * sc, Ui.c(MubTheme.GUTTER));
             } else {
                 boolean hot = hovered && inEye;
                 String icon = n.hidden() ? "eyeoff" : "eye";
-                int rgb = hot ? Theme.FG : n.hidden() ? Theme.DIM : Theme.GUTTER;
+                int rgb = hot ? MubTheme.FG : n.hidden() ? MubTheme.DIM : MubTheme.GUTTER;
                 EditorIcons.draw(dl, icon, eyeX + 10 * sc, ey, 7 * sc, Ui.c(rgb));
                 if (hot) Ui.tooltip(n.hidden() ? "Show" : "Hide");
             }
@@ -566,9 +566,9 @@ public final class SceneWindow {
         }
 
         // ---- name
-        int nameRgb = r.missing() ? Theme.DIM : r.locked() || r.ancestorOnly() ? Theme.DIM : selected && active ? 0xffffff : Theme.FG;
+        int nameRgb = r.missing() ? MubTheme.DIM : r.locked() || r.ancestorOnly() ? MubTheme.DIM : selected && active ? 0xffffff : MubTheme.FG;
         float nameAlpha = r.missing() ? 0.6f : alpha;
-        Theme.push(bold(r.kind()) ? UiHost.theme().uiBold() : UiHost.theme().ui());
+        MubTheme.push(bold(r.kind()) ? MubTheme.uiBold() : MubTheme.ui());
         float fh = ImGui.getFontSize();
         float ty = y0 + (rowH - fh) * 0.5f;
         if (renaming != null && renaming.equals(n.id())) {
@@ -579,8 +579,8 @@ public final class SceneWindow {
                 renameFocus = false;
             }
             ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 6 * sc, 2 * sc);
-            ImGui.pushStyleColor(ImGuiCol.FrameBg, Ui.c(Theme.PANEL2));
-            ImGui.pushStyleColor(ImGuiCol.Border, Ui.c(Theme.ACCENT));
+            ImGui.pushStyleColor(ImGuiCol.FrameBg, Ui.c(MubTheme.PANEL2));
+            ImGui.pushStyleColor(ImGuiCol.Border, Ui.c(MubTheme.ACCENT));
             ImGui.pushStyleVar(ImGuiStyleVar.FrameBorderSize, 1f);
             boolean enter = ImGui.inputText("##rename", RENAME, ImGuiInputTextFlags.EnterReturnsTrue | ImGuiInputTextFlags.AutoSelectAll);
             boolean lost = ImGui.isItemDeactivated();
@@ -596,8 +596,8 @@ public final class SceneWindow {
             drawName(dl, n.name(), nameX, ty, Ui.c(nameRgb, nameAlpha), r, sc);
             if (r.projectName() != null) {
                 float nw = ImGui.calcTextSizeX(n.name());
-                Theme.push(UiHost.theme().small());
-                dl.addText(nameX + nw + 8 * sc, y0 + (rowH - ImGui.getFontSize()) * 0.5f, Ui.c(Theme.DIM), r.projectName());
+                MubTheme.push(MubTheme.small());
+                dl.addText(nameX + nw + 8 * sc, y0 + (rowH - ImGui.getFontSize()) * 0.5f, Ui.c(MubTheme.DIM), r.projectName());
                 ImGui.popFont();
             }
             dl.popClipRect();
@@ -636,7 +636,7 @@ public final class SceneWindow {
         }
         if (b.fill()) {
             boolean mods = !b.icon().isEmpty();
-            dl.addRectFilled(x, y, x + w, y + h, Ui.c(mods ? Theme.CHIP : b.rgb(), mods ? 1f : b.alpha()), 0f);
+            dl.addRectFilled(x, y, x + w, y + h, Ui.c(mods ? MubTheme.CHIP : b.rgb(), mods ? 1f : b.alpha()), 0f);
             dl.addRect(x, y, x + w, y + h, Ui.c(b.rgb(), mods ? 0.7f : 0.85f), 0f);
         }
         float cx = x + 5 * sc;
@@ -645,7 +645,7 @@ public final class SceneWindow {
             cx += 11 * sc + (b.text().isEmpty() ? 0 : 3 * sc);
         }
         if (!b.text().isEmpty()) {
-            Theme.push(UiHost.theme().monoS());
+            MubTheme.push(MubTheme.monoS());
             int rgb = b.textRgb() != 0 ? b.textRgb() : b.rgb();
             dl.addText(cx, y + (h - ImGui.getFontSize()) * 0.5f, Ui.c(rgb), b.text());
             ImGui.popFont();
@@ -661,7 +661,7 @@ public final class SceneWindow {
         String a = name.substring(0, r.matchStart()), m = name.substring(r.matchStart(), r.matchStart() + r.matchLen()), z = name.substring(r.matchStart() + r.matchLen());
         dl.addText(x, y, col, a);
         float ax = x + ImGui.calcTextSizeX(a);
-        dl.addText(ax, y, Ui.c(Theme.ACCENT), m);
+        dl.addText(ax, y, Ui.c(MubTheme.ACCENT), m);
         dl.addText(ax + ImGui.calcTextSizeX(m), y, col, z);
     }
 
@@ -681,10 +681,10 @@ public final class SceneWindow {
             return;
         }
         // the host's own key state as well as ImGui's: ImGui's modifier flags are not always set by the host's input
-        boolean shift = io.getKeyShift() || dev.cg.uihost.UiHost.isKeyDown(org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT_SHIFT) || dev.cg.uihost.UiHost.isKeyDown(org.lwjgl.glfw.GLFW.GLFW_KEY_RIGHT_SHIFT);
-        boolean ctrl = io.getKeyCtrl() || io.getKeySuper() || dev.cg.uihost.UiHost.isKeyDown(org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT_CONTROL)
-                || dev.cg.uihost.UiHost.isKeyDown(org.lwjgl.glfw.GLFW.GLFW_KEY_RIGHT_CONTROL) || dev.cg.uihost.UiHost.isKeyDown(org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT_SUPER)
-                || dev.cg.uihost.UiHost.isKeyDown(org.lwjgl.glfw.GLFW.GLFW_KEY_RIGHT_SUPER);
+        boolean shift = io.getKeyShift() || dev.liskov.ui.host.LiskovUiHost.isKeyDown(org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT_SHIFT) || dev.liskov.ui.host.LiskovUiHost.isKeyDown(org.lwjgl.glfw.GLFW.GLFW_KEY_RIGHT_SHIFT);
+        boolean ctrl = io.getKeyCtrl() || io.getKeySuper() || dev.liskov.ui.host.LiskovUiHost.isKeyDown(org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT_CONTROL)
+                || dev.liskov.ui.host.LiskovUiHost.isKeyDown(org.lwjgl.glfw.GLFW.GLFW_KEY_RIGHT_CONTROL) || dev.liskov.ui.host.LiskovUiHost.isKeyDown(org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT_SUPER)
+                || dev.liskov.ui.host.LiskovUiHost.isKeyDown(org.lwjgl.glfw.GLFW.GLFW_KEY_RIGHT_SUPER);
         if (shift) s.selection.range(order, n.id());                          // Shift: a range, as in a file manager
         else if (ctrl) s.selection.toggle(n.id());                            // Ctrl: add or remove one
         else if (s.selection.isSelected(n.id()) && s.selection.size() > 1) deferredSelect = n.id();
@@ -723,16 +723,16 @@ public final class SceneWindow {
             TreeRules.Plan plan = TreeRules.plan(s.context(), dragIds, n, zone);
             ImDrawList dl = ImGui.getWindowDrawList();
             if (!plan.valid()) {
-                dl.addRectFilled(x0, y0, x0 + w, y0 + rowH, Ui.c(Theme.ERR, 0.14f), 0f);
-                UiHost.setCursor(UiHost.Cursor.NOT_ALLOWED);
+                dl.addRectFilled(x0, y0, x0 + w, y0 + rowH, Ui.c(MubTheme.ERR, 0.14f), 0f);
+                LiskovUiHost.setCursor(LiskovUiHost.Cursor.NOT_ALLOWED);
                 ImGui.beginTooltip();
-                ImGui.pushStyleColor(ImGuiCol.Text, Ui.c(Theme.ERR));
+                ImGui.pushStyleColor(ImGuiCol.Text, Ui.c(MubTheme.ERR));
                 ImGui.text(plan.refusal() == null ? "Cannot drop here" : plan.refusal());
                 ImGui.popStyleColor();
                 ImGui.endTooltip();
             } else if (zone == TreeRules.Zone.INTO) {
-                dl.addRectFilled(x0, y0, x0 + w, y0 + rowH, Ui.c(Theme.SEL, 0.65f), 0f);
-                dl.addRect(x0, y0, x0 + w, y0 + rowH, Ui.c(Theme.ACCENT), 0f);
+                dl.addRectFilled(x0, y0, x0 + w, y0 + rowH, Ui.c(MubTheme.SEL, 0.65f), 0f);
+                dl.addRect(x0, y0, x0 + w, y0 + rowH, Ui.c(MubTheme.ACCENT), 0f);
                 if (r.container() && r.hasChildren() && !tree.isOpen(n)) {
                     if (!n.id().equals(expandCandidate)) {
                         expandCandidate = n.id();
@@ -744,8 +744,8 @@ public final class SceneWindow {
             } else {
                 float ly = zone == TreeRules.Zone.BEFORE ? y0 : y0 + rowH;
                 float lx = x0 + indent + 18 * sc;
-                dl.addLine(lx, ly, x0 + w, ly, Ui.c(Theme.ACCENT), 2f);
-                dl.addCircle(lx, ly, 3 * sc, Ui.c(Theme.ACCENT), 12, 1.5f);
+                dl.addLine(lx, ly, x0 + w, ly, Ui.c(MubTheme.ACCENT), 2f);
+                dl.addCircle(lx, ly, 3 * sc, Ui.c(MubTheme.ACCENT), 12, 1.5f);
             }
             if (zone != TreeRules.Zone.INTO) expandCandidate = null;
             if (ImGui.isMouseReleased(0)) {
@@ -794,19 +794,19 @@ public final class SceneWindow {
 
     // ------------------------------------------------------------------------------------------ modals
 
-    /** "Shared projects": the [LA2] manifests Syncmatica lists on the server; a click downloads and opens one. */
+    /** "Shared projects": the projects on the server's Liskov drive; a click downloads (what is missing) and opens one. */
     private static void drawSharedProjects(EditorSession s) {
-        var sync = dev.vitruvius.editor.sync.SyncService.get();
+        var sync = dev.vitruvius.editor.sync.LiskovShare.get();
         if (!sync.installed()) return;
         float sc = Ui.s();
         ImGui.dummy(0, 4 * sc);
-        Ui.label("Shared projects (Syncmatica)");
+        Ui.label("Shared projects (server drive)");
         if (!sync.usable()) {
             Ui.dim(sync.reason());
             return;
         }
         if (!sync.connected()) {
-            Ui.dim("Not connected to a server with Syncmatica.");
+            Ui.dim("Not connected to a server with Liskov.");
             return;
         }
         var list = sync.sharedProjectList();
@@ -817,9 +817,9 @@ public final class SceneWindow {
         }
         ImGui.beginChild("##sharedlist", 320 * sc, Math.min(160 * sc, Math.max(40 * sc, list.size() * 28 * sc)), true);
         for (var r : list) {
-            String name = dev.vitruvius.editor.sync.SyncManifest.projectName(r.name());
-            if (ImGui.selectable(name + "##shared" + r.id()) && !sync.receiving()) {
-                sync.receive(r, s.schematicsDir());
+            String name = r.name() + "  (v" + r.version() + (r.author().isBlank() ? "" : ", " + r.author()) + ")";
+            if (ImGui.selectable(name + "##shared" + r.relativePath()) && !sync.receiving()) {
+                sync.receive(r);
                 ImGui.closeCurrentPopup();
             }
         }
@@ -969,11 +969,11 @@ public final class SceneWindow {
         }
         Path root = s.schematicsDir().resolve("Projects");
         try (Stream<Path> st = Files.list(root)) {
-            st.filter(Files::isDirectory).filter(d -> Files.exists(d.resolve("project.json"))).sorted().forEach(d -> {
+            st.filter(Files::isDirectory).filter(dev.vitruvius.editor.io.ProjectLayout::isProjectDir).sorted().forEach(d -> {
                 Path abs = d.toAbsolutePath().normalize();
                 if (seen.contains(abs) || (own != null && s.projectDir(own).equals(abs))) return;
                 try {
-                    out.add(dev.vitruvius.editor.io.ProjectIo.read(d.resolve("project.json")));
+                    out.add(dev.vitruvius.editor.io.ProjectIo.read(dev.vitruvius.editor.io.ProjectLayout.projectFile(d)));
                 } catch (IOException | RuntimeException ignored) {
                     // an unreadable project cannot be linked
                 }
@@ -1017,12 +1017,12 @@ public final class SceneWindow {
         }
     }
 
-    /** The folders in schematics/Projects that hold a project.json and are not open. */
+    /** The folders in schematics/Projects that hold a project file and are not open. */
     private static List<String> listProjects(EditorSession s) {
         List<String> out = new ArrayList<>();
         Path root = s.schematicsDir().resolve("Projects");
         try (Stream<Path> st = Files.list(root)) {
-            st.filter(Files::isDirectory).filter(d -> Files.exists(d.resolve("project.json"))).sorted(Comparator.comparing(d -> d.getFileName().toString().toLowerCase(Locale.ROOT)))
+            st.filter(Files::isDirectory).filter(dev.vitruvius.editor.io.ProjectLayout::isProjectDir).sorted(Comparator.comparing(d -> d.getFileName().toString().toLowerCase(Locale.ROOT)))
                     .forEach(d -> {
                         boolean open = false;
                         for (ProjectNode p : s.scene().projects()) {

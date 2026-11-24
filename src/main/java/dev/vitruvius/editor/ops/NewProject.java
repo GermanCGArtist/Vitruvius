@@ -9,8 +9,8 @@ import dev.vitruvius.editor.io.ProjectLayout;
 import java.util.UUID;
 
 /**
- * Creates a project: {@code Projects/<name>/project.json} is written (a free folder name is chosen) and the project
- * is opened and made active. Undo closes it and moves the {@code project.json} to {@code .trash}.
+ * Creates a project: {@code Projects/<name>/project.vproj} is written (a free folder name is chosen) and the project
+ * is opened and made active. Undo closes it and moves the {@code project.vproj} to {@code .trash}.
  */
 public final class NewProject extends BaseCommand {
     private final String name;
@@ -39,7 +39,8 @@ public final class NewProject extends BaseCommand {
 
     /** The folder of the new project; once chosen it stays the same for redo, as long as it is still free. */
     static String freeProjectPath(EditContext ctx, String name, String chosen) {
-        if (chosen != null && !ctx.fs().exists(FileSystemPort.join(chosen, ProjectLayout.PROJECT_FILE))) return chosen;
+        if (chosen != null && !ctx.fs().exists(FileSystemPort.join(chosen, ProjectLayout.PROJECT_FILE))
+                && !ctx.fs().exists(FileSystemPort.join(chosen, ProjectLayout.LEGACY_PROJECT_FILE))) return chosen;
         String folder = ProjectLayout.uniqueName(name, n -> ctx.fs().exists(FileSystemPort.join(ProjectLayout.PROJECTS_DIR, n)));
         return FileSystemPort.join(ProjectLayout.PROJECTS_DIR, folder);
     }

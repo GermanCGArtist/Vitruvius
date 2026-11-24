@@ -1,7 +1,7 @@
 package dev.vitruvius.editor;
 
-import dev.cg.uihost.UiHost;
-import dev.cg.uihost.UiLayer;
+import dev.liskov.ui.host.LiskovUiHost;
+import dev.liskov.ui.host.UiLayer;
 import dev.vitruvius.editor.cam.EditorCamera;
 import dev.vitruvius.editor.mc.Picking;
 import dev.vitruvius.editor.view.ChatWindow;
@@ -22,7 +22,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * The editor's cg-uihost layer: draws the editor UI and routes input while editor mode is on.
+ * The editor's Liskov UI layer: draws the editor UI and routes input while editor mode is on.
  * <ul>
  *   <li>Drawing: a dock space over the main viewport with a transparent, pass-through central node (the game shows
  *       through and the mouse there belongs to the viewport), the Scene and Properties windows, the toolbar and
@@ -78,7 +78,6 @@ public final class EditorInputLayer implements UiLayer {
             if (s.showTopView) TopViewWindow.draw(s);
             if (s.showShape) ShapeWindow.draw(s);
             if (s.showChat) ChatWindow.draw(s);
-            if (s.showHistory) dev.vitruvius.editor.view.HistoryWindow.draw(s);
         }
         s.resetLayout = false;
         EditorChrome.draw(s);
@@ -98,7 +97,7 @@ public final class EditorInputLayer implements UiLayer {
         }
         ContextMenus.draw(s);
 
-        if ((++frame & 1) == 0) Picking.updateHover(mc, UiHost.imguiWantsMouse() || s.gizmo.owningMouse() || s.boxEdit.owningMouse());
+        if ((++frame & 1) == 0) Picking.updateHover(mc, LiskovUiHost.imguiWantsMouse() || s.gizmo.owningMouse() || s.boxEdit.owningMouse());
         WorldOverlay.drawTags();
         WorldOverlay.drawOverlapLabels();
         Toasts.draw(s);
@@ -110,8 +109,8 @@ public final class EditorInputLayer implements UiLayer {
     @Override
     public boolean wantsKey(int key, int scancode, int action, int mods) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.gui.screen() != null) return UiHost.imguiWantsKeyboard();       // chat: it gets the keys
-        if (UiHost.imguiWantsTextInput()) return true;                    // a text field is active
+        if (mc.gui.screen() != null) return LiskovUiHost.imguiWantsKeyboard();       // chat: it gets the keys
+        if (LiskovUiHost.imguiWantsTextInput()) return true;                    // a text field is active
         return !EditorMode.passesToVanilla(mc, key, scancode, mods);
     }
 
@@ -120,7 +119,7 @@ public final class EditorInputLayer implements UiLayer {
         Minecraft mc = Minecraft.getInstance();
         if (mc.gui.screen() != null || mc.player == null) return;
         if (action != GLFW.GLFW_PRESS && !(action == GLFW.GLFW_REPEAT && key == GLFW.GLFW_KEY_BACKSPACE)) return;   // Backspace repeats in a typed transform
-        if (UiHost.imguiWantsTextInput()) return;                         // typing in a field: no shortcut fires
+        if (LiskovUiHost.imguiWantsTextInput()) return;                         // typing in a field: no shortcut fires
         if (EditorCamera.get().isFlying()) return;                        // fly keys only
         EditorSession s = null;
         try {
@@ -145,17 +144,26 @@ public final class EditorInputLayer implements UiLayer {
 
     // ------------------------------------------------------------------ mouse
 
+    /**
+     * Keeps the mouse free while editor mode is on: Liskov then cancels {@code MouseHandler.grabMouse()} (closing chat,
+     * regaining window focus) and player turning. {@link EditorMode#exit} clears the flag first, so its own grab goes through.
+     */
+    @Override
+    public boolean blocksMouseGrab() {
+        return EditorMode.isActive();
+    }
+
     @Override
     public boolean wantsMouse() {
         // with chat open the mouse belongs to chat, unless the pointer is over an editor window
-        return Minecraft.getInstance().gui.screen() == null || UiHost.imguiWantsMouse();
+        return Minecraft.getInstance().gui.screen() == null || LiskovUiHost.imguiWantsMouse();
     }
 
     @Override
     public void onMouseButton(int button, int action, int mods) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.gui.screen() != null && action == GLFW.GLFW_PRESS) return;
-        boolean overUi = UiHost.imguiWantsMouse();
+        boolean overUi = LiskovUiHost.imguiWantsMouse();
         EditorSession s = null;
         try {
             s = EditorSession.get();
@@ -190,7 +198,7 @@ public final class EditorInputLayer implements UiLayer {
 
     @Override
     public void onScroll(double dx, double dy) {
-        if (UiHost.imguiWantsMouse()) return;                              // over a window: it scrolls
+        if (LiskovUiHost.imguiWantsMouse()) return;                              // over a window: it scrolls
         Minecraft mc = Minecraft.getInstance();
         if (mc.gui.screen() != null) return;
         EditorCamera.get().onScroll(mc, dy);

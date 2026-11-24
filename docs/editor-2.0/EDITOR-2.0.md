@@ -110,6 +110,10 @@ VitruviusApi.objectsOfType(String typeId) -> List<SceneObjectView> // world tran
 The `API_VERSION` goes to 2. The 1.5 list-entry API keeps working: its entries show under Loose as read-only rows.
 
 ## 8. Syncmatica (M6)
+
+> Superseded in 2.0.0-alpha.46: sharing goes through Liskov server drives (see the editor guide, *Sharing on a
+> server*, and `LiskovShare`). The Syncmatica design below is kept for the record.
+
 - **Detection:** reflection only, so there's no compile dependency. If Syncmatica isn't present, the Push button is hidden.
 - **Push changes:**
   - Each visible cell is shared as a placement, using the derived file where one applies.

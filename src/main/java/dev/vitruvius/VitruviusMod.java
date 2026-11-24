@@ -11,8 +11,10 @@ public final class VitruviusMod implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         migrateOldConfig();   // the mod used to be called Litematica Array (id schemarray)
+        VitruviusPaths.fs();   // Liskov's filesystem (and its one-time copy of the old folders) before any setting is read
         EditorMode.init();   // F6 editor mode; needs no Litematica
         if (!FabricLoader.getInstance().isModLoaded("litematica")) return;
+        LiskovIntegration.init();
         dev.vitruvius.editor.world.WorldOverlay.init();
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
             Reconciler.onDisconnect();   // saves the open projects
@@ -25,6 +27,7 @@ public final class VitruviusMod implements ClientModInitializer {
                 System.out.println("[Vitruvius] editor failed: " + t);
             }
             try {
+                LiskovIntegration.tick(mc);
                 Folders.tick(mc);
             } catch (Throwable t) {
                 System.out.println("[Vitruvius] folders failed: " + t);

@@ -97,7 +97,7 @@ public final class Picking {
     // ------------------------------------------------------------------ events (from EditorInputLayer)
 
     private static double[] cursor(Minecraft mc) {
-        return new double[] {dev.cg.uihost.UiHost.cursorX(), dev.cg.uihost.UiHost.cursorY()};
+        return new double[] {dev.liskov.ui.host.LiskovUiHost.cursorX(), dev.liskov.ui.host.LiskovUiHost.cursorY()};
     }
 
     /** A left press on the viewport (not on an ImGui window). */

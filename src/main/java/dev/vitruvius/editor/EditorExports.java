@@ -55,7 +55,7 @@ public final class EditorExports {
         Path target = s.linkTarget(a, base);
         if (l == null || target == null) return null;
         String name = target.getFileName().toString();
-        if (name.equals(ProjectLayout.PROJECT_FILE) && target.getParent() != null) name = target.getParent().getFileName().toString();
+        if (ProjectLayout.isProjectFileName(name) && target.getParent() != null) name = target.getParent().getFileName().toString();
         else if (name.toLowerCase().endsWith(ProjectLayout.ASSEMBLY_EXT)) name = name.substring(0, name.length() - ProjectLayout.ASSEMBLY_EXT.length());
         return new ZipExport.LinkedFile(LinkPaths.identity(target), name, l.parts(), l.base());
     }

@@ -1,7 +1,7 @@
 package dev.vitruvius.editor.view;
 
-import dev.cg.uihost.Theme;
-import dev.cg.uihost.UiHost;
+import dev.liskov.ui.theme.MubTheme;
+import dev.liskov.ui.host.LiskovUiHost;
 import dev.vitruvius.editor.EditorSession;
 import dev.vitruvius.editor.core.Node;
 import dev.vitruvius.editor.ui.EditorActions;
@@ -93,8 +93,8 @@ public final class ContextMenus {
         ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, 4 * sc, 4 * sc);
         ImGui.pushStyleVar(ImGuiStyleVar.ItemSpacing, 8 * sc, 2 * sc);
         ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 8 * sc, 4.5f * sc);
-        ImGui.pushStyleColor(ImGuiCol.PopupBg, Ui.c(Theme.PANEL));
-        ImGui.pushStyleColor(ImGuiCol.Border, Ui.c(Theme.BORDER_HI));
+        ImGui.pushStyleColor(ImGuiCol.PopupBg, Ui.c(MubTheme.PANEL));
+        ImGui.pushStyleColor(ImGuiCol.Border, Ui.c(MubTheme.BORDER_HI));
         ImGui.setNextWindowSizeConstraints(240 * sc, 0, 4000, 4000);
         if (ImGui.beginPopup(POPUP, ImGuiWindowFlags.NoSavedSettings)) {
             s.popupOpen = true;
@@ -111,8 +111,8 @@ public final class ContextMenus {
             if (it.separator()) {
                 ImGui.separator();
             } else if (it.header()) {
-                Theme.push(UiHost.theme().small());
-                ImGui.pushStyleColor(ImGuiCol.Text, Ui.c(Theme.DIM));
+                MubTheme.push(MubTheme.small());
+                ImGui.pushStyleColor(ImGuiCol.Text, Ui.c(MubTheme.DIM));
                 ImGui.text(" " + it.label());
                 ImGui.popStyleColor();
                 ImGui.popFont();
@@ -128,7 +128,7 @@ public final class ContextMenus {
                 String refusal = refusals.get(it.id());
                 boolean enabled = it.enabled() && refusal == null;
                 float x = ImGui.getCursorScreenPosX(), y = ImGui.getCursorScreenPosY();
-                if (it.danger()) ImGui.pushStyleColor(ImGuiCol.Text, Ui.c(Theme.ERR));
+                if (it.danger()) ImGui.pushStyleColor(ImGuiCol.Text, Ui.c(MubTheme.ERR));
                 boolean hit = ImGui.menuItem(pad(it.label()), it.shortcut(), false, enabled);
                 if (it.danger()) ImGui.popStyleColor();
                 icon(it, x, y, ImGui.getItemRectSizeY());
@@ -159,7 +159,7 @@ public final class ContextMenus {
         if (it.icon().isEmpty()) return;
         float sc = Ui.s();
         ImDrawList dl = ImGui.getWindowDrawList();
-        int rgb = it.danger() ? Theme.ERR : it.enabled() ? Theme.DIM : Theme.GUTTER;
+        int rgb = it.danger() ? MubTheme.ERR : it.enabled() ? MubTheme.DIM : MubTheme.GUTTER;
         EditorIcons.draw(dl, it.icon(), x + 15 * sc, y + h * 0.5f, 7 * sc, Ui.c(rgb));
     }
 

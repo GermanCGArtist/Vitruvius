@@ -10,4 +10,3 @@ pluginManagement {
 }
 
 rootProject.name = 'vitruvius'
-include 'ui-host'

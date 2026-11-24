@@ -5,8 +5,6 @@ import dev.vitruvius.editor.core.Node;
 import dev.vitruvius.editor.core.ObjectNode;
 import dev.vitruvius.editor.core.Vec3i;
 import dev.vitruvius.editor.io.Migration1x;
-import fi.dy.masa.litematica.data.DataManager;
-import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 
@@ -45,7 +43,7 @@ public final class Reconciler {
     private static int runtimeDirtyAt = -1;
 
     private static Path runtimeFile(String world) {
-        return RuntimeStore.file(FabricLoader.getInstance().getConfigDir().resolve("vitruvius"), world);
+        return RuntimeStore.file(dev.vitruvius.VitruviusPaths.configDir(), world);
     }
 
     /** Writes the runtime placements when they changed: at most every 5 s, or at once with {@code force}. */
@@ -73,12 +71,17 @@ public final class Reconciler {
         pm = new ProjectManager(new ProjectManager.Env() {
             @Override
             public Path configDir() {
-                return FabricLoader.getInstance().getConfigDir();
+                return dev.vitruvius.VitruviusPaths.configDir();
             }
 
             @Override
             public Path schematicsDir() {
-                return DataManager.getSchematicsBaseDirectory().toAbsolutePath().normalize();
+                return dev.vitruvius.VitruviusPaths.schematicsDir();
+            }
+
+            @Override
+            public Path remap(Path path) {
+                return dev.vitruvius.VitruviusPaths.remapLegacy(path);
             }
 
             @Override
@@ -88,14 +91,16 @@ public final class Reconciler {
             }
         });
         LitematicaAdapter adapter = LitematicaAdapter.shared();
-        core = new ReconcileCore(adapter, SchematicInfo.shared(), new LasmCache(), DataManager.getSchematicsBaseDirectory().toAbsolutePath().normalize());
+        core = new ReconcileCore(adapter, SchematicInfo.shared(), new LasmCache(), dev.vitruvius.VitruviusPaths.schematicsDir());
         pm.setCloseHook(core::release);
         core.setDerived(DerivedFiles.shared());
-        core.setLooseCache(FabricLoader.getInstance().getConfigDir().resolve("vitruvius").resolve("editor-loose"));
+        core.setLooseCache(dev.vitruvius.VitruviusPaths.configDir().resolve("editor-loose"));
         DerivedFiles.shared().bind(core);
         dev.vitruvius.api.ObjectTypes.setSceneSource(() -> pm == null ? null : pm.scene());
         dev.vitruvius.api.ObjectTypes.setEnvSource(scene -> core == null || scene == null ? null : core.boundsEnv(scene));
         pm.setSaveHook(DerivedFiles.shared()::cleanup);
+        pm.setHistoryHook(dev.vitruvius.LiskovHistory::onSaved);   // versions in Liskov's explorer
+        dev.vitruvius.LiskovHistory.listen(pm);
     }
 
     /** The open projects and Loose of the world the player is in (empty before the world is entered). */
@@ -163,7 +168,7 @@ public final class Reconciler {
         try {
             DerivedFiles.shared().tick(pm.scene(), world, dim, tick);
             core.reconcile(pm.scene(), world, dim, tick);
-            dev.vitruvius.editor.sync.SyncService.get().tick(pm.scene(), core, pm, world, dim, tick);
+            dev.vitruvius.editor.sync.LiskovShare.get().tick(pm.scene());
             pm.tick();
             publishOwners();
             saveRuntime(false);

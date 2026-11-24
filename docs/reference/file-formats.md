@@ -6,6 +6,9 @@ are kept and written back unchanged, so files from a newer 2.x survive being ope
 
 ## Where things live
 
+With Liskov, `schematics/` below means `<game>/liskov/local/schematics/` and `config/vitruvius/` means
+`<game>/liskov/local/vitruvius/config/`. Liskov copied the old folders there once; see the README.
+
 | Path | Content |
 |---|---|
 | `schematics/Projects/<name>/` | One 2.0 project (see below). |
@@ -22,7 +25,7 @@ are kept and written back unchanged, so files from a newer 2.x survive being ope
 
 ```
 schematics/Projects/<name>/
-  project.json                 the scene graph
+  project.vproj                the scene graph (project.json before Liskov; still read)
   files/                       the project's own files, in any subfolders
     assemblies/<name>.lasm     assemblies saved as linked files
     assemblies/<name>_files/   files a .lasm needed that were outside the project
@@ -36,7 +39,9 @@ schematics/Projects/<name>/
 Project names are checked against characters that are not allowed in file names and against reserved Windows names
 (`CON`, `NUL`, `COM1` and so on).
 
-## `project.json`
+## `project.vproj`
+
+The same JSON as the `project.json` of earlier versions, under Liskov's file type for Vitruvius projects.
 
 ```json
 {
@@ -58,7 +63,7 @@ Project names are checked against characters that are not allowed in file names 
 | `id` | The project's UUID. |
 | `world`, `dim` | The world the project was made in, and its dimension. |
 | `origin` | The anchor, in blocks, where new objects are placed. |
-| `sync` | `local` or `shared` (shared on Syncmatica). |
+| `sync` | `local` or `shared` (on a server drive; set from where the folder is). |
 | `hidden` | Whether the whole project is hidden. |
 | `nodes` | The child nodes. |
 
@@ -151,11 +156,11 @@ the object's own transform and every contributor's kind, modification time and t
 that are surrounded the same way therefore share one file, and moving an object together with the thing that trims it
 rebuilds nothing.
 
-## Syncmatica manifest
+## Shared projects
 
-The manifest is a 1×1×1 air schematic named `[LA2] <project>`. Its description holds the scene graph as `la2:` followed by
-JSON, or `la2z:` followed by gzip and base64 when the JSON is longer than 30,000 characters. Above 60,000 characters it is
-refused, because NBT strings stop at 65,535 bytes.
+A shared project is a project folder on a server's Liskov drive, `<game>/liskov/servers/<server id>/root/Projects/<name>/`,
+with the same layout as a local one. `.cache/share-base.json` (not shared) holds the scene as this computer last agreed
+with the server; `share.properties` in the settings folder lists the shared projects whose Auto push is off.
 
 ## First start in a world
 

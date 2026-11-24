@@ -1,7 +1,7 @@
 package dev.vitruvius.editor.world;
 
-import dev.cg.uihost.Theme;
-import dev.cg.uihost.UiHost;
+import dev.liskov.ui.theme.MubTheme;
+import dev.liskov.ui.host.LiskovUiHost;
 import dev.vitruvius.editor.EditorMode;
 import dev.vitruvius.editor.EditorSession;
 import dev.vitruvius.editor.cam.EditorCamera;
@@ -74,7 +74,7 @@ public final class WorldOverlay {
                 if (l.xray()) p.setAlwaysOnTop();
             }
             for (Box b : overlaps) overlapVolume(b);
-            for (Object[] c : cutters) ghostBox((Box) c[0], (Boolean) c[1] ? BOOL : Theme.GUTTER, (Boolean) c[1] ? 0.9f : 0.6f, 1.5f, 0f);
+            for (Object[] c : cutters) ghostBox((Box) c[0], (Boolean) c[1] ? BOOL : MubTheme.GUTTER, (Boolean) c[1] ? 0.9f : 0.6f, 1.5f, 0f);
             if (externals) drawExternals(s);
             if (preview != null) renderPreview(preview);
             if (s.boxEdit.active()) renderBoxEdit(s.boxEdit);
@@ -84,11 +84,11 @@ public final class WorldOverlay {
     /** Edit mode: the side under the pointer, and the box a running drag would make. */
     private static void renderBoxEdit(BoxEdit e) {
         Box ghost = e.ghostWorld();
-        if (ghost != null) ghostBox(ghost, Theme.ACCENT, 1f, 2f, 0.08f);
+        if (ghost != null) ghostBox(ghost, MubTheme.ACCENT, 1f, 2f, 0.08f);
         double[][] c = e.hoverRect();
         if (c != null) {
             Gizmos.rect(new Vec3(c[0][0], c[0][1], c[0][2]), new Vec3(c[1][0], c[1][1], c[1][2]), new Vec3(c[2][0], c[2][1], c[2][2]),
-                    new Vec3(c[3][0], c[3][1], c[3][2]), GizmoStyle.strokeAndFill(argb(Theme.ACCENT, 1f), 2f, argb(Theme.ACCENT, 0.25f))).setAlwaysOnTop();
+                    new Vec3(c[3][0], c[3][1], c[3][2]), GizmoStyle.strokeAndFill(argb(MubTheme.ACCENT, 1f), 2f, argb(MubTheme.ACCENT, 0.25f))).setAlwaysOnTop();
         }
     }
 
@@ -130,7 +130,7 @@ public final class WorldOverlay {
             var type = dev.vitruvius.api.ObjectTypes.get(p.typeId());
             if (type == null) {                                     // the mod is not installed: a grey dashed box, the data stays
                 Box b = Box.ofSize(new dev.vitruvius.editor.core.Vec3i(1, 1, 1)).transformed(p.world());
-                ghostBox(b, Theme.GUTTER, 0.8f, 1.5f, 0.04f);
+                ghostBox(b, MubTheme.GUTTER, 0.8f, 1.5f, 0.04f);
                 continue;
             }
             boolean sel = s.selection.isSelected(p.id()) || s.selection.isSelected(p.ownerId());
@@ -207,9 +207,9 @@ public final class WorldOverlay {
         Vec3 cp = cam.position();
         double[] c = {cp.x, cp.y, cp.z};
         double fov = mc.options.fov().get();
-        float sc = UiHost.scale();
+        float sc = LiskovUiHost.scale();
         ImDrawList dl = ImGui.getBackgroundDrawList();
-        Theme.push(UiHost.theme().monoS());
+        MubTheme.push(MubTheme.monoS());
         float fh = ImGui.getFontSize(), tagH = 18 * sc;
         java.util.Set<String> done = new java.util.HashSet<>();
         List<float[]> placed = new ArrayList<>();
@@ -235,8 +235,8 @@ public final class WorldOverlay {
             }
             if (hit) continue;
             placed.add(new float[] {x, y, x + tw, y + tagH});
-            dl.addRectFilled(x, y, x + tw, y + tagH, Theme.u32(0x14161a, 0.82f), 4 * sc);
-            dl.addText(x + 6 * sc, y + (tagH - fh) * 0.5f, Theme.u32(OVERLAP), text);
+            dl.addRectFilled(x, y, x + tw, y + tagH, MubTheme.u32(0x14161a, 0.82f), 4 * sc);
+            dl.addText(x + 6 * sc, y + (tagH - fh) * 0.5f, MubTheme.u32(OVERLAP), text);
         }
         ImGui.popFont();
     }
@@ -305,9 +305,9 @@ public final class WorldOverlay {
     }
 
     private static void renderPreview(Gizmo.Preview p) {
-        for (Box b : p.after()) ghostBox(b, Theme.ACCENT, 1f, 2f, 0.06f);
+        for (Box b : p.after()) ghostBox(b, MubTheme.ACCENT, 1f, 2f, 0.06f);
         if (p.from() != null && p.to() != null) {
-            Gizmos.line(new Vec3(p.from()[0], p.from()[1], p.from()[2]), new Vec3(p.to()[0], p.to()[1], p.to()[2]), argb(Theme.ACCENT, 0.5f), 1f)
+            Gizmos.line(new Vec3(p.from()[0], p.from()[1], p.from()[2]), new Vec3(p.to()[0], p.to()[1], p.to()[2]), argb(MubTheme.ACCENT, 0.5f), 1f)
                     .setAlwaysOnTop();
         }
         var f = p.face();
@@ -321,7 +321,7 @@ public final class WorldOverlay {
                 c[k][o[1]] = s2[k];
             }
             Gizmos.rect(new Vec3(c[0][0], c[0][1], c[0][2]), new Vec3(c[1][0], c[1][1], c[1][2]), new Vec3(c[2][0], c[2][1], c[2][2]),
-                    new Vec3(c[3][0], c[3][1], c[3][2]), GizmoStyle.strokeAndFill(argb(Theme.ACCENT, 1f), 2f, argb(Theme.ACCENT, 0.15f))).setAlwaysOnTop();
+                    new Vec3(c[3][0], c[3][1], c[3][2]), GizmoStyle.strokeAndFill(argb(MubTheme.ACCENT, 1f), 2f, argb(MubTheme.ACCENT, 0.15f))).setAlwaysOnTop();
         }
     }
 
@@ -334,12 +334,12 @@ public final class WorldOverlay {
             WorldBoxes.Owned o = wb.ownerBoxes(hover);
             if (o != null) {
                 boolean linked = o.owner() instanceof AssemblyNode a && a.isLinked();
-                out.add(new Line(aabb(o.union()), linked ? Theme_LINK : Theme.FG, linked ? 0.6f : 0.45f, 1.5f, false));
+                out.add(new Line(aabb(o.union()), linked ? Theme_LINK : MubTheme.FG, linked ? 0.6f : 0.45f, 1.5f, false));
             }
         }
         for (UUID id : s.gizmo.boxHits()) {                  // box select: what the rectangle will select
             WorldBoxes.Owned o = wb.ownerBoxes(id);
-            if (o != null && !s.selection.isSelected(id)) out.add(new Line(aabb(o.union()), Theme.FG, 0.45f, 1.5f, false));
+            if (o != null && !s.selection.isSelected(id)) out.add(new Line(aabb(o.union()), MubTheme.FG, 0.45f, 1.5f, false));
         }
         boolean ghost = s.gizmo.preview() != null;           // a drag runs: the original stays as a faint solid outline
         for (UUID id : s.selection.ids()) {
@@ -347,7 +347,7 @@ public final class WorldOverlay {
             if (n == null) continue;
             boolean isActive = id.equals(active);
             boolean locked = TreeModel.lockedPart(n);
-            int rgb = locked ? Theme.GUTTER : Theme.ACCENT;
+            int rgb = locked ? MubTheme.GUTTER : MubTheme.ACCENT;
             float alpha = ghost ? 0.35f : isActive || locked ? 1f : 0.75f;
             float width = ghost ? 1.5f : isActive ? 2f : 1.5f;
             if (n instanceof ObjectNode o) {
@@ -395,7 +395,7 @@ public final class WorldOverlay {
         Vec3 cp = cam.position();
         double[] c = {cp.x, cp.y, cp.z};
         double fov = mc.options.fov().get();
-        float sc = UiHost.scale();
+        float sc = LiskovUiHost.scale();
 
         // up to 8 tags; with more, only the active one, with "+n"
         List<UUID> tagged = new ArrayList<>(ids);
@@ -406,7 +406,7 @@ public final class WorldOverlay {
             tagged = List.of(active);
         }
         ImDrawList dl = ImGui.getBackgroundDrawList();
-        Theme.push(UiHost.theme().monoS());
+        MubTheme.push(MubTheme.monoS());
         float fh = ImGui.getFontSize(), tagH = 18 * sc;
         List<float[]> placed = new ArrayList<>();
         for (UUID id : tagged) {
@@ -430,8 +430,8 @@ public final class WorldOverlay {
             }
             if (hidden) continue;
             placed.add(new float[] {x, y, x + tw, y + tagH});
-            dl.addRectFilled(x, y, x + tw, y + tagH, Theme.u32(0x14161a, 0.82f), 4 * sc);
-            dl.addText(x + 6 * sc, y + (tagH - fh) * 0.5f, Theme.u32(Theme.ACCENT), text);
+            dl.addRectFilled(x, y, x + tw, y + tagH, MubTheme.u32(0x14161a, 0.82f), 4 * sc);
+            dl.addText(x + 6 * sc, y + (tagH - fh) * 0.5f, MubTheme.u32(MubTheme.ACCENT), text);
         }
         ImGui.popFont();
     }

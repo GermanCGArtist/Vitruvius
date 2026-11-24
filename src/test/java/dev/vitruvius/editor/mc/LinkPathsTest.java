@@ -101,4 +101,15 @@ class LinkPathsTest {
         // and a missing file links nothing
         assertTrue(LinkPaths.linksOf(root.resolve("nope.lasm").toString()).isEmpty());
     }
+
+    @Test
+    void anOldLinkToProjectJsonFindsTheVproj() throws IOException {
+        Path a = project("A"), b = project("B");
+        Files.move(b.resolve("project.json"), b.resolve("project.vproj"));   // as Liskov's migration leaves it
+        Path t = LinkPaths.target(a, "../B/project.json");
+        assertEquals(b.resolve("project.vproj").toAbsolutePath().normalize(), t);
+        assertEquals(b.toAbsolutePath().normalize().toString(), LinkPaths.identity(t));
+        assertEquals(b.resolve("project.vproj").toAbsolutePath().normalize(), LinkPaths.fileOf(LinkPaths.identity(t)).toAbsolutePath().normalize());
+        assertEquals(b.toAbsolutePath().normalize(), LinkPaths.ownerBase(b.resolve("files/x.litematic")));
+    }
 }

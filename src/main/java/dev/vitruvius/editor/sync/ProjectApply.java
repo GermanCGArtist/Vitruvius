@@ -38,8 +38,8 @@ public final class ProjectApply {
         live.setHidden(fresh.hidden());
         live.setOrigin(fresh.origin());
         JsonObject extra = fresh.extra().deepCopy();
-        extra.remove(SyncPlan.KEY);
-        if (live.extra().has(SyncPlan.KEY)) extra.add(SyncPlan.KEY, live.extra().get(SyncPlan.KEY));
+        extra.remove(ProjectMerge.LEGACY_SYNC_KEY);
+        if (live.extra().has(ProjectMerge.LEGACY_SYNC_KEY)) extra.add(ProjectMerge.LEGACY_SYNC_KEY, live.extra().get(ProjectMerge.LEGACY_SYNC_KEY));
         live.setExtra(extra);
         if (rootChanged) affected.add(live.id());
 

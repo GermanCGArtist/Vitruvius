@@ -1,7 +1,7 @@
 package dev.vitruvius.editor.world;
 
-import dev.cg.uihost.Theme;
-import dev.cg.uihost.UiHost;
+import dev.liskov.ui.theme.MubTheme;
+import dev.liskov.ui.host.LiskovUiHost;
 import dev.vitruvius.editor.EditorMode;
 import dev.vitruvius.editor.EditorSession;
 import dev.vitruvius.editor.EditorSession.Tool;
@@ -153,7 +153,7 @@ public final class Gizmo {
     // ------------------------------------------------------------------ helpers
 
     private static boolean held(Minecraft mc, int... keys) {
-        for (int k : keys) if (dev.cg.uihost.UiHost.isKeyDown(k)) return true;
+        for (int k : keys) if (dev.liskov.ui.host.LiskovUiHost.isKeyDown(k)) return true;
         return false;
     }
 
@@ -166,7 +166,7 @@ public final class Gizmo {
     }
 
     private static double[] cursor(Minecraft mc) {
-        return new double[] {dev.cg.uihost.UiHost.cursorX(), dev.cg.uihost.UiHost.cursorY()};
+        return new double[] {dev.liskov.ui.host.LiskovUiHost.cursorX(), dev.liskov.ui.host.LiskovUiHost.cursorY()};
     }
 
     private record View(ViewMath.Basis basis, double[] cam, double fov, double w, double h) {}
@@ -357,7 +357,7 @@ public final class Gizmo {
         if ((tool == Tool.MOVE || tool == Tool.ROTATE) && !s.selection.isEmpty() && !s.selectionLocked() && snapshot(false)) {
             View v = view(mc);
             gAnchor = tool == Tool.MOVE ? moveAnchor(v, gPivot, gUnion) : gPivot;
-            GizmoLayout g = GizmoLayout.of(v.basis(), v.cam(), v.fov(), v.w(), v.h(), centre(gAnchor), UiHost.scale());
+            GizmoLayout g = GizmoLayout.of(v.basis(), v.cam(), v.fov(), v.w(), v.h(), centre(gAnchor), LiskovUiHost.scale());
             if (g != null) {
                 if (tool == Tool.MOVE) {
                     Part p = g.hit(c[0], c[1], true);
@@ -560,11 +560,11 @@ public final class Gizmo {
         ringHover = false;
         preview = null;
         hud = null;
-        UiHost.Cursor cursorWanted = null;
+        LiskovUiHost.Cursor cursorWanted = null;
 
         // a drag that started on empty space turns into a box select after 5 px
         if (pending) {
-            if (!dev.cg.uihost.UiHost.isMouseDown(GLFW.GLFW_MOUSE_BUTTON_LEFT) || cam.isNavigating()) {
+            if (!dev.liskov.ui.host.LiskovUiHost.isMouseDown(GLFW.GLFW_MOUSE_BUTTON_LEFT) || cam.isNavigating()) {
                 pending = false;
             } else if (Math.hypot(c[0] - bx0, c[1] - by0) >= CLICK_PX) {
                 beginBox(new double[] {bx0, by0}, true);
@@ -572,8 +572,8 @@ public final class Gizmo {
         }
 
         View v = view(mc);
-        float sc = UiHost.scale();
-        boolean over = UiHost.imguiWantsMouse();
+        float sc = LiskovUiHost.scale();
+        boolean over = LiskovUiHost.imguiWantsMouse();
         Tool tool = s.tool();
         boolean haveSel = !s.selection.isEmpty() && !cam.isNavigating() && !s.boxEdit.active();
         boolean locked = haveSel && s.selectionLocked();
@@ -610,14 +610,14 @@ public final class Gizmo {
                 } else if (tool == Tool.ROTATE) {
                     if (mode == Mode.IDLE && !over && !locked) ringHover = ringDistance(v, g, centre(pv), c) <= GizmoLayout.RING_HIT * sc;
                     drawRing(dl, v, g, centre(pv), locked);
-                    if (ringHover || mode == Mode.RING) cursorWanted = UiHost.Cursor.RESIZE_ALL;
+                    if (ringHover || mode == Mode.RING) cursorWanted = LiskovUiHost.Cursor.RESIZE_ALL;
                 }
             }
         }
         if (mode == Mode.BOX) drawBoxRect(dl, sc);
-        if ((armed || s.eyedropping()) && mode == Mode.IDLE) cursorWanted = UiHost.Cursor.CROSSHAIR;
-        if (mode == Mode.BOX) cursorWanted = UiHost.Cursor.CROSSHAIR;
-        if (cursorWanted != null && !over) UiHost.setCursor(cursorWanted);
+        if ((armed || s.eyedropping()) && mode == Mode.IDLE) cursorWanted = LiskovUiHost.Cursor.CROSSHAIR;
+        if (mode == Mode.BOX) cursorWanted = LiskovUiHost.Cursor.CROSSHAIR;
+        if (cursorWanted != null && !over) LiskovUiHost.setCursor(cursorWanted);
 
         buildPreviewAndHud();
         if (handles.active()) {
@@ -747,11 +747,11 @@ public final class Gizmo {
         return a == 0 ? Ui.AX_X : a == 1 ? Ui.AX_Y : Ui.AX_Z;
     }
 
-    private UiHost.Cursor drawMove(ImDrawList dl, GizmoLayout g, boolean locked) {
+    private LiskovUiHost.Cursor drawMove(ImDrawList dl, GizmoLayout g, boolean locked) {
         float sc = (float) g.sc;
         float ox = (float) g.ox, oy = (float) g.oy;
         boolean dragging = mode == Mode.AXIS || mode == Mode.PLANE;
-        UiHost.Cursor cursor = null;
+        LiskovUiHost.Cursor cursor = null;
         int halo = Ui.c(0x000000, 0.45f);
 
         if (dragging) {
@@ -765,22 +765,22 @@ public final class Gizmo {
             }
             if (mode == Mode.AXIS) {
                 var ar = g.arrow(axis);
-                cursor = Math.abs(ar.dx()) >= Math.abs(ar.dy()) ? UiHost.Cursor.RESIZE_EW : UiHost.Cursor.RESIZE_NS;
-            } else cursor = UiHost.Cursor.RESIZE_ALL;
+                cursor = Math.abs(ar.dx()) >= Math.abs(ar.dy()) ? LiskovUiHost.Cursor.RESIZE_EW : LiskovUiHost.Cursor.RESIZE_NS;
+            } else cursor = LiskovUiHost.Cursor.RESIZE_ALL;
         }
 
         // plane handle
         if (g.planeVisible() && (!dragging || mode == Mode.PLANE)) {
             double[][] q = g.planeCorners();
             boolean hot = hover == Part.PLANE || mode == Mode.PLANE;
-            int rgb = locked ? Theme.GUTTER : Ui.AX_Y;
+            int rgb = locked ? MubTheme.GUTTER : Ui.AX_Y;
             dl.addQuad((float) q[0][0], (float) q[0][1], (float) q[1][0], (float) q[1][1], (float) q[2][0], (float) q[2][1], (float) q[3][0],
                     (float) q[3][1], halo, 3.5f * sc);
             dl.addQuadFilled((float) q[0][0], (float) q[0][1], (float) q[1][0], (float) q[1][1], (float) q[2][0], (float) q[2][1], (float) q[3][0],
                     (float) q[3][1], Ui.c(rgb, locked ? 0.2f : hot ? 0.55f : 0.30f));
             dl.addQuad((float) q[0][0], (float) q[0][1], (float) q[1][0], (float) q[1][1], (float) q[2][0], (float) q[2][1], (float) q[3][0],
                     (float) q[3][1], Ui.c(rgb), 1.5f * sc);
-            if (hover == Part.PLANE) cursor = UiHost.Cursor.RESIZE_ALL;
+            if (hover == Part.PLANE) cursor = LiskovUiHost.Cursor.RESIZE_ALL;
         }
 
         for (int a = 0; a < 3; a++) {
@@ -788,22 +788,22 @@ public final class Gizmo {
             var ar = g.arrow(a);
             boolean usable = ar.usable();
             boolean hot = !locked && usable && (hover == (a == 0 ? Part.X : a == 1 ? Part.Y : Part.Z) || (mode == Mode.AXIS && a == axis));
-            int rgb = locked ? Theme.GUTTER : hot ? mix(axisColor(a), 0.25f) : axisColor(a);
+            int rgb = locked ? MubTheme.GUTTER : hot ? mix(axisColor(a), 0.25f) : axisColor(a);
             float alpha = usable ? 1f : 0.25f;
             float width = (mode == Mode.AXIS ? 4f : hot ? 3.5f : locked ? 2f : 2.5f) * sc;
             drawArrow(dl, g, a, rgb, alpha, width, halo, sc);
             if (hot && mode == Mode.IDLE) {
-                cursor = UiHost.Cursor.HAND;
+                cursor = LiskovUiHost.Cursor.HAND;
             }
         }
 
         // centre dot
         dl.addCircleFilled(ox, oy, 5.5f * sc, Ui.c(0x000000, 0.5f));
-        dl.addCircleFilled(ox, oy, 4.5f * sc, Ui.c(locked ? Theme.GUTTER : Theme.FG));
+        dl.addCircleFilled(ox, oy, 4.5f * sc, Ui.c(locked ? MubTheme.GUTTER : MubTheme.FG));
         if (locked) {
-            Theme.push(UiHost.theme().small());
+            MubTheme.push(MubTheme.small());
             String t = lockLabel();
-            dl.addText(ox - ImGui.calcTextSizeX(t) * 0.5f, oy + 10 * sc, Ui.c(Theme.DIM), t);
+            dl.addText(ox - ImGui.calcTextSizeX(t) * 0.5f, oy + 10 * sc, Ui.c(MubTheme.DIM), t);
             ImGui.popFont();
         }
         return cursor;
@@ -826,7 +826,7 @@ public final class Gizmo {
         dl.addTriangleFilled((float) tip[0], (float) tip[1], bx + nx * hw, by + ny * hw, bx - nx * hw, by - ny * hw, col);
         // letter
         double[] lp = g.along(a, GizmoLayout.SHAFT_TO + 12);
-        Theme.push(UiHost.theme().monoS());
+        MubTheme.push(MubTheme.monoS());
         String letter = a == 0 ? "X" : a == 1 ? "Y" : "Z";
         float tx = (float) lp[0] - ImGui.calcTextSizeX(letter) * 0.5f, ty = (float) lp[1] - ImGui.getFontSize() * 0.5f;
         dl.addText(tx + 0.5f, ty, col, letter);
@@ -838,7 +838,7 @@ public final class Gizmo {
         float sc = (float) g.sc;
         double r = GizmoLayout.worldLen(GizmoLayout.RING_RADIUS * sc, g.dist, v.fov(), v.h());
         double[][] ring = GizmoLayout.ring(v.basis(), v.cam(), v.fov(), v.w(), v.h(), pc, r, 64);
-        int rgb = locked ? Theme.GUTTER : ringHover || mode == Mode.RING ? mix(Ui.AX_Y, 0.25f) : Ui.AX_Y;
+        int rgb = locked ? MubTheme.GUTTER : ringHover || mode == Mode.RING ? mix(Ui.AX_Y, 0.25f) : Ui.AX_Y;
         float width = (ringHover || mode == Mode.RING ? 3.5f : 2.5f) * sc;
         int halo = Ui.c(0x000000, 0.45f);
 
@@ -868,11 +868,11 @@ public final class Gizmo {
             float x = (float) p[0], y = (float) p[1], d = 4.2f * sc;
             dl.addQuadFilled(x, y - d, x + d, y, x, y + d, x - d, y, Ui.c(rgb));
         }
-        dl.addCircleFilled((float) g.ox, (float) g.oy, 4.5f * sc, Ui.c(locked ? Theme.GUTTER : Theme.FG));
+        dl.addCircleFilled((float) g.ox, (float) g.oy, 4.5f * sc, Ui.c(locked ? MubTheme.GUTTER : MubTheme.FG));
         if (locked) {
-            Theme.push(UiHost.theme().small());
+            MubTheme.push(MubTheme.small());
             String t = lockLabel();
-            dl.addText((float) g.ox - ImGui.calcTextSizeX(t) * 0.5f, (float) g.oy + 10 * sc, Ui.c(Theme.DIM), t);
+            dl.addText((float) g.ox - ImGui.calcTextSizeX(t) * 0.5f, (float) g.oy + 10 * sc, Ui.c(MubTheme.DIM), t);
             ImGui.popFont();
         }
     }
@@ -886,7 +886,7 @@ public final class Gizmo {
 
     private void drawBoxRect(ImDrawList dl, float sc) {
         boolean sub = boxMode == BoxSelect.Mode.SUBTRACT;
-        int rgb = sub ? Theme.ERR : Theme.ACCENT;
+        int rgb = sub ? MubTheme.ERR : MubTheme.ACCENT;
         float x0 = (float) Math.min(bx0, bx1), y0 = (float) Math.min(by0, by1), x1 = (float) Math.max(bx0, bx1), y1 = (float) Math.max(by0, by1);
         dl.addRectFilled(x0, y0, x1, y1, Ui.c(rgb, sub ? 0.06f : 0.08f));
         dl.addRect(x0, y0, x1, y1, Ui.c(rgb), 0f, 0, 1f);
@@ -902,14 +902,14 @@ public final class Gizmo {
         double[] p = ViewMath.project(v.basis(), v.cam(), v.fov(), v.w(), v.h(), c[0], c[1], c[2]);
         if (p == null) return;
         float x = (float) p[0], y = (float) p[1], d = 3.5f * sc;
-        dl.addQuadFilled(x, y - d, x + d, y, x, y + d, x - d, y, Ui.c(Theme.ACCENT));
+        dl.addQuadFilled(x, y - d, x + d, y, x, y + d, x - d, y, Ui.c(MubTheme.ACCENT));
         FaceSnap.Result r = snapX != null ? snapX : snapZ;
         if (r == null) return;
-        Theme.push(UiHost.theme().monoS());
+        MubTheme.push(MubTheme.monoS());
         String text = "snapped to " + r.target().name();
         float w = ImGui.calcTextSizeX(text) + 12 * sc, h = 18 * sc;
         dl.addRectFilled(x + 10 * sc, y - h * 0.5f, x + 10 * sc + w, y + h * 0.5f, Ui.c(0x14161a, 0.82f), 4 * sc);
-        dl.addText(x + 16 * sc, y - ImGui.getFontSize() * 0.5f, Ui.c(Theme.ACCENT), text);
+        dl.addText(x + 16 * sc, y - ImGui.getFontSize() * 0.5f, Ui.c(MubTheme.ACCENT), text);
         ImGui.popFont();
     }
 

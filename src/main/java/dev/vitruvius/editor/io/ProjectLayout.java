@@ -1,19 +1,27 @@
 package dev.vitruvius.editor.io;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Locale;
 import java.util.Set;
 import java.util.function.Predicate;
 
 /**
- * Where things live: {@code schematics/Projects/<name>/project.json}, {@code files/}, {@code .cache/derived/},
+ * Where things live: {@code schematics/Projects/<name>/project.vproj}, {@code files/}, {@code .cache/derived/},
  * {@code .trash/}; and file names that are safe on Windows (and so everywhere).
+ *
+ * <p>The project file is {@code project.vproj} (Liskov's file type for Vitruvius projects). Folders made by older
+ * versions hold a {@code project.json} with the same content: it is read as long as there is no {@code project.vproj},
+ * and links to it keep working (see {@link #existingProjectFile}). Saving writes {@code project.vproj}.
  */
 public final class ProjectLayout {
     private ProjectLayout() {}
 
     public static final String PROJECTS_DIR = "Projects";
-    public static final String PROJECT_FILE = "project.json";
+    public static final String PROJECT_FILE = "project.vproj";
+    /** The project file of Vitruvius before Liskov; still read. */
+    public static final String LEGACY_PROJECT_FILE = "project.json";
+    public static final String PROJECT_EXT = ".vproj";
     public static final String FILES_DIR = "files";
     public static final String DERIVED_DIR = ".cache/derived";
     public static final String TRASH_DIR = ".trash";
@@ -35,8 +43,40 @@ public final class ProjectLayout {
         return projectsRoot(schematicsDir).resolve(safeName(projectName));
     }
 
+    /** The file to read a project from: {@code project.vproj}, else an old {@code project.json}, else {@code project.vproj}. */
     public static Path projectFile(Path projectDir) {
+        Path vproj = projectDir.resolve(PROJECT_FILE);
+        if (Files.isRegularFile(vproj)) return vproj;
+        Path legacy = projectDir.resolve(LEGACY_PROJECT_FILE);
+        return Files.isRegularFile(legacy) ? legacy : vproj;
+    }
+
+    /** The file a project is saved to: always {@code project.vproj}. */
+    public static Path saveFile(Path projectDir) {
         return projectDir.resolve(PROJECT_FILE);
+    }
+
+    /** Whether the folder is a project (holds a {@code project.vproj} or an old {@code project.json}). */
+    public static boolean isProjectDir(Path dir) {
+        return Files.isRegularFile(dir.resolve(PROJECT_FILE)) || Files.isRegularFile(dir.resolve(LEGACY_PROJECT_FILE));
+    }
+
+    /** Whether a file name is a project file ({@code project.vproj} or {@code project.json}). */
+    public static boolean isProjectFileName(String name) {
+        return PROJECT_FILE.equals(name) || LEGACY_PROJECT_FILE.equals(name);
+    }
+
+    /**
+     * A link or a stored path to a project file that may name the other spelling: {@code .../project.json} once the
+     * project was saved as {@code project.vproj} (or Liskov migrated it), or the other way round. Returns the one that
+     * exists; anything else unchanged.
+     */
+    public static Path existingProjectFile(Path file) {
+        if (file == null || file.getFileName() == null || file.getParent() == null) return file;
+        String name = file.getFileName().toString();
+        if (!isProjectFileName(name) || Files.exists(file)) return file;
+        Path other = file.resolveSibling(name.equals(PROJECT_FILE) ? LEGACY_PROJECT_FILE : PROJECT_FILE);
+        return Files.exists(other) ? other : file;
     }
 
     public static Path filesDir(Path projectDir) {

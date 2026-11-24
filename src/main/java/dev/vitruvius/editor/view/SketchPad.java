@@ -1,6 +1,6 @@
 package dev.vitruvius.editor.view;
 
-import dev.cg.uihost.Theme;
+import dev.liskov.ui.theme.MubTheme;
 import dev.vitruvius.shape.Sketch;
 import dev.vitruvius.shape.mc.BlockParsing;
 import imgui.ImDrawList;
@@ -493,7 +493,7 @@ public final class SketchPad {
         drawRecentAndMirror(sc);
 
         String err = brushError();
-        if (err != null) Ui.colored(Theme.ERR, err);
+        if (err != null) Ui.colored(MubTheme.ERR, err);
         else if (message != null) Ui.smallDim(message);
         else if (tool == CIRCLE) Ui.smallDim("Circle select: drag = select, Shift or middle drag = deselect, wheel = radius, Esc / right click = done");
         else Ui.smallDim(sizeText + "  ·  wheel zooms, middle drag pans, right click = menu  ·  A all, Alt+A none, Ctrl+I invert, B box, C circle, X delete");
@@ -745,18 +745,18 @@ public final class SketchPad {
     private static void draw(float x0, float y0, float cw, float ch, float cs, int hc, int hr, boolean inside, float sc) {
         ImDrawList dl = ImGui.getWindowDrawList();
         dl.pushClipRect(x0, y0, x0 + cw, y0 + ch, true);
-        dl.addRectFilled(x0, y0, x0 + cw, y0 + ch, Ui.c(Theme.BG), 0f);
+        dl.addRectFilled(x0, y0, x0 + cw, y0 + ch, Ui.c(MubTheme.BG), 0f);
         float ox = x0 + cw / 2 + panX, oy = y0 + ch / 2 + panY;
 
         if (cs >= 7 * sc) {
             int c0 = (int) Math.floor((x0 - ox) / cs), c1 = (int) Math.ceil((x0 + cw - ox) / cs);
             int r0 = (int) Math.floor((y0 - oy) / cs), r1 = (int) Math.ceil((y0 + ch - oy) / cs);
-            int grid = Ui.c(Theme.LINE2, 0.6f);
+            int grid = Ui.c(MubTheme.LINE2, 0.6f);
             for (int c = c0; c <= c1; c++) dl.addLine(ox + c * cs, y0, ox + c * cs, y0 + ch, grid, 1f);
             for (int r = r0; r <= r1; r++) dl.addLine(x0, oy + r * cs, x0 + cw, oy + r * cs, grid, 1f);
         }
         // origin and mirror lines
-        int axisCol = Ui.c(Theme.ACCENT, mirrorH || mirrorV ? 0.9f : 0.35f);
+        int axisCol = Ui.c(MubTheme.ACCENT, mirrorH || mirrorV ? 0.9f : 0.35f);
         float shift = mirrorOnCell ? 0.5f : 0f;
         dl.addLine(ox + shift * cs, y0, ox + shift * cs, y0 + ch, axisCol, mirrorH ? 2f : 1f);
         dl.addLine(x0, oy + shift * cs, x0 + cw, oy + shift * cs, axisCol, mirrorV ? 2f : 1f);
@@ -779,15 +779,15 @@ public final class SketchPad {
         // selection
         for (long k : sel) {
             float px0 = ox + Sketch.col(k) * cs, py0 = oy + Sketch.row(k) * cs;
-            dl.addRectFilled(px0, py0, px0 + cs, py0 + cs, Ui.c(Theme.ACCENT, 0.28f));
-            dl.addRect(px0, py0, px0 + cs, py0 + cs, Ui.c(Theme.ACCENT), 0f, 0, 1.5f);
+            dl.addRectFilled(px0, py0, px0 + cs, py0 + cs, Ui.c(MubTheme.ACCENT, 0.28f));
+            dl.addRect(px0, py0, px0 + cs, py0 + cs, Ui.c(MubTheme.ACCENT), 0f, 0, 1.5f);
         }
         // box being dragged
         if (stroking && rectMode) {
             float ax = ox + Math.min(anchorC, hc) * cs, ay = oy + Math.min(anchorR, hr) * cs;
             float bx = ox + (Math.max(anchorC, hc) + 1) * cs, by = oy + (Math.max(anchorR, hr) + 1) * cs;
-            dl.addRectFilled(ax, ay, bx, by, Ui.c(Theme.ACCENT, 0.15f));
-            dl.addRect(ax, ay, bx, by, Ui.c(Theme.ACCENT), 0f, 0, 2f);
+            dl.addRectFilled(ax, ay, bx, by, Ui.c(MubTheme.ACCENT, 0.15f));
+            dl.addRect(ax, ay, bx, by, Ui.c(MubTheme.ACCENT), 0f, 0, 2f);
         }
         // hover
         if (inside && tool == CIRCLE) {
@@ -798,7 +798,7 @@ public final class SketchPad {
             dl.addRect(px0, py0, px0 + cs, py0 + cs, Ui.c(0xffffff, 0.8f), 0f, 0, 1.5f);
         }
         dl.popClipRect();
-        dl.addRect(x0, y0, x0 + cw, y0 + ch, Ui.c(Theme.BORDER_HI), 0f);
+        dl.addRect(x0, y0, x0 + cw, y0 + ch, Ui.c(MubTheme.BORDER_HI), 0f);
 
         if (inside && !stroking) {
             String v = px.get(Sketch.key(hc, hr));

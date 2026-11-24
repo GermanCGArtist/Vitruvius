@@ -322,17 +322,17 @@ class AssemblyAndProjectTest {
     // ---- NewProject / ConvertFolderToProject ----
 
     @Test
-    void newProjectWritesProjectJsonAndOpensIt() {
+    void newProjectWritesProjectVprojAndOpensIt() {
         NewProject cmd = new NewProject("Fresh", "w2", "minecraft:the_nether", new Vec3i(1, 2, 3));
         fx.roundTrip(cmd);
         ProjectNode p = (ProjectNode) fx.scene.byId(cmd.projectId());
         assertEquals("Projects/Fresh", p.path());
         assertSame(p, fx.scene.activeProject());
-        assertTrue(new String(fx.fs.bytes("Projects/Fresh/project.json")).contains("Fresh"));
+        assertTrue(new String(fx.fs.bytes("Projects/Fresh/project.vproj")).contains("Fresh"));
         fx.stack.undo();
         assertSame(fx.p, fx.scene.activeProject());
         assertEquals(1, fx.scene.projects().size());
-        assertFalse(fx.fs.exists("Projects/Fresh/project.json"));
+        assertFalse(fx.fs.exists("Projects/Fresh/project.vproj"));
         fx.stack.redo();
         assertEquals("Projects/Fresh", ((ProjectNode) fx.scene.byId(cmd.projectId())).path());
         NewProject again = new NewProject("Fresh", "w2", null, null);
@@ -355,7 +355,7 @@ class AssemblyAndProjectTest {
         assertSame(np, t1.parent());
         assertTrue(fx.fs.exists("Projects/tunnels/files/t1.litematic"));
         assertFalse(fx.fs.exists("Projects/Metro/files/t1.litematic"));
-        assertTrue(new String(fx.fs.bytes("Projects/tunnels/project.json")).contains("t2"));
+        assertTrue(new String(fx.fs.bytes("Projects/tunnels/project.vproj")).contains("t2"));
         assertFalse(fx.scene.allNodes().stream().anyMatch(n -> n instanceof FolderNode && n.name().equals("tunnels")));
     }
 

@@ -1,7 +1,7 @@
 package dev.vitruvius.editor.view;
 
-import dev.cg.uihost.Theme;
-import dev.cg.uihost.UiHost;
+import dev.liskov.ui.theme.MubTheme;
+import dev.liskov.ui.host.LiskovUiHost;
 import dev.vitruvius.editor.EditorSession;
 import dev.vitruvius.editor.world.Gizmo;
 import imgui.ImDrawList;
@@ -33,9 +33,9 @@ public final class TransformHud {
         boolean fromBox = boxHud != null;
         Gizmo.Hud h = fromBox ? boxHud : s.gizmo.hud();
         if (h == null) return;
-        float sc = UiHost.scale();
+        float sc = LiskovUiHost.scale();
         ImGuiViewport vp = ImGui.getMainViewport();
-        Theme.push(UiHost.theme().mono());
+        MubTheme.push(MubTheme.mono());
         float fh = ImGui.getFontSize();
         float pad = 14 * sc, gap = 8 * sc, chip = 18 * sc, hgt = 30 * sc;
         float verbW = ImGui.calcTextSizeX(h.verb());
@@ -61,20 +61,20 @@ public final class TransformHud {
         int flags = FLAGS | (h.typed() ? 0 : ImGuiWindowFlags.NoInputs);
         if (ImGui.begin("##la_transform_hud", flags)) {
             ImDrawList dl = ImGui.getWindowDrawList();
-            dl.addRectFilled(x, y, x + w, y + hgt, Theme.u32(Theme.BG, 0.95f), 0f);
-            dl.addRect(x, y, x + w, y + hgt, Theme.u32(h.typed() ? Theme.ACCENT : Theme.BORDER_HI), 0f);
+            dl.addRectFilled(x, y, x + w, y + hgt, MubTheme.u32(MubTheme.BG, 0.95f), 0f);
+            dl.addRect(x, y, x + w, y + hgt, MubTheme.u32(h.typed() ? MubTheme.ACCENT : MubTheme.BORDER_HI), 0f);
             float tx = x + pad, ty = y + (hgt - fh) * 0.5f;
-            dl.addText(tx, ty, Theme.u32(Theme.FG), h.verb().toUpperCase(java.util.Locale.ROOT));
+            dl.addText(tx, ty, MubTheme.u32(MubTheme.FG), h.verb().toUpperCase(java.util.Locale.ROOT));
             tx += verbW + gap;
             if (h.chips() >= 0) {
                 for (int a = 0; a < 3; a++) {
                     boolean lit = (h.chips() & (1 << a)) != 0;
                     int axRgb = axisCol(a);
                     float cy = y + (hgt - chip) * 0.5f;
-                    dl.addRectFilled(tx, cy, tx + chip, cy + chip, lit ? Theme.u32(axRgb, 0.22f) : Theme.u32(Theme.SURFACE), 0f);
-                    dl.addRect(tx, cy, tx + chip, cy + chip, lit ? Theme.u32(axRgb) : Theme.u32(Theme.LINE), 0f);
+                    dl.addRectFilled(tx, cy, tx + chip, cy + chip, lit ? MubTheme.u32(axRgb, 0.22f) : MubTheme.u32(MubTheme.SURFACE), 0f);
+                    dl.addRect(tx, cy, tx + chip, cy + chip, lit ? MubTheme.u32(axRgb) : MubTheme.u32(MubTheme.LINE), 0f);
                     float lw = ImGui.calcTextSizeX(AX_NAME[a]);
-                    dl.addText(tx + (chip - lw) * 0.5f, cy + (chip - fh) * 0.5f, Theme.u32(lit ? axRgb : Theme.GUTTER), AX_NAME[a]);
+                    dl.addText(tx + (chip - lw) * 0.5f, cy + (chip - fh) * 0.5f, MubTheme.u32(lit ? axRgb : MubTheme.GUTTER), AX_NAME[a]);
                     if (h.typed()) {
                         ImGui.setCursorScreenPos(tx, cy);
                         if (ImGui.invisibleButton("##hudaxis" + a, chip, chip)) {
@@ -87,26 +87,26 @@ public final class TransformHud {
                 }
                 tx += gap - 3 * sc;
             }
-            dl.addText(tx, ty, Theme.u32(Theme.ACCENT), h.amount());
+            dl.addText(tx, ty, MubTheme.u32(MubTheme.ACCENT), h.amount());
             tx += amountW;
             if (h.typed()) {
                 boolean on = (System.currentTimeMillis() / 500) % 2 == 0;
-                if (on) dl.addRectFilled(tx + 2 * sc, y + (hgt - 13 * sc) * 0.5f, tx + 8 * sc, y + (hgt + 13 * sc) * 0.5f, Theme.u32(Theme.ACCENT));
+                if (on) dl.addRectFilled(tx + 2 * sc, y + (hgt - 13 * sc) * 0.5f, tx + 8 * sc, y + (hgt + 13 * sc) * 0.5f, MubTheme.u32(MubTheme.ACCENT));
                 tx += caretW;
             }
             if (!tail.isEmpty()) {
                 tx += gap;
-                dl.addText(tx, ty, Theme.u32(Theme.DIM), tail);
+                dl.addText(tx, ty, MubTheme.u32(MubTheme.DIM), tail);
                 tx += ImGui.calcTextSizeX(tail);
             }
             if (!hint.isEmpty()) {
                 tx += gap;
-                dl.addText(tx, ty, Theme.u32(Theme.GUTTER), hint);
+                dl.addText(tx, ty, MubTheme.u32(MubTheme.GUTTER), hint);
                 tx += ImGui.calcTextSizeX(hint);
             }
             if (!snap.isEmpty()) {
                 tx += gap * 1.5f;
-                dl.addText(tx, ty, Theme.u32(Theme.ACCENT), snap);
+                dl.addText(tx, ty, MubTheme.u32(MubTheme.ACCENT), snap);
             }
         }
         ImGui.end();

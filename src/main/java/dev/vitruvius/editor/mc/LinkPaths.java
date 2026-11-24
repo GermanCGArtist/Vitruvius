@@ -18,12 +18,13 @@ import java.util.List;
  * <ul>
  *   <li>A link path is relative to the folder of the linking project (or, inside a linked file, to that file's
  *       base), with {@code /} separators; {@code ..} is allowed, so a {@code .lasm} directly in the schematics folder
- *       is {@code ../../x.lasm} and another project is {@code ../Other/project.json}.
+ *       is {@code ../../x.lasm} and another project is {@code ../Other/project.vproj}. Links written by older
+ *       versions name {@code project.json}; they resolve to {@code project.vproj} once that is the file there.
  *   <li>The <b>base</b> of a {@code .lasm}'s parts (what their {@code file} paths are relative to) is the linking
  *       project's folder when the file is inside it, else the folder of the project that owns the file
  *       ({@code Projects/<name>}), else the folder of the file itself.
  *   <li>The <b>identity</b> used by the cycle check is the normalised absolute path of the file; a link to a
- *       {@code project.json} is identified by the project folder.
+ *       project file is identified by the project folder.
  * </ul>
  */
 public final class LinkPaths {
@@ -31,7 +32,7 @@ public final class LinkPaths {
 
     /** The file a link points to. */
     public static Path target(Path linkingBase, String link) {
-        return linkingBase.toAbsolutePath().normalize().resolve(link).normalize();
+        return ProjectLayout.existingProjectFile(linkingBase.toAbsolutePath().normalize().resolve(link).normalize());
     }
 
     /** The folder the parts' files of the linked file are relative to. */
@@ -47,7 +48,7 @@ public final class LinkPaths {
         for (Path d = f.getParent(); d != null; d = d.getParent()) {
             Path up = d.getParent();
             if (up != null && up.getFileName() != null && up.getFileName().toString().equals(ProjectLayout.PROJECTS_DIR)
-                    && Files.exists(d.resolve(ProjectLayout.PROJECT_FILE))) {
+                    && ProjectLayout.isProjectDir(d)) {
                 return d;
             }
         }
@@ -58,7 +59,7 @@ public final class LinkPaths {
     /** The identity of a linked file for the cycle check. */
     public static String identity(Path target) {
         Path t = target.toAbsolutePath().normalize();
-        if (t.getFileName() != null && t.getFileName().toString().equals(ProjectLayout.PROJECT_FILE) && t.getParent() != null) {
+        if (t.getFileName() != null && ProjectLayout.isProjectFileName(t.getFileName().toString()) && t.getParent() != null) {
             return t.getParent().toString();
         }
         return t.toString();
@@ -69,10 +70,10 @@ public final class LinkPaths {
         return Path.of(projectPath).toAbsolutePath().normalize().toString();
     }
 
-    /** The file to read for an identity: the project folder's {@code project.json}, or the file itself. */
+    /** The file to read for an identity: the project folder's project file, or the file itself. */
     public static Path fileOf(String identity) {
         Path p = Path.of(identity);
-        return Files.isDirectory(p) ? p.resolve(ProjectLayout.PROJECT_FILE) : p;
+        return Files.isDirectory(p) ? ProjectLayout.projectFile(p) : p;
     }
 
     /** The link path from a folder to a target, with {@code /} separators ({@code ..} where needed). */

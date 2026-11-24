@@ -16,7 +16,7 @@ import java.util.UUID;
 /**
  * Convert to project: a folder (or Loose) becomes a new project holding its content. The files its objects use go
  * into the new project's {@code files/} (moved, or copied when something else still uses them, as in
- * {@link MoveToProject}), {@code project.json} is written, and the project is opened. A folder disappears; Loose stays
+ * {@link MoveToProject}), {@code project.vproj} is written, and the project is opened. A folder disappears; Loose stays
  * and is empty afterwards. The project gets the world of where the content was (the Loose world for Loose) and the
  * origin 0,0,0. Undo undoes all of it.
  */

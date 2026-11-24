@@ -8,7 +8,7 @@ Contents: [Concepts](#concepts) · [Opening the editor](#opening-the-editor) · 
 [Moving around](#moving-around) · [Selecting](#selecting) · [Transforming](#transforming) ·
 [Projects](#projects) · [Assemblies](#assemblies) · [Arrays](#arrays) ·
 [Overlaps, front order and Booleans](#overlaps-front-order-and-booleans) · [Hiding and local view](#hiding-and-local-view) ·
-[Exports](#exports) · [Sharing with Syncmatica](#sharing-with-syncmatica) · [Undo and saving](#undo-and-saving) ·
+[Exports](#exports) · [Sharing on a server](#sharing-on-a-server) · [Undo and saving](#undo-and-saving) ·
 [Troubleshooting](#troubleshooting)
 
 ## Concepts
@@ -93,7 +93,7 @@ orbit target are marked.
 ### Toolbar and status bar
 
 The toolbar has the mode chip, **Add**, the tools, Mirror, **Snap**, **Pivot**, **Local view**, the Windows menu and,
-when Syncmatica is installed, **Push**. On a narrow window the labels collapse first, then the key hints, then the later
+with a project shared on a server, **Push**. On a narrow window the labels collapse first, then the key hints, then the later
 groups move into a **...** menu. The status bar shows context hints, the derived-file rebuild queue and unpushed changes.
 
 ## Moving around
@@ -290,34 +290,36 @@ thread.
 Bake moves blocks with Litematica's own transform code. Block entities are copied to their new position (their NBT is
 not rotated). Entities and scheduled ticks are not baked.
 
-## Sharing with Syncmatica
+## Sharing on a server
 
-If [Syncmatica](https://modrinth.com/mod/syncmatica) is installed (on the server and on every client), a project can be
-shared and edited by several players at once.
+On a server that runs **Liskov**, a project can be shared and edited by several players at once. Every player needs
+Liskov and Vitruvius; the server needs Liskov.
 
-1. *Project menu → Share on Syncmatica* (or **Share** in Properties).
-2. With **Auto** ticked (the default) edits are pushed by themselves about two seconds after you stop changing things.
-   Without it, the toolbar's **Push** button shows how many changes are pending and pushes when you press it.
-3. A push shares one flat placement per visible cell (the trimmed file where one applies), plus one small *manifest*
-   placement, `[LA2] <project>`, a 1×1×1 air schematic whose description holds the scene graph, the time and your name.
-4. A second player with 2.0 opens it under *Open project... → Shared projects (Syncmatica)*. The project stays linked:
-   from then on, every manifest another player pushes is merged into the open project about a second after it arrives
-   ("Merged changes of Alex into ..."). The merge is per object, so two players editing different objects both keep their
-   work. If both edit the same object, one version wins (the same one on both computers); an edit beats a delete.
-5. Each flat placement is pushed by one player only: whoever has it on the server keeps it up to date, and the others push
-   a manifest only (plus the cells of objects they added themselves). Players without 2.0 see the flat placements.
-
-Merged changes are not an undo step. Undo only covers your own edits.
+1. *Project menu → Share on this server* (or **Share** in Properties). The project is copied to the server's drive
+   (`Projects/<name>/` in Liskov's Explorer, **F8**) and pushed; from then on you edit that copy. Your local folder stays
+   as it was.
+2. With **Auto** ticked (the default) your edits are pushed two seconds after you stop changing things. Without it,
+   the toolbar's **Push** button shows how many changes are not on the server yet. **Ctrl S** pushes a named version.
+   A push sends the project file and the files of its objects (`files/`, linked `.lasm` too), and only the files the
+   server does not have yet.
+3. Another player opens it under *Open project... → Shared projects (server drive)*. From then on every version someone
+   pushes is merged into the open project as it arrives ("Merged changes of Alex into ..."). The merge is per object and
+   is made against the version the other player started from, so two players editing different objects both keep their
+   work, even when they push at the same moment. If both edit the same object, one version wins (the same one on both
+   computers); an edit beats a delete. Merged changes are not an undo step: undo only covers your own edits.
+4. **Who may change it** is Liskov's access list: whoever shared the project is its admin, everyone else can view it
+   until given **EDIT** (Explorer, *Sharing*, or `/liskov acl set` as an operator). A push the server refuses is tried
+   again every ten seconds, and a toast says why. Locks (`/liskov lock`) work too.
+5. **History**: select the project's `project.vproj` on the server drive in Liskov's Explorer to see every version and
+   who pushed it, and to restore one; the restored version arrives in the editor like any other.
+6. **Stop sharing (edit a local copy)** copies the shared project into your own `Projects/` and switches to that copy.
+   The shared one stays on the server for the others.
 
 Limits:
-- A trimmed object (overlap or Boolean) is shared as its trimmed file, so a player who receives it for the first time gets
-  the trimmed blocks as the object's file. The others already have the original.
-- Linked assemblies are not shared. Renaming a shared project on one side is not followed by the others.
-- Clocks of the players may differ by up to a minute; manifests older than what a project already holds are ignored.
-- Files of objects are fetched once. Editing the blocks of a file in place is not synchronised.
-
-> **Not yet verified with two players on a real server.** The bridge's reflection calls match Syncmatica 0.3.20 (checked
-> with `javap`), and the merge has unit tests.
+- Branches and per-player drafts (an experiment in the Syncmatica alphas) are gone: there is one shared line of versions.
+- Players without Vitruvius see nothing of a shared project; place it for them from an export.
+- Projects shared with Syncmatica in earlier alphas are not moved: share them again on the server.
+- Visibility (hide/show) and the world a project is bound to stay per player.
 
 ## Undo and saving
 

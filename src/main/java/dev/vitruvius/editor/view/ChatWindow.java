@@ -109,8 +109,8 @@ public final class ChatWindow {
         boolean enter = ImGui.inputTextWithHint("##chatinput", "Type a message, or / for a command (Enter sends)", INPUT, ImGuiInputTextFlags.EnterReturnsTrue);
         ImGui.popStyleVar();
         float ih = ImGui.getItemRectSizeY();
-        dev.cg.uihost.Theme.push(dev.cg.uihost.UiHost.theme().mono());
-        ImGui.getWindowDrawList().addText(ix + 7 * sc, iy + (ih - ImGui.getFontSize()) * 0.5f, Ui.c(dev.cg.uihost.Theme.ACCENT), ">");
+        dev.liskov.ui.theme.MubTheme.push(dev.liskov.ui.theme.MubTheme.mono());
+        ImGui.getWindowDrawList().addText(ix + 7 * sc, iy + (ih - ImGui.getFontSize()) * 0.5f, Ui.c(dev.liskov.ui.theme.MubTheme.ACCENT), ">");
         ImGui.popFont();
         boolean active = ImGui.isItemActive();
         if (swallowFrames > 0) {

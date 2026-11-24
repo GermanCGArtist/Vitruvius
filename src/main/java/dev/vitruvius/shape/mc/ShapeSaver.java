@@ -23,7 +23,7 @@ public final class ShapeSaver {
 
     /** Litematica's schematics folder, the root every save folder lives in. */
     public static Path root() {
-        return DataManager.getSchematicsBaseDirectory().toAbsolutePath().normalize();
+        return dev.vitruvius.VitruviusPaths.schematicsDir();
     }
 
     /** folder relative to the root, "/" separated, "" for the root. */

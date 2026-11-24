@@ -16,7 +16,7 @@ class ProjectLayoutTest {
         Path schematics = Path.of("schematics");
         Path dir = ProjectLayout.projectDir(schematics, "Castle");
         assertEquals(Path.of("schematics", "Projects", "Castle"), dir);
-        assertEquals(dir.resolve("project.json"), ProjectLayout.projectFile(dir));
+        assertEquals(dir.resolve("project.vproj"), ProjectLayout.projectFile(dir));
         assertEquals(dir.resolve("files"), ProjectLayout.filesDir(dir));
         assertEquals(dir.resolve(".cache").resolve("derived"), ProjectLayout.derivedDir(dir));
         assertEquals(dir.resolve(".trash"), ProjectLayout.trashDir(dir));

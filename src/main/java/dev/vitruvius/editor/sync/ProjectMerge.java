@@ -39,7 +39,9 @@ public final class ProjectMerge {
 
     public record Result(JsonObject project, int conflicts, boolean changed) {}
 
-    private static final Set<String> LOCAL_FIELDS = Set.of("world", "dim", "sync", "hidden", SyncPlan.KEY, "nodes");
+    /** The per-computer record of the Syncmatica sharing of 2.0 alphas before Liskov; still kept out of merges. */
+    public static final String LEGACY_SYNC_KEY = "syncmatica";
+    private static final Set<String> LOCAL_FIELDS = Set.of("world", "dim", "sync", "hidden", LEGACY_SYNC_KEY, "nodes");
     private static final String ROOT = "";
 
     /** One node as merged: its fields without children, and its parent id ({@link #ROOT} for the project). */
@@ -172,6 +174,20 @@ public final class ProjectMerge {
             e.getAsJsonObject().remove("hidden");
             strip(e.getAsJsonObject().get("children"));
         }
+    }
+
+    /**
+     * How many nodes differ between two copies (added, removed, edited or moved; visibility is not counted), plus one
+     * when the project's own shared fields differ. 0 means {@link #equivalent}.
+     */
+    public static int changes(JsonObject a, JsonObject b) {
+        Tree x = flatten(a), y = flatten(b);
+        int n = same(x.root, y.root) ? 0 : 1;
+        Set<String> ids = new LinkedHashSet<>(x.nodes.keySet());
+        ids.addAll(y.nodes.keySet());
+        for (String id : ids) if (!same(x.nodes.get(id), y.nodes.get(id))) n++;
+        if (n == 0 && !equivalent(a, b)) n = 1;   // only the order of siblings changed
+        return n;
     }
 
     /** Whether two copies of a project hold the same scene (the fields that belong to one computer are not compared). */

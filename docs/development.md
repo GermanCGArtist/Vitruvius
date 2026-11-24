@@ -6,7 +6,9 @@ detailed implementation notes.
 
 ## Build
 
-Requirements: **JDK 25**. The Gradle wrapper is included, so you do not need Gradle installed.
+Requirements: **JDK 25**, and Liskov in the local Maven repository (Vitruvius compiles against it; run
+`..\Liskovuild.bat publishToMavenLocal` once, and again after changing Liskov). The Gradle wrapper is included, so you
+do not need Gradle installed.
 
 ```bash
 ./gradlew build      # compile, test, produce the jar
@@ -27,20 +29,35 @@ Everything version-specific is in [`gradle.properties`](../gradle.properties):
 | `minecraft_version`, `minecraft_dep` | The Minecraft version, and the range written into `fabric.mod.json`. |
 | `loader_version`, `loom_version`, `fabric_api_version` | Fabric toolchain. |
 | `litematica_version`, `malilib_version` | Modrinth version numbers of the mods compiled against. |
+| `liskov_version` | The Liskov version compiled against (from `mavenLocal()`). |
 | `mod_version` | The mod's own version. |
 
 Litematica and malilib are `compileOnly` dependencies fetched from Modrinth's Maven. Minecraft 26.1 and newer is
 unobfuscated, so no mappings are used.
 
-### Subprojects
+### Liskov
 
-| Project | Mod id | Role |
-|---|---|---|
-| root | `vitruvius` | The mod. |
-| `ui-host/` | `cg-uihost` | The shared Dear ImGui host: ImGui context, natives for Windows, Linux and macOS (x64 and arm64), GLFW input routing, the font atlas and a frame hook. It is nested into the main jar (jar-in-jar), so players install one file. |
+Vitruvius runs on [Liskov](../../Liskov/README.md), a separate mod the player installs (`compileOnly` here):
 
-Other mods register UI with `UiHost.register(UiLayer)`. Only one mod can own the ImGui context in a game; the host exists so
-that two mods can share it.
+- **UI host**: `LiskovUiHost.register(UiLayer)`, the theme `MubTheme` (colour tokens, fonts, presets). It replaced the
+  `cg-uihost` subproject that used to be nested in this jar; one ImGui context is shared by every mod.
+- **Files**: `VitruviusPaths` resolves the schematics folder (`LiskovFs.schematicsDir()`) and the settings folder
+  (`liskov/local/vitruvius/config`), sets up Liskov's filesystem if Liskov's own entrypoint has not run yet, and maps
+  paths remembered before the move (`remapLegacy`). `ProjectLayout` reads `project.vproj`, then an old `project.json`.
+- **Explorer**: `LiskovIntegration` adds **Open in Vitruvius** for `.vproj` files and Command Palette entries.
+- **Versions**: `LiskovHistory` records a project folder (`project.vproj` + `files/**`) in Liskov's `VcsStore` after
+  saves (`ProjectManager.HistoryHook`: Ctrl S is a named version, autosave and close are autosaves; the quick save
+  after each edit is not recorded), on a background thread. A version restored in the explorer fires a reload notice;
+  the open project is read again with `ProjectManager.revertToDisk` and the undo history is cleared.
+- **Mouse**: `EditorInputLayer.blocksMouseGrab()` keeps the cursor free in editor mode (Liskov's mixin cancels
+  `grabMouse()` and player turning); Vitruvius no longer has its own grab mixin.
+- **Sharing** (`editor/sync`): `LiskovShare` keeps shared projects on the server's Liskov drive
+  (`Projects/<name>/project.vproj`), pushes them with `LiskovSyncClient.pushCommit` (a version in the client's
+  `VcsStore` under the server drive's id, so its parent is the last version this computer pushed or received), and
+  merges arriving versions with `ProjectMerge` against that parent (`ShareCore`, pure and unit-tested; `ProjectApply`
+  changes the open nodes in place). A push counts once the server's index lists it as head; otherwise it is retried.
+  `ShareSelfTest` (`-Dvitruvius.sharetest=a|b`) is the two-player check for automated runs (a Deming job with a server
+  running Liskov and two clients).
 
 ## Source layout
 
@@ -54,7 +71,6 @@ src/main/java/dev/vitruvius/
   editor/                   the 2.0 editor (below)
 src/main/resources/         fabric.mod.json, mixin configs, lang
 src/test/                   JUnit tests and fixtures
-ui-host/                    the cg-uihost subproject
 docs/                       documentation
 ```
 
@@ -66,7 +82,7 @@ docs/                       documentation
 | `io` | `ProjectIo` (`project.json`), `AssemblyIo` (`.lasm`), `ZipExport`, `BakeLayout`, `Migration1x`. | No |
 | `ops` | Every undoable edit as a command (`Move`, `Rotate`, `Duplicate`, `Reparent`, `SetFront`, `ModifierCommand`, `RealiseArray`, `SaveAsLinked`, ...), the `UndoStack`, and file work through a `FileSystemPort`. | No |
 | `gizmo`, `pick`, `ui` | Math and models behind the gizmo, picking, the menus, the tree and the Top view. | No |
-| `sync` | Syncmatica manifest, plan and bridge (the bridge uses reflection only). | Bridge only |
+| `sync` | Sharing on Liskov server drives: `ShareCore`, `ProjectMerge`, `ProjectApply` (pure), `LiskovShare`. | `LiskovShare` only |
 | `mc` | The bridge to the game: `Reconciler`, `LitematicaAdapter`, `DerivedFiles`, `Bake`, `SchematicInfo`, `Picking`. | Yes |
 | `cam`, `mixin`, `world` | The editor camera, its mixins, and the in-world overlay and gizmo. | Yes |
 | `view` | ImGui windows: Scene, Properties, Top view, toolbar, menus, toasts. | ImGui |
@@ -102,12 +118,11 @@ ImGui windows ──► commands (undoable) ──► model (projects, nodes)
 
 The suite uses JUnit 5 and covers the pure layers: transforms, arrays, overlaps, front order, masks, the cycle check,
 project and assembly I/O, migration (fixtures in `src/test/resources/migration`), exports, gizmo math, picking,
-Syncmatica manifests, the object-type API and the shape generator.
+the sharing merge, the object-type API and the shape generator.
 
 What the tests do **not** cover is anything that needs a running game: the reconciler against real Litematica, bake,
 derived files, the camera and the ImGui windows. Check those by hand in a running game before a release, on a clean
-profile with the target Minecraft and Litematica versions. Branches have their own two-player sheet in
-[BRANCHES.md](BRANCHES.md).
+profile with the target Minecraft and Litematica versions. Sharing has an automated two-player run (see Liskov above).
 
 ## Conventions
 

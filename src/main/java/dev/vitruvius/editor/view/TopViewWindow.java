@@ -1,7 +1,7 @@
 package dev.vitruvius.editor.view;
 
-import dev.cg.uihost.Theme;
-import dev.cg.uihost.UiHost;
+import dev.liskov.ui.theme.MubTheme;
+import dev.liskov.ui.host.LiskovUiHost;
 import dev.vitruvius.editor.EditorSession;
 import dev.vitruvius.editor.cam.EditorCamera;
 import dev.vitruvius.editor.core.Box;
@@ -85,8 +85,8 @@ public final class TopViewWindow {
         if (Ui.iconButton("##tv_follow", "local", 22 * sc, follow, true, "Follow the camera")) follow = !follow;
         ImGui.sameLine();
         ImGui.alignTextToFramePadding();
-        Theme.push(UiHost.theme().small());
-        ImGui.pushStyleColor(imgui.flag.ImGuiCol.Text, Ui.c(Theme.DIM));
+        MubTheme.push(MubTheme.small());
+        ImGui.pushStyleColor(imgui.flag.ImGuiCol.Text, Ui.c(MubTheme.DIM));
         ImGui.text(view == null ? "" : TopViewMath.scaleLabel(view.scale()));
         ImGui.popStyleColor();
         ImGui.popFont();
@@ -114,11 +114,11 @@ public final class TopViewWindow {
         // ---- draw
         ImDrawList dl = ImGui.getWindowDrawList();
         dl.pushClipRect(x0, y0, x0 + cw, y0 + ch, true);
-        dl.addRectFilled(x0, y0, x0 + cw, y0 + ch, Ui.c(Theme.BG), 0f);
+        dl.addRectFilled(x0, y0, x0 + cw, y0 + ch, Ui.c(MubTheme.BG), 0f);
         drawGrid(dl, x0, y0, cw, ch, sc);
         if (items.isEmpty()) {
             String t = "Nothing placed yet.";
-            dl.addText(x0 + (cw - ImGui.calcTextSizeX(t)) * 0.5f, y0 + (ch - ImGui.getFontSize()) * 0.5f, Ui.c(Theme.DIM), t);
+            dl.addText(x0 + (cw - ImGui.calcTextSizeX(t)) * 0.5f, y0 + (ch - ImGui.getFontSize()) * 0.5f, Ui.c(MubTheme.DIM), t);
         }
         UUID hoverId = hovered && panButton < 0 ? TopViewMath.hit(items, view, cw, ch, mx, my) : null;
         drawItems(s, dl, x0, y0, cw, ch, hoverId, sc);
@@ -126,7 +126,7 @@ public final class TopViewWindow {
         if (dragging) drawDragGhost(s, dl, x0, y0, cw, ch, mx, my, sc);
         drawCamera(dl, x0, y0, cw, ch, camPos, cam, sc);
         dl.popClipRect();
-        dl.addRect(x0, y0, x0 + cw, y0 + ch, Ui.c(Theme.BORDER_HI), 0f);
+        dl.addRect(x0, y0, x0 + cw, y0 + ch, Ui.c(MubTheme.BORDER_HI), 0f);
 
         if (legendH > 0) drawLegend(dl, sc);
     }
@@ -215,7 +215,7 @@ public final class TopViewWindow {
         int step = TopViewMath.gridStep(view.scale(), 24 * sc);
         double wx0 = TopViewMath.worldX(view, w, 0), wx1 = TopViewMath.worldX(view, w, w);
         double wz0 = TopViewMath.worldZ(view, h, 0), wz1 = TopViewMath.worldZ(view, h, h);
-        int line = Ui.c(Theme.LINE, 0.7f);
+        int line = Ui.c(MubTheme.LINE, 0.7f);
         for (long gx = (long) Math.floor(wx0 / step) * step; gx <= wx1; gx += step) {
             float sx = x0 + (float) TopViewMath.screenX(view, w, gx);
             dl.addLine(sx, y0, sx, y0 + h, gx == 0 ? Ui.c(Ui.AX_Z, 0.35f) : line, 1f);
@@ -249,16 +249,16 @@ public final class TopViewWindow {
             switch (it.kind()) {
                 case AREA -> {
                     dl.addRectFilled(r[0], r[1], r[2], r[3], Ui.c(Ui.AREA, 0.06f));
-                    dashedRect(dl, r, 4 * sc, 3 * sc, Ui.c(sel ? Theme.ACCENT : Ui.AREA, it.copy() ? 0.7f : 1f));
+                    dashedRect(dl, r, 4 * sc, 3 * sc, Ui.c(sel ? MubTheme.ACCENT : Ui.AREA, it.copy() ? 0.7f : 1f));
                 }
-                case CUTTER -> dashedRect(dl, r, 2 * sc, 2 * sc, Ui.c(sel ? Theme.ACCENT : Ui.BOOL, it.copy() ? 0.7f : 1f));
+                case CUTTER -> dashedRect(dl, r, 2 * sc, 2 * sc, Ui.c(sel ? MubTheme.ACCENT : Ui.BOOL, it.copy() ? 0.7f : 1f));
                 default -> {
                     float a = sel ? (it.copy() ? 0.6f : 1f) : (it.copy() ? 0.55f * 0.7f : 0.55f);
-                    dl.addRectFilled(r[0], r[1], r[2], r[3], Ui.c(sel ? Theme.ACCENT : Ui.T_OBJECT, a));
+                    dl.addRectFilled(r[0], r[1], r[2], r[3], Ui.c(sel ? MubTheme.ACCENT : Ui.T_OBJECT, a));
                     dl.addRect(r[0], r[1], r[2], r[3], Ui.c(0x000000, 0.5f), 0f, 0, 1f);
                 }
             }
-            if (it.id().equals(hoverId)) dl.addRect(r[0], r[1], r[2], r[3], Ui.c(Theme.FG, 0.6f), 0f, 0, 1f);
+            if (it.id().equals(hoverId)) dl.addRect(r[0], r[1], r[2], r[3], Ui.c(MubTheme.FG, 0.6f), 0f, 0, 1f);
         }
     }
 
@@ -282,15 +282,15 @@ public final class TopViewWindow {
             if (!ids.contains(it.id())) continue;
             float[] r = rect(it.box(), x0, y0, w, h);
             float[] g = {r[0] + dx, r[1] + dz, r[2] + dx, r[3] + dz};
-            dl.addRectFilled(g[0], g[1], g[2], g[3], Ui.c(Theme.ACCENT, 0.12f));
-            dashedRect(dl, g, 4 * sc, 3 * sc, Ui.c(Theme.ACCENT));
+            dl.addRectFilled(g[0], g[1], g[2], g[3], Ui.c(MubTheme.ACCENT, 0.12f));
+            dashedRect(dl, g, 4 * sc, 3 * sc, Ui.c(MubTheme.ACCENT));
         }
         String t = (dragDelta.x() >= 0 ? "+" : "") + dragDelta.x() + ", " + (dragDelta.z() >= 0 ? "+" : "") + dragDelta.z();
-        Theme.push(UiHost.theme().small());
+        MubTheme.push(MubTheme.small());
         float tw = ImGui.calcTextSizeX(t);
         float tx = x0 + mx + 12 * sc, ty = y0 + my + 12 * sc;
         dl.addRectFilled(tx - 4 * sc, ty - 2 * sc, tx + tw + 4 * sc, ty + ImGui.getFontSize() + 2 * sc, Ui.c(0x14161a, 0.85f), 4 * sc);
-        dl.addText(tx, ty, Ui.c(Theme.FG), t);
+        dl.addText(tx, ty, Ui.c(MubTheme.FG), t);
         ImGui.popFont();
     }
 
@@ -298,28 +298,28 @@ public final class TopViewWindow {
         float cx = x0 + (float) TopViewMath.screenX(view, w, pos.x), cy = y0 + (float) TopViewMath.screenY(view, h, pos.z);
         Vec3 f = EditorCamera.forward(cam.yaw(), 0);
         double[] wd = TopViewMath.wedge(cx, cy, f.x, f.z, Math.toRadians(35), 56 * sc);
-        dl.addTriangleFilled(cx, cy, (float) wd[0], (float) wd[1], (float) wd[2], (float) wd[3], Ui.c(Theme.FG, 0.13f));
-        dl.addCircleFilled(cx, cy, 3.5f * sc, Ui.c(Theme.FG));
+        dl.addTriangleFilled(cx, cy, (float) wd[0], (float) wd[1], (float) wd[2], (float) wd[3], Ui.c(MubTheme.FG, 0.13f));
+        dl.addCircleFilled(cx, cy, 3.5f * sc, Ui.c(MubTheme.FG));
         Vec3 t = cam.target();
-        dl.addCircle(x0 + (float) TopViewMath.screenX(view, w, t.x), y0 + (float) TopViewMath.screenY(view, h, t.z), 3 * sc, Ui.c(Theme.FG), 12, 1f);
+        dl.addCircle(x0 + (float) TopViewMath.screenX(view, w, t.x), y0 + (float) TopViewMath.screenY(view, h, t.z), 3 * sc, Ui.c(MubTheme.FG), 12, 1f);
         Minecraft mc = Minecraft.getInstance();
         if (mc.player != null) {
             double px = mc.player.getX(), pz = mc.player.getZ();
             if (Math.hypot(px - pos.x, pz - pos.z) > 1.5) {
-                dl.addCircleFilled(x0 + (float) TopViewMath.screenX(view, w, px), y0 + (float) TopViewMath.screenY(view, h, pz), 3 * sc, Ui.c(Theme.ACCENT));
+                dl.addCircleFilled(x0 + (float) TopViewMath.screenX(view, w, px), y0 + (float) TopViewMath.screenY(view, h, pz), 3 * sc, Ui.c(MubTheme.ACCENT));
             }
         }
     }
 
     private static void drawLegend(ImDrawList dl, float sc) {
-        Theme.push(UiHost.theme().small());
+        MubTheme.push(MubTheme.small());
         ImGui.dummy(0, 4 * sc);
         float x = ImGui.getCursorScreenPosX(), y = ImGui.getCursorScreenPosY(), fh = ImGui.getFontSize();
         String[] names = {"selected", "object", "overlap", "area", "cutter"};
         for (int i = 0; i < names.length; i++) {
             float sw = 10 * sc, sy = y + (fh - sw) * 0.5f;
             switch (i) {
-                case 0 -> dl.addRectFilled(x, sy, x + sw, sy + sw, Ui.c(Theme.ACCENT));
+                case 0 -> dl.addRectFilled(x, sy, x + sw, sy + sw, Ui.c(MubTheme.ACCENT));
                 case 1 -> dl.addRectFilled(x, sy, x + sw, sy + sw, Ui.c(Ui.T_OBJECT, 0.55f));
                 case 2 -> {
                     dl.addRectFilled(x, sy, x + sw, sy + sw, Ui.c(Ui.OVERLAP, 0.35f));
@@ -328,7 +328,7 @@ public final class TopViewWindow {
                 case 3 -> dashedRect(dl, new float[] {x, sy, x + sw, sy + sw}, 3 * sc, 2 * sc, Ui.c(Ui.AREA));
                 default -> dashedRect(dl, new float[] {x, sy, x + sw, sy + sw}, 2 * sc, 2 * sc, Ui.c(Ui.BOOL));
             }
-            dl.addText(x + sw + 4 * sc, y, Ui.c(Theme.DIM), names[i]);
+            dl.addText(x + sw + 4 * sc, y, Ui.c(MubTheme.DIM), names[i]);
             x += sw + 4 * sc + ImGui.calcTextSizeX(names[i]) + 10 * sc;
         }
         ImGui.dummy(0, fh);

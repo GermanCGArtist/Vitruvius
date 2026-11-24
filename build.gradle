@@ -7,6 +7,7 @@ group = project.maven_group
 base { archivesName = project.archives_base_name }
 
 repositories {
+    mavenLocal()   // Liskov: publish it first with ..\Liskovuild.bat publishToMavenLocal
     mavenCentral()
     exclusiveContent {
         forRepository { maven { name = 'Modrinth'; url = 'https://api.modrinth.com/maven' } }
@@ -26,10 +27,10 @@ dependencies {
     compileOnly "maven.modrinth:litematica:${project.litematica_version}"
     compileOnly "maven.modrinth:malilib:${project.malilib_version}"
 
-    // cg-uihost (ImGui host): compiled against, and nested into this jar (jar-in-jar)
-    implementation project(":ui-host")
-    include project(":ui-host")
-    compileOnly "io.github.spair:imgui-java-binding:1.90.0"   // API types only; the real classes ship in cg-uihost
+    // Liskov (shared ImGui host, Drives filesystem, file explorer): a separate mod the player installs, compiled against only
+    compileOnly "dev.liskov:liskov:${project.liskov_version}"
+    testImplementation "dev.liskov:liskov-core:${project.liskov_version}"
+    compileOnly "io.github.spair:imgui-java-binding:1.90.0"   // API types only; the real classes ship in Liskov
 
     // Unit tests for the Minecraft-free shape core (dev.vitruvius.shape)
     testImplementation "org.junit.jupiter:junit-jupiter:5.11.4"

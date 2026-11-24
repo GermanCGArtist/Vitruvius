@@ -13,7 +13,6 @@ import dev.vitruvius.shape.PatternMode;
 import dev.vitruvius.shape.ShapeSpec;
 import dev.vitruvius.shape.ShapeType;
 import dev.vitruvius.shape.Sketch;
-import net.fabricmc.loader.api.FabricLoader;
 
 import java.io.Reader;
 import java.io.Writer;
@@ -39,7 +38,7 @@ public final class ShapePresets {
     private static final Map<String, GeneratorSettings> PRESETS = new LinkedHashMap<>();
 
     private static Path file() {
-        return FabricLoader.getInstance().getConfigDir().resolve("vitruvius").resolve("shapes.json");
+        return dev.vitruvius.VitruviusPaths.configDir().resolve("shapes.json");
     }
 
     private static void load() {

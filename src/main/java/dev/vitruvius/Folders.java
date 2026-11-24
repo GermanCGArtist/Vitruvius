@@ -6,7 +6,6 @@ import dev.vitruvius.api.ListEntry;
 import dev.vitruvius.api.VitruviusApi;
 import fi.dy.masa.litematica.data.DataManager;
 import fi.dy.masa.litematica.schematic.placement.SchematicPlacement;
-import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 
 import java.io.Reader;
@@ -106,7 +105,7 @@ public final class Folders {
     }
 
     private static Path file() {
-        return FabricLoader.getInstance().getConfigDir().resolve("vitruvius").resolve("folders.json");
+        return VitruviusPaths.configDir().resolve("folders.json");
     }
 
     private static Data data() {

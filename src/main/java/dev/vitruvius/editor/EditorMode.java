@@ -1,7 +1,7 @@
 package dev.vitruvius.editor;
 
 import com.mojang.blaze3d.platform.InputConstants;
-import dev.cg.uihost.UiHost;
+import dev.liskov.ui.host.LiskovUiHost;
 import dev.vitruvius.editor.cam.EditorCamera;
 import dev.vitruvius.editor.cam.SpectatorFollow;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -54,7 +54,7 @@ public final class EditorMode {
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
             if (active) exit(client, false);
         });
-        dev.cg.uihost.UiHost.register(new EditorInputLayer());
+        dev.liskov.ui.host.LiskovUiHost.register(new EditorInputLayer());
     }
 
     // ------------------------------------------------------------------ enter / exit
@@ -84,7 +84,7 @@ public final class EditorMode {
      */
     public static void exit(Minecraft mc, boolean regrab) {
         if (!active) return;
-        active = false;                       // first: the grab mixin lets grabMouse() through from here on
+        active = false;                       // first: the layer stops blocking grabMouse() (Liskov) from here on
         level = null;
         EditorCamera.get().cancelGesture();
         try {
@@ -97,7 +97,7 @@ public final class EditorMode {
         } catch (Throwable ignored) {
             // no session (Litematica missing)
         }
-        UiHost.captureCursor(false);
+        LiskovUiHost.captureCursor(false);
         mc.options.setCameraType(savedCameraType);
         releaseGameplayKeys(mc);
         if (regrab && mc.gui.screen() == null && mc.player != null) mc.mouseHandler.grabMouse();

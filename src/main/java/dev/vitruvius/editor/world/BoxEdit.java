@@ -1,7 +1,7 @@
 package dev.vitruvius.editor.world;
 
-import dev.cg.uihost.Theme;
-import dev.cg.uihost.UiHost;
+import dev.liskov.ui.theme.MubTheme;
+import dev.liskov.ui.host.LiskovUiHost;
 import dev.vitruvius.api.ObjectTypes;
 import dev.vitruvius.api.SceneObjectType;
 import dev.vitruvius.editor.EditorMode;
@@ -499,7 +499,7 @@ public final class BoxEdit {
         if (selected != null && selected.box() >= local.size()) selected = null;
         EditorCamera cam = EditorCamera.get();
         double[] c = cursor(mc);
-        boolean over = UiHost.imguiWantsMouse();
+        boolean over = LiskovUiHost.imguiWantsMouse();
         if (dragging) {
             if (GLFW.glfwGetMouseButton(mc.getWindow().handle(), GLFW.GLFW_MOUSE_BUTTON_LEFT) != GLFW.GLFW_PRESS) {
                 commit();                                                          // the release went to ImGui or was lost
@@ -521,7 +521,7 @@ public final class BoxEdit {
         double[] cp = {p.x, p.y, p.z};
         double fov = mc.options.fov().get();
         double w = Math.max(1, mc.getWindow().getScreenWidth()), h = Math.max(1, mc.getWindow().getScreenHeight());
-        float sc = UiHost.scale();
+        float sc = LiskovUiHost.scale();
         ImDrawList dl = ImGui.getBackgroundDrawList();
         List<Box> wb = worldBoxes();
         FaceEdit.Face live = activeFace();
@@ -534,12 +534,12 @@ public final class BoxEdit {
                     if (sp == null) continue;
                     boolean on = live != null && live.box() == i && live.axis() == axis && live.sign() == sign;
                     float r = (on ? 6f : 4f) * sc, x0 = (float) sp[0], y0 = (float) sp[1];
-                    dl.addQuadFilled(x0, y0 - r, x0 + r, y0, x0, y0 + r, x0 - r, y0, Ui.c(on ? Theme.ACCENT : rgb, on ? 1f : 0.85f));
+                    dl.addQuadFilled(x0, y0 - r, x0 + r, y0, x0, y0 + r, x0 - r, y0, Ui.c(on ? MubTheme.ACCENT : rgb, on ? 1f : 0.85f));
                     dl.addQuad(x0, y0 - r, x0 + r, y0, x0, y0 + r, x0 - r, y0, Ui.c(0x14161a, 0.9f), 1f);
                 }
             }
         }
-        if (live != null && !UiHost.imguiWantsMouse() && !typing) UiHost.setCursor(UiHost.Cursor.RESIZE_ALL);
+        if (live != null && !LiskovUiHost.imguiWantsMouse() && !typing) LiskovUiHost.setCursor(LiskovUiHost.Cursor.RESIZE_ALL);
         if (dragging || typing) {
             Box g = ghostLocal();
             String text;
@@ -550,11 +550,11 @@ public final class BoxEdit {
                 text = (extrude ? "new box " : "") + sz.x() + " x " + sz.y() + " x " + sz.z();
             }
             if (!text.isEmpty()) {
-                Theme.push(UiHost.theme().monoS());
+                MubTheme.push(MubTheme.monoS());
                 float tw = ImGui.calcTextSizeX(text) + 12 * sc, th = 18 * sc;
                 float x0 = (float) c[0] + 16 * sc, y0 = (float) c[1] + 12 * sc;
                 dl.addRectFilled(x0, y0, x0 + tw, y0 + th, Ui.c(0x14161a, 0.85f), 4 * sc);
-                dl.addText(x0 + 6 * sc, y0 + (th - ImGui.getFontSize()) * 0.5f, Ui.c(Theme.ACCENT), text);
+                dl.addText(x0 + 6 * sc, y0 + (th - ImGui.getFontSize()) * 0.5f, Ui.c(MubTheme.ACCENT), text);
                 ImGui.popFont();
             }
         }

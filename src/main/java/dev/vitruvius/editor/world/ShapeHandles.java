@@ -1,7 +1,7 @@
 package dev.vitruvius.editor.world;
 
-import dev.cg.uihost.Theme;
-import dev.cg.uihost.UiHost;
+import dev.liskov.ui.theme.MubTheme;
+import dev.liskov.ui.host.LiskovUiHost;
 import dev.vitruvius.editor.EditorSession;
 import dev.vitruvius.editor.EditorSession.Tool;
 import dev.vitruvius.editor.cam.EditorCamera;
@@ -215,8 +215,8 @@ public final class ShapeHandles {
         ViewMath.Basis basis = ViewMath.Basis.of(cam.yaw(), cam.pitch());
         double[] cp = {p.x, p.y, p.z};
         double fov = mc.options.fov().get(), w = Math.max(1, mc.getWindow().getScreenWidth()), h = Math.max(1, mc.getWindow().getScreenHeight());
-        double mx = UiHost.cursorX(), my = UiHost.cursorY();
-        float sc = UiHost.scale();
+        double mx = LiskovUiHost.cursorX(), my = LiskovUiHost.cursorY();
+        float sc = LiskovUiHost.scale();
 
         if (drag >= 0) {
             double[] ray = Picking.rayAt(mc, mx, my);
@@ -252,9 +252,9 @@ public final class ShapeHandles {
             boolean on = f == hover || f == drag;
             float r = (on ? 8.5f : 6.5f) * sc;
             dl.addCircleFilled((float) sp[0], (float) sp[1], r + 1.5f * sc, Ui.c(0x101216, 0.85f), 20);
-            dl.addCircleFilled((float) sp[0], (float) sp[1], r, Ui.c(on ? Theme.ACCENT : 0xdfe5ee, on ? 1f : 0.9f), 20);
+            dl.addCircleFilled((float) sp[0], (float) sp[1], r, Ui.c(on ? MubTheme.ACCENT : 0xdfe5ee, on ? 1f : 0.9f), 20);
         }
-        if (hover >= 0 || drag >= 0) UiHost.setCursor(UiHost.Cursor.RESIZE_ALL);
+        if (hover >= 0 || drag >= 0) LiskovUiHost.setCursor(LiskovUiHost.Cursor.RESIZE_ALL);
     }
 
     // ------------------------------------------------------------------ mouse
@@ -265,7 +265,7 @@ public final class ShapeHandles {
         drag = hover;
         blocks = 0;
         p0 = faceCentre(box, drag);
-        double[] ray = Picking.rayAt(mc, UiHost.cursorX(), UiHost.cursorY());
+        double[] ray = Picking.rayAt(mc, LiskovUiHost.cursorX(), LiskovUiHost.cursorY());
         t0 = AxisProjection.axisParam(new double[] {ray[0], ray[1], ray[2]}, new double[] {ray[3], ray[4], ray[5]}, p0, drag / 2);
         if (Double.isNaN(t0)) {
             drag = -1;

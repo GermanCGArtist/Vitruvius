@@ -1,7 +1,7 @@
 package dev.vitruvius.editor.view;
 
-import dev.cg.uihost.Theme;
-import dev.cg.uihost.UiHost;
+import dev.liskov.ui.theme.MubTheme;
+import dev.liskov.ui.host.LiskovUiHost;
 import dev.vitruvius.editor.EditorSession;
 import dev.vitruvius.editor.core.ArrayCells;
 import dev.vitruvius.editor.core.ArrayModifier;
@@ -115,13 +115,13 @@ public final class PropertiesWindow {
         ImDrawList dl = ImGui.getWindowDrawList();
         String[][] caps = {{"Shift"}, {"Alt"}, {"B"}};
         String[] verbs = {"add", "cycle overlapping", "box select"};
-        Theme.push(UiHost.theme().small());
+        MubTheme.push(MubTheme.small());
         float total = 0;
         for (int i = 0; i < caps.length; i++) total += Ui.capWidth(caps[i][0]) + 4 * sc + ImGui.calcTextSizeX(verbs[i]) + 12 * sc;
         float x = ImGui.getCursorScreenPosX() + Math.max(0, (ImGui.getContentRegionAvailX() - total) * 0.5f), y = ImGui.getCursorScreenPosY();
         for (int i = 0; i < caps.length; i++) {
-            x = Ui.keyCap(dl, x, y, caps[i][0], Theme.DIM) + 4 * sc;
-            dl.addText(x, y + (18 * sc - ImGui.getFontSize()) * 0.5f, Ui.c(Theme.DIM), verbs[i]);
+            x = Ui.keyCap(dl, x, y, caps[i][0], MubTheme.DIM) + 4 * sc;
+            dl.addText(x, y + (18 * sc - ImGui.getFontSize()) * 0.5f, Ui.c(MubTheme.DIM), verbs[i]);
             x += ImGui.calcTextSizeX(verbs[i]) + 12 * sc;
         }
         ImGui.popFont();
@@ -131,7 +131,7 @@ public final class PropertiesWindow {
 
     private static void centeredDim(String text) {
         ImGui.setCursorPosX(Math.max(0, (ImGui.getWindowWidth() - ImGui.calcTextSizeX(text)) * 0.5f));
-        ImGui.pushStyleColor(ImGuiCol.Text, Ui.c(Theme.DIM));
+        ImGui.pushStyleColor(ImGuiCol.Text, Ui.c(MubTheme.DIM));
         ImGui.text(text);
         ImGui.popStyleColor();
     }
@@ -145,22 +145,22 @@ public final class PropertiesWindow {
                 {"Camera", "MMB orbit · hold RMB + WASD fly"}};
         ImDrawList dl = ImGui.getWindowDrawList();
         float x0 = ImGui.getCursorScreenPosX(), y0 = ImGui.getCursorScreenPosY(), w = ImGui.getContentRegionAvailX();
-        Theme.push(UiHost.theme().small());
+        MubTheme.push(MubTheme.small());
         float lh = ImGui.getFontSize() + 5 * sc, pad = 10 * sc;
         float h = pad * 2 + ImGui.getFontSize() + 6 * sc + rows.length * lh;
-        dl.addRectFilled(x0, y0, x0 + w, y0 + h, Ui.c(Theme.SURFACE), 0f);
-        dl.addRect(x0, y0, x0 + w, y0 + h, Ui.c(Theme.BORDER_HI), 0f);
-        dl.addText(x0 + pad, y0 + pad, Ui.c(Theme.GUTTER), "── FROM LITEMATICA?");
+        dl.addRectFilled(x0, y0, x0 + w, y0 + h, Ui.c(MubTheme.SURFACE), 0f);
+        dl.addRect(x0, y0, x0 + w, y0 + h, Ui.c(MubTheme.BORDER_HI), 0f);
+        dl.addText(x0 + pad, y0 + pad, Ui.c(MubTheme.GUTTER), "── FROM LITEMATICA?");
         float y = y0 + pad + ImGui.getFontSize() + 6 * sc;
         float leftW = 0;
         for (String[] r : rows) leftW = Math.max(leftW, ImGui.calcTextSizeX(r[0]));
         leftW = Math.min(leftW, w * 0.42f);
         for (String[] r : rows) {
             dl.pushClipRect(x0 + pad, y, x0 + pad + leftW, y + lh, true);
-            dl.addText(x0 + pad, y, Ui.c(Theme.DIM), r[0]);
+            dl.addText(x0 + pad, y, Ui.c(MubTheme.DIM), r[0]);
             dl.popClipRect();
             dl.pushClipRect(x0 + pad + leftW + 6 * sc, y, x0 + w - pad, y + lh, true);
-            dl.addText(x0 + pad + leftW + 6 * sc, y, Ui.c(Theme.FG), "→ " + r[1]);
+            dl.addText(x0 + pad + leftW + 6 * sc, y, Ui.c(MubTheme.FG), "→ " + r[1]);
             dl.popClipRect();
             y += lh;
         }
@@ -186,8 +186,8 @@ public final class PropertiesWindow {
 
     private static int typeColor(Node n) {
         return switch (TreeModel.kindOf(n)) {
-            case PROJECT -> Theme.ACCENT;
-            case LOOSE -> Theme.GUTTER;
+            case PROJECT -> MubTheme.ACCENT;
+            case LOOSE -> MubTheme.GUTTER;
             case FOLDER -> Ui.T_FOLDER;
             case OBJECT, ASSEMBLY -> Ui.T_OBJECT;
             case CUTTER -> Ui.BOOL;
@@ -200,12 +200,12 @@ public final class PropertiesWindow {
         float sc = Ui.s();
         ImDrawList dl = ImGui.getWindowDrawList();
         float x = ImGui.getCursorScreenPosX(), y = ImGui.getCursorScreenPosY();
-        EditorIcons.draw(dl, typeIcon(n), x + 8 * sc, y + 12.5f * sc, 8 * sc, Ui.c(locked ? Theme.GUTTER : typeColor(n)));
+        EditorIcons.draw(dl, typeIcon(n), x + 8 * sc, y + 12.5f * sc, 8 * sc, Ui.c(locked ? MubTheme.GUTTER : typeColor(n)));
         ImGui.setCursorScreenPos(x + 22 * sc, y);
         ImGui.setNextItemWidth(-1);
         if (n instanceof LooseNode) {
             ImGui.alignTextToFramePadding();
-            Theme.push(UiHost.theme().uiBold());
+            MubTheme.push(MubTheme.uiBold());
             ImGui.text("Loose placements");
             ImGui.popFont();
         } else {
@@ -216,7 +216,7 @@ public final class PropertiesWindow {
                 NAME.set(n.name());
             }
             if (locked) ImGui.beginDisabled();
-            Theme.push(UiHost.theme().uiBold());
+            MubTheme.push(MubTheme.uiBold());
             boolean enter = ImGui.inputText("##name", NAME, ImGuiInputTextFlags.EnterReturnsTrue | ImGuiInputTextFlags.AutoSelectAll);
             boolean lost = ImGui.isItemDeactivatedAfterEdit();
             ImGui.popFont();
@@ -230,11 +230,11 @@ public final class PropertiesWindow {
         // source line
         String src = sourceLine(s, n);
         if (src != null) {
-            Theme.push(UiHost.theme().monoS());
+            MubTheme.push(MubTheme.monoS());
             boolean linked = n instanceof AssemblyNode a && a.isLinked();
             float tx = ImGui.getCursorScreenPosX();
             String shown = Ui.fitMiddle(src, ImGui.getContentRegionAvailX() - (linked ? 18 * sc : 0));
-            ImGui.pushStyleColor(ImGuiCol.Text, Ui.c(linked ? Ui.LINK : Theme.DIM));
+            ImGui.pushStyleColor(ImGuiCol.Text, Ui.c(linked ? Ui.LINK : MubTheme.DIM));
             if (linked) {
                 EditorIcons.draw(ImGui.getWindowDrawList(), "link", tx + 6 * sc, ImGui.getCursorScreenPosY() + ImGui.getFontSize() * 0.6f, 6 * sc, Ui.c(Ui.LINK));
                 ImGui.setCursorScreenPos(tx + 16 * sc, ImGui.getCursorScreenPosY());
@@ -273,7 +273,7 @@ public final class PropertiesWindow {
         float lineH = ImGui.getFontSize();
         int lines = Math.max(1, (int) Math.ceil(ImGui.calcTextSizeX(text) / tw));
         float h = lines * lineH + 16 * sc;
-        dl.addRectFilled(x0, y0, x0 + w, y0 + h, Ui.c(Theme.SURFACE), 0f);
+        dl.addRectFilled(x0, y0, x0 + w, y0 + h, Ui.c(MubTheme.SURFACE), 0f);
         dl.addRect(x0, y0, x0 + w, y0 + h, Ui.c(Ui.LINK), 0f);
         EditorIcons.draw(dl, "lock", x0 + 16 * sc, y0 + 14 * sc, 7 * sc, Ui.c(Ui.LINK));
         ImGui.setCursorScreenPos(x0 + 30 * sc, y0 + 8 * sc);
@@ -307,7 +307,7 @@ public final class PropertiesWindow {
                 if (narrow) Ui.label(single ? "Location" : "Pivot location");
                 else {
                     ImGui.alignTextToFramePadding();
-                    ImGui.pushStyleColor(ImGuiCol.Text, Ui.c(Theme.DIM));
+                    ImGui.pushStyleColor(ImGuiCol.Text, Ui.c(MubTheme.DIM));
                     ImGui.text(single ? "Location" : "Pivot");
                     ImGui.popStyleColor();
                     ImGui.sameLine(labelW);
@@ -322,14 +322,14 @@ public final class PropertiesWindow {
         if (single && !(n instanceof LooseNode)) {
             Transform t = n instanceof ObjectNode o ? o.transform() : n instanceof AssemblyNode as ? as.transform() : n instanceof ExternalNode e ? e.transform() : Transform.IDENTITY;
             ImGui.alignTextToFramePadding();
-            ImGui.pushStyleColor(ImGuiCol.Text, Ui.c(Theme.DIM));
+            ImGui.pushStyleColor(ImGuiCol.Text, Ui.c(MubTheme.DIM));
             ImGui.text("Rotation Y");
             ImGui.popStyleColor();
             if (!narrow) ImGui.sameLine(labelW);
             int hit = Ui.segmented("##rot", ROT, t.rot().steps(), ImGui.getContentRegionAvailX(), true);
             if (hit >= 0 && hit != t.rot().steps()) s.actions.rotate(hit - t.rot().steps());
             ImGui.alignTextToFramePadding();
-            ImGui.pushStyleColor(ImGuiCol.Text, Ui.c(Theme.DIM));
+            ImGui.pushStyleColor(ImGuiCol.Text, Ui.c(MubTheme.DIM));
             ImGui.text("Mirror");
             ImGui.popStyleColor();
             if (!narrow) ImGui.sameLine(labelW);
@@ -355,14 +355,14 @@ public final class PropertiesWindow {
         int axRgb = axisCol(axis);
         dl.addRectFilled(x, y, x + tag, y + h, Ui.c(axRgb, 0.16f), 0f);
         dl.addRect(x, y, x + tag, y + h, Ui.c(axRgb), 0f);
-        Theme.push(UiHost.theme().monoS());
+        MubTheme.push(MubTheme.monoS());
         dl.addText(x + (tag - ImGui.calcTextSizeX(AXES[axis])) * 0.5f, y + (h - ImGui.getFontSize()) * 0.5f, Ui.c(axRgb), AXES[axis]);
         ImGui.popFont();
         ImGui.dummy(tag, h);
         ImGui.sameLine();
         ImGui.setNextItemWidth(fieldW);
         int[] v = {cur[axis]};
-        Theme.push(UiHost.theme().mono());
+        MubTheme.push(MubTheme.mono());
         boolean changed = ImGui.dragInt("##v", v, 0.25f);
         ImGui.popFont();
         boolean done = ImGui.isItemDeactivated();
@@ -447,7 +447,7 @@ public final class PropertiesWindow {
         var type = dev.vitruvius.api.ObjectTypes.get(e.typeId());
         Ui.section(type != null ? type.displayName() : "Missing mod");
         if (type == null) {
-            Ui.colored(Theme.GUTTER, "The mod that provides \"" + e.typeId() + "\" is not installed.");
+            Ui.colored(MubTheme.GUTTER, "The mod that provides \"" + e.typeId() + "\" is not installed.");
             Ui.smallDim("The object keeps its data and saves it unchanged. It can still be moved, hidden and deleted.");
         } else {
             com.google.gson.JsonObject work = e.data().deepCopy();
@@ -455,7 +455,7 @@ public final class PropertiesWindow {
             try {
                 type.drawProperties(work, ui);
             } catch (RuntimeException | LinkageError ex) {
-                Ui.colored(Theme.ERR, "The properties of " + e.typeId() + " failed: " + ex.getClass().getSimpleName());
+                Ui.colored(MubTheme.ERR, "The properties of " + e.typeId() + " failed: " + ex.getClass().getSimpleName());
             }
             if (ui.changed()) s.actions.execute(new dev.vitruvius.editor.ops.SetExternalData(e.id(), work));
             if (!locked && dev.vitruvius.editor.world.BoxEdit.canEdit(e)) {
@@ -492,12 +492,12 @@ public final class PropertiesWindow {
             float y0 = ImGui.getCursorScreenPosY();
             float x0 = ImGui.getCursorScreenPosX();
             int rgb = dev.vitruvius.editor.world.BoxEdit.boxColor(e, i);
-            dl.addCircleFilled(x0 + 6 * sc, y0 + 10 * sc, 4 * sc, Ui.c(isSel ? Theme.ACCENT : rgb));
+            dl.addCircleFilled(x0 + 6 * sc, y0 + 10 * sc, 4 * sc, Ui.c(isSel ? MubTheme.ACCENT : rgb));
             ImGui.setCursorScreenPos(x0 + 16 * sc, y0);
             String title = "Box #" + (i + 1) + "  (" + wSize.x() + "×" + wSize.y() + "×" + wSize.z() + ")";
             boolean open;
             if (boxes.size() <= 3) {
-                if (isSel) ImGui.pushStyleColor(ImGuiCol.Text, Ui.c(Theme.ACCENT));
+                if (isSel) ImGui.pushStyleColor(ImGuiCol.Text, Ui.c(MubTheme.ACCENT));
                 if (ImGui.selectable(title + "##hdr", isSel, 0, ImGui.getContentRegionAvailX() - (boxes.size() > 1 ? 26 * sc : 0), 20 * sc)) {
                     if (on) s.boxEdit.selectBox(i);
                 }
@@ -506,7 +506,7 @@ public final class PropertiesWindow {
             } else {
                 String key = "box:" + e.id() + ":" + i;
                 boolean expanded = isSel || !COLLAPSED.contains(key);
-                if (isSel) ImGui.pushStyleColor(ImGuiCol.Text, Ui.c(Theme.ACCENT));
+                if (isSel) ImGui.pushStyleColor(ImGuiCol.Text, Ui.c(MubTheme.ACCENT));
                 if (ImGui.selectable((expanded ? "▾ " : "▸ ") + title + "##hdr", isSel, 0, ImGui.getContentRegionAvailX() - 26 * sc, 20 * sc)) {
                     if (on) s.boxEdit.selectBox(i);
                     if (COLLAPSED.contains(key)) COLLAPSED.remove(key);
@@ -557,7 +557,7 @@ public final class PropertiesWindow {
         int axRgb = axisCol(axis);
         dl.addRectFilled(x, y, x + tag, y + h, Ui.c(axRgb, 0.16f), 0f);
         dl.addRect(x, y, x + tag, y + h, Ui.c(axRgb), 0f);
-        Theme.push(UiHost.theme().monoS());
+        MubTheme.push(MubTheme.monoS());
         dl.addText(x + (tag - ImGui.calcTextSizeX(AXES[axis])) * 0.5f, y + (h - ImGui.getFontSize()) * 0.5f, Ui.c(axRgb), AXES[axis]);
         ImGui.popFont();
         ImGui.dummy(tag, h);
@@ -565,7 +565,7 @@ public final class PropertiesWindow {
         ImGui.setNextItemWidth(fieldW);
         boolean editing = key.equals(boxEditKey);
         imgui.type.ImInt v = editing ? BOX_EDIT_VAL : new imgui.type.ImInt(current);
-        Theme.push(UiHost.theme().mono());
+        MubTheme.push(MubTheme.mono());
         ImGui.inputInt("##len", v, 0, 0, ImGuiInputTextFlags.AutoSelectAll);
         ImGui.popFont();
         if (ImGui.isItemActivated()) {
@@ -597,7 +597,7 @@ public final class PropertiesWindow {
 
         private void labelRow(String label) {
             ImGui.alignTextToFramePadding();
-            ImGui.pushStyleColor(ImGuiCol.Text, Ui.c(Theme.DIM));
+            ImGui.pushStyleColor(ImGuiCol.Text, Ui.c(MubTheme.DIM));
             ImGui.text(label);
             ImGui.popStyleColor();
             ImGui.sameLine(110 * Ui.s());
@@ -701,14 +701,14 @@ public final class PropertiesWindow {
             }
         }
         if (o.missing()) {
-            Ui.colored(Theme.ERR, "Placement not found in Litematica.");
+            Ui.colored(MubTheme.ERR, "Placement not found in Litematica.");
             return;
         }
         if (info == null) {
             Ui.dim(f == null ? "No file" : "The file cannot be read");
             return;
         }
-        Theme.push(UiHost.theme().numM());
+        MubTheme.push(MubTheme.numM());
         long blocks = info.blockCount();                 // counted on a worker: -1 until it is ready
         ImGui.text(blocks < 0 ? "…" : String.format(Locale.ROOT, "%,d", blocks));
         ImGui.popFont();
@@ -718,7 +718,7 @@ public final class PropertiesWindow {
         if (di != null && di.status() == DerivedFiles.Status.BUILDING) {
             Ui.smallDim("Rebuilding the trimmed file…");
         } else if (di != null && di.removed() > 0) {
-            Ui.colored(Theme.ERR, String.format(Locale.ROOT, "−%,d removed by front objects and Booleans", di.removed()));
+            Ui.colored(MubTheme.ERR, String.format(Locale.ROOT, "−%,d removed by front objects and Booleans", di.removed()));
         }
         shapeSection(s, o);
     }
@@ -773,7 +773,7 @@ public final class PropertiesWindow {
         if (!ovs.isEmpty()) {
             ImDrawList dl = ImGui.getWindowDrawList();
             Ui.badge(dl, ImGui.getCursorScreenPosX() + ImGui.getContentRegionAvailX() - 34 * sc, ImGui.getCursorScreenPosY() - 22 * sc,
-                    front > 0 ? "P" + front : "P-", Theme.FG, 0.12f, Theme.FG);
+                    front > 0 ? "P" + front : "P-", MubTheme.FG, 0.12f, MubTheme.FG);
         }
         float sq = 25 * sc;
         if (ImGui.button("Front")) s.actions.run("front.front");
@@ -796,15 +796,15 @@ public final class PropertiesWindow {
             long real = loser ? s.lostTo(n.id(), other) : s.lostTo(other, n.id());
             String text = (loser ? "Loses " : "Wins ") + (real >= 0 ? "" : "up to ") + String.format(Locale.ROOT, "%,d", real >= 0 ? real : vol) + " blocks "
                     + (loser ? "to " : "over ");
-            ImGui.pushStyleColor(ImGuiCol.Text, Ui.c(loser ? Theme.ERR : Theme.DIM));
+            ImGui.pushStyleColor(ImGuiCol.Text, Ui.c(loser ? MubTheme.ERR : MubTheme.DIM));
             ImGui.text(text);
             ImGui.popStyleColor();
             ImGui.sameLine(0, 0);
-            ImGui.pushStyleColor(ImGuiCol.Text, Ui.c(Theme.ACCENT));
+            ImGui.pushStyleColor(ImGuiCol.Text, Ui.c(MubTheme.ACCENT));
             ImGui.text(on.name());
             ImGui.popStyleColor();
             if (ImGui.isItemHovered()) {
-                UiHost.setCursor(UiHost.Cursor.HAND);
+                LiskovUiHost.setCursor(LiskovUiHost.Cursor.HAND);
                 ImGui.setTooltip("Select " + on.name() + " (the number counts the overlapping box, not non-air blocks)");
                 if (ImGui.isMouseClicked(0)) {
                     s.selection.set(other);
@@ -825,7 +825,7 @@ public final class PropertiesWindow {
                     any = true;
                     ImGui.text("Cuts ");
                     ImGui.sameLine(0, 0);
-                    ImGui.pushStyleColor(ImGuiCol.Text, Ui.c(Theme.ACCENT));
+                    ImGui.pushStyleColor(ImGuiCol.Text, Ui.c(MubTheme.ACCENT));
                     ImGui.text(x.name());
                     ImGui.popStyleColor();
                     if (ImGui.isItemHovered() && ImGui.isMouseClicked(0)) {
@@ -848,7 +848,7 @@ public final class PropertiesWindow {
         float sc = Ui.s();
         int objects = 0;
         for (Node x : p.subtree()) if (x instanceof ObjectNode) objects++;
-        Theme.push(UiHost.theme().numM());
+        MubTheme.push(MubTheme.numM());
         ImGui.text(String.valueOf(objects));
         ImGui.popFont();
         ImGui.sameLine();
@@ -856,15 +856,15 @@ public final class PropertiesWindow {
         Ui.section("Project");
         ImGui.text("World: " + (p.world().isEmpty() ? "(none)" : p.world()));
         ImGui.text("Origin: " + p.origin().x() + ", " + p.origin().y() + ", " + p.origin().z());
-        ImGui.text("Syncmatica: " + (p.sync() == ProjectNode.Sync.SHARED ? "shared" : "local only"));
+        ImGui.text("Sharing: " + (p.sync() == ProjectNode.Sync.SHARED ? "shared on a server drive" : "local only"));
         ImGui.dummy(0, 4 * sc);
         if (p.active()) {
-            Ui.colored(Theme.ACCENT, "Active project");
+            Ui.colored(MubTheme.ACCENT, "Active project");
         } else if (ImGui.button("Make active")) {
             s.actions.run("proj.active");
         }
         ImGui.sameLine();
-        var sync = dev.vitruvius.editor.sync.SyncService.get();
+        var sync = dev.vitruvius.editor.sync.LiskovShare.get();
         if (sync.installed()) {
             boolean shared = p.sync() == ProjectNode.Sync.SHARED;
             if (shared) {
@@ -951,26 +951,26 @@ public final class PropertiesWindow {
         // ---- header (30 high)
         float hh = 30 * sc;
         boolean enabled = isArray ? ((ArrayModifier) m).enabled : ((BooleanModifier) m).enabled;
-        int accent = enabled ? (isArray ? Theme.ACCENT : Ui.BOOL) : Theme.GUTTER;
+        int accent = enabled ? (isArray ? MubTheme.ACCENT : Ui.BOOL) : MubTheme.GUTTER;
         ImGui.setCursorScreenPos(x0 + 6 * sc, y0);
         ImGui.invisibleButton("##hdr", w - 80 * sc, hh);
         if (ImGui.isItemClicked(0)) {
             if (collapsed) COLLAPSED.remove(key);
             else COLLAPSED.add(key);
         }
-        EditorIcons.draw(dl, "grip", x0 + 12 * sc, y0 + hh * 0.5f, 5 * sc, Ui.c(Theme.GUTTER));
-        EditorIcons.draw(dl, collapsed ? "chev" : "chevdown", x0 + 26 * sc, y0 + hh * 0.5f, 5 * sc, Ui.c(Theme.GUTTER));
+        EditorIcons.draw(dl, "grip", x0 + 12 * sc, y0 + hh * 0.5f, 5 * sc, Ui.c(MubTheme.GUTTER));
+        EditorIcons.draw(dl, collapsed ? "chev" : "chevdown", x0 + 26 * sc, y0 + hh * 0.5f, 5 * sc, Ui.c(MubTheme.GUTTER));
         EditorIcons.draw(dl, isArray ? "array" : "cutter", x0 + 44 * sc, y0 + hh * 0.5f, 7.5f * sc, Ui.c(accent));
-        Theme.push(UiHost.theme().uiBold());
+        MubTheme.push(MubTheme.uiBold());
         String title = isArray ? "Array" : "Boolean";
-        dl.addText(x0 + 58 * sc, y0 + (hh - ImGui.getFontSize()) * 0.5f, Ui.c(enabled ? Theme.FG : Theme.DIM), title);
+        dl.addText(x0 + 58 * sc, y0 + (hh - ImGui.getFontSize()) * 0.5f, Ui.c(enabled ? MubTheme.FG : MubTheme.DIM), title);
         float tw = ImGui.calcTextSizeX(title);
         ImGui.popFont();
         if (collapsed) {
             String summary = isArray ? "×" + ((ArrayModifier) m).count + " along " + axisSummary((ArrayModifier) m)
                     : cap(((BooleanModifier) m).op.name()) + " · " + targetName(s, (BooleanModifier) m);
-            Theme.push(UiHost.theme().small());
-            dl.addText(x0 + 58 * sc + tw + 8 * sc, y0 + (hh - ImGui.getFontSize()) * 0.5f, Ui.c(Theme.DIM), Ui.fitEnd(summary, w - 58 * sc - tw - 100 * sc));
+            MubTheme.push(MubTheme.small());
+            dl.addText(x0 + 58 * sc + tw + 8 * sc, y0 + (hh - ImGui.getFontSize()) * 0.5f, Ui.c(MubTheme.DIM), Ui.fitEnd(summary, w - 58 * sc - tw - 100 * sc));
             ImGui.popFont();
         }
         ImGui.setCursorScreenPos(x0 + w - 66 * sc, y0 + (hh - 20 * sc) * 0.5f);
@@ -993,7 +993,7 @@ public final class PropertiesWindow {
                 s.actions.execute(new ModifierEdits.AddModifier(n.id(), ((BooleanModifier) m).copy(), idx + 1));
             }
             ImGui.separator();
-            ImGui.pushStyleColor(ImGuiCol.Text, Ui.c(Theme.ERR));
+            ImGui.pushStyleColor(ImGuiCol.Text, Ui.c(MubTheme.ERR));
             if (ImGui.menuItem("Remove")) s.actions.execute(new ModifierEdits.RemoveModifier(n.id(), idx));
             ImGui.popStyleColor();
             ImGui.endPopup();
@@ -1012,8 +1012,8 @@ public final class PropertiesWindow {
         ImGui.endGroup();
         float y1 = ImGui.getItemRectMaxY();
         dl.channelsSetCurrent(0);
-        dl.addRectFilled(x0, y0, x0 + w, y1, Ui.c(Theme.SURFACE), 0f);
-        dl.addRect(x0, y0, x0 + w, y1, Ui.c(Theme.LINE), 0f);
+        dl.addRectFilled(x0, y0, x0 + w, y1, Ui.c(MubTheme.SURFACE), 0f);
+        dl.addRect(x0, y0, x0 + w, y1, Ui.c(MubTheme.LINE), 0f);
         dl.addRectFilled(x0, y0, x0 + 2 * sc, y1, Ui.c(accent), 0f);
         dl.channelsMerge();
         ImGui.setCursorScreenPos(x0, y1);
@@ -1092,13 +1092,13 @@ public final class PropertiesWindow {
             int axRgb = axisCol(ax);
             dl.addRectFilled(x, y, x + tag, y + h, Ui.c(axRgb, 0.16f), 0f);
             dl.addRect(x, y, x + tag, y + h, Ui.c(axRgb), 0f);
-            Theme.push(UiHost.theme().monoS());
+            MubTheme.push(MubTheme.monoS());
             dl.addText(x + (tag - ImGui.calcTextSizeX(AXES[ax])) * 0.5f, y + (h - ImGui.getFontSize()) * 0.5f, Ui.c(axRgb), AXES[ax]);
             ImGui.popFont();
             ImGui.dummy(tag, h);
             ImGui.sameLine();
             ImGui.setNextItemWidth(ImGui.getContentRegionAvailX() - 10 * sc);
-            Theme.push(UiHost.theme().mono());
+            MubTheme.push(MubTheme.mono());
             if (rel) {
                 float[] f = {(float) a.relative[ax]};
                 if (ImGui.dragFloat("##o", f, 0.02f, -64f, 64f, "%.1f")) {
@@ -1181,7 +1181,7 @@ public final class PropertiesWindow {
         Node t = b.targetId == null ? null : s.scene().byId(b.targetId);
         boolean touches = true;
         if (t == null) {
-            Ui.colored(Theme.WARN, "The cutter object is missing: nothing is removed.");
+            Ui.colored(MubTheme.WARN, "The cutter object is missing: nothing is removed.");
             touches = false;
         } else if (!b.enabled) {
             Ui.smallDim("Off: the cut is not shown in the world.");
@@ -1189,18 +1189,18 @@ public final class PropertiesWindow {
             Box own = boxOf(s, List.of(n.id())), cut = boxOf(s, List.of(t.id()));
             DerivedFiles.Info info = DerivedFiles.shared().infoOf(n.id());
             if (own != null && cut != null && own.intersect(cut).isEmpty()) {
-                Ui.colored(Theme.WARN, "The cutter doesn't touch this object: nothing is removed.");
+                Ui.colored(MubTheme.WARN, "The cutter doesn't touch this object: nothing is removed.");
                 touches = false;
             } else if (info != null && info.status() == DerivedFiles.Status.FAILED) {
-                Ui.colored(Theme.ERR, "Rebuild failed" + (info.error() == null ? "" : ": " + info.error()));
+                Ui.colored(MubTheme.ERR, "Rebuild failed" + (info.error() == null ? "" : ": " + info.error()));
                 if (ImGui.smallButton("Retry")) DerivedFiles.shared().retryFailed();
             } else if (info == null || info.booleanRemoved() < 0) {
                 Ui.smallDim("Rebuilding…");
             } else if (info.booleanRemoved() == 0) {
-                Ui.colored(Theme.WARN, "The cutter doesn't touch this object: nothing is removed.");
+                Ui.colored(MubTheme.WARN, "The cutter doesn't touch this object: nothing is removed.");
                 touches = false;
             } else {
-                Ui.colored(Theme.OK, String.format(Locale.ROOT, "Removes ~%,d blocks", info.booleanRemoved()));
+                Ui.colored(MubTheme.OK, String.format(Locale.ROOT, "Removes ~%,d blocks", info.booleanRemoved()));
             }
         }
         if (t instanceof ObjectNode to && !(n instanceof AssemblyNode)) {
@@ -1233,7 +1233,7 @@ public final class PropertiesWindow {
         List<UUID> ids = s.selection.ids();
         Box box = boxOf(s, ids);
         ImDrawList dl = ImGui.getWindowDrawList();
-        Theme.push(UiHost.theme().uiBold());
+        MubTheme.push(MubTheme.uiBold());
         ImGui.text(ids.size() + " objects");
         ImGui.popFont();
         if (box != null) {
@@ -1257,7 +1257,7 @@ public final class PropertiesWindow {
         ImGui.sameLine();
         if (ImGui.button("Hide")) s.actions.run("hide");
         ImGui.sameLine();
-        ImGui.pushStyleColor(ImGuiCol.Text, Ui.c(Theme.ERR));
+        ImGui.pushStyleColor(ImGuiCol.Text, Ui.c(MubTheme.ERR));
         if (ImGui.button("Delete")) s.actions.run("delete");
         ImGui.popStyleColor();
         Ui.section("Selection");
@@ -1265,7 +1265,7 @@ public final class PropertiesWindow {
             Node n = s.scene().byId(id);
             if (n == null) continue;
             boolean active = id.equals(s.selection.active());
-            ImGui.pushStyleColor(ImGuiCol.Text, Ui.c(active ? Theme.ACCENT : Theme.FG));
+            ImGui.pushStyleColor(ImGuiCol.Text, Ui.c(active ? MubTheme.ACCENT : MubTheme.FG));
             if (ImGui.selectable(n.name() + "##sel" + id, active)) s.selection.makeActive(id);
             ImGui.popStyleColor();
         }

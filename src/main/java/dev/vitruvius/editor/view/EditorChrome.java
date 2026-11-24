@@ -1,7 +1,7 @@
 package dev.vitruvius.editor.view;
 
-import dev.cg.uihost.Theme;
-import dev.cg.uihost.UiHost;
+import dev.liskov.ui.theme.MubTheme;
+import dev.liskov.ui.host.LiskovUiHost;
 import dev.vitruvius.editor.EditorMode;
 import dev.vitruvius.editor.EditorSession;
 import dev.vitruvius.editor.EditorSession.Tool;
@@ -86,7 +86,7 @@ public final class EditorChrome {
 
     /** Draws toolbar, status bar and the fly HUD. {@code s} is null without Litematica. */
     public static void draw(EditorSession s) {
-        float sc = UiHost.scale();
+        float sc = LiskovUiHost.scale();
         ImGuiViewport vp = ImGui.getMainViewport();
         float toolbarBottom = drawToolbar(s, vp, sc);
         drawStatusBar(s, vp, sc);
@@ -122,30 +122,30 @@ public final class EditorChrome {
         boolean hit = ImGui.invisibleButton("##tb_" + b.id(), w, h);
         boolean hot = ImGui.isItemHovered() && b.enabled();
         if (b.active()) {
-            dl.addRectFilled(x, y, x + w, y + h, Ui.c(Theme.SEL), 0f);
-            dl.addRect(x, y, x + w, y + h, Ui.c(Theme.ACCENT), 0f);
+            dl.addRectFilled(x, y, x + w, y + h, Ui.c(MubTheme.SEL), 0f);
+            dl.addRect(x, y, x + w, y + h, Ui.c(MubTheme.ACCENT), 0f);
         } else if (hot) {
-            dl.addRectFilled(x, y, x + w, y + h, Ui.c(Theme.HOVER), 0f);
-            dl.addRect(x, y, x + w, y + h, Ui.c(Theme.BORDER_HI), 0f);
+            dl.addRectFilled(x, y, x + w, y + h, Ui.c(MubTheme.HOVER), 0f);
+            dl.addRect(x, y, x + w, y + h, Ui.c(MubTheme.BORDER_HI), 0f);
         }
-        int rgb = !b.enabled() ? Theme.GUTTER : b.active() ? Theme.ACCENT : hot ? Theme.FG : Theme.DIM;
+        int rgb = !b.enabled() ? MubTheme.GUTTER : b.active() ? MubTheme.ACCENT : hot ? MubTheme.FG : MubTheme.DIM;
         float cx = x + 8 * sc;
         EditorIcons.draw(dl, b.icon(), cx + 7.5f * sc, y + h * 0.5f, 7.5f * sc, Ui.c(rgb));
         cx += 15 * sc;
         if (labels && b.label() != null) {
             cx += 6 * sc;
-            dl.addText(cx, y + (h - ImGui.getFontSize()) * 0.5f, Ui.c(b.enabled() ? (b.active() ? Theme.ACCENT : hot ? Theme.FG : Theme.DIM) : Theme.GUTTER), b.label());
+            dl.addText(cx, y + (h - ImGui.getFontSize()) * 0.5f, Ui.c(b.enabled() ? (b.active() ? MubTheme.ACCENT : hot ? MubTheme.FG : MubTheme.DIM) : MubTheme.GUTTER), b.label());
             cx += ImGui.calcTextSizeX(b.label());
         }
         if (caps && b.cap() != null) {
             cx += 6 * sc;
-            Ui.keyCap(dl, cx, y + (h - 17 * sc) * 0.5f, b.cap(), b.enabled() ? Theme.DIM : Theme.GUTTER);
+            Ui.keyCap(dl, cx, y + (h - 17 * sc) * 0.5f, b.cap(), b.enabled() ? MubTheme.DIM : MubTheme.GUTTER);
         }
         if (b.pill() != null) {
             cx += 6 * sc;
             float pw = pillWidth(b.pill(), sc), ph = 17 * sc, py = y + (h - ph) * 0.5f;
             dl.addRectFilled(cx, py, cx + pw, py + ph, Ui.c(b.pillRgb()), 0f);
-            Theme.push(UiHost.theme().small());
+            MubTheme.push(MubTheme.small());
             dl.addText(cx + (pw - ImGui.calcTextSizeX(b.pill())) * 0.5f, py + (ph - ImGui.getFontSize()) * 0.5f, Ui.c(b.pillText()), b.pill());
             ImGui.popFont();
         }
@@ -155,7 +155,7 @@ public final class EditorChrome {
 
     private static float drawToolbar(EditorSession s, ImGuiViewport vp, float sc) {
         float pad = 4 * sc, h = 28 * sc, barH = h + 2 * pad, top = vp.getPosY() + 10 * sc;
-        Theme.push(UiHost.theme().small());
+        MubTheme.push(MubTheme.small());
         String label = "EDITOR";
         float labelW = ImGui.calcTextSizeX(label);
         ImGui.popFont();
@@ -177,28 +177,28 @@ public final class EditorChrome {
         Btn red = new Btn("redo", "redo", null, null, false, canRedo, canRedo ? "Redo " + undo.redoLabel().orElse("") + " (Ctrl Shift Z)" : "Nothing to redo");
         Btn win = new Btn("win", "layout", null, null, false, s != null, "Windows");
         Btn topv = new Btn("topv", "map", null, null, s != null && s.showTopView, s != null, s != null && s.showTopView ? "Hide the top view" : "Show the top view");
-        var sync = dev.vitruvius.editor.sync.SyncService.get();
-        boolean showPush = s != null && sync.installed();                 // hidden without Syncmatica (EDITOR-2.0 8)
+        var sync = dev.vitruvius.editor.sync.LiskovShare.get();
+        boolean showPush = s != null && sync.sharedProjects() > 0;          // only with a project shared on a Liskov server drive
         var syncStatus = sync.status();
-        boolean pushing = syncStatus.state() == dev.vitruvius.editor.sync.SyncService.State.PUSHING;
-        boolean syncFailed = syncStatus.state() == dev.vitruvius.editor.sync.SyncService.State.FAILED;
+        boolean pushing = syncStatus.state() == dev.vitruvius.editor.sync.LiskovShare.State.PUSHING;
+        boolean syncFailed = syncStatus.state() == dev.vitruvius.editor.sync.LiskovShare.State.FAILED;
         int pend = sync.pending();
         boolean canPush = showPush && sync.usable() && sync.sharedProjects() > 0 && sync.connected() && !pushing;
         String pushTip = !showPush ? "" : !sync.usable() ? sync.reason()
-                : sync.sharedProjects() == 0 ? "No project is shared on Syncmatica. Share one from its right-click menu."
-                : !sync.connected() ? "Not connected to a server with Syncmatica"
-                : pushing ? "Pushing to Syncmatica…"
+                : sync.sharedProjects() == 0 ? "No project is shared. Share one from its right-click menu (on a server with Liskov)."
+                : !sync.connected() ? "Not connected to the server the project is shared on"
+                : pushing ? "Pushing to the server…"
                 : syncFailed ? syncStatus.message() + " (click to retry)"
                 : pend == 0 ? "Everything is pushed" : pend + " change" + (pend == 1 ? "" : "s") + " in shared projects aren't pushed yet";
-        String pushLabel = pushing ? "Pushing " + syncStatus.done() + "/" + syncStatus.total() : "Push";
+        String pushLabel = pushing ? "Pushing…" : "Push";
         String pill = !showPush || sync.sharedProjects() == 0 || pushing ? null : syncFailed ? "!" : String.valueOf(pend);
-        int pillRgb = syncFailed ? Theme.ERR : pend > 0 ? Theme.WARN : Theme.CHIP;
-        int pillText = syncFailed || pend > 0 ? 0x2a1a02 : Theme.DIM;
+        int pillRgb = syncFailed ? MubTheme.ERR : pend > 0 ? MubTheme.WARN : MubTheme.CHIP;
+        int pillText = syncFailed || pend > 0 ? 0x2a1a02 : MubTheme.DIM;
         Btn push = new Btn("push", "sync", pushLabel, null, false, canPush, pushTip, pill, pillRgb, pillText);
         Btn help = new Btn("help", "help", null, null, false, true, "Quick guide");
         float comboW = 128 * sc, sep = 1 * sc + 8 * sc;
 
-        Theme.push(UiHost.theme().ui());
+        MubTheme.push(MubTheme.ui());
         float avail = vp.getSizeX() - 24 * sc;
         int stage = 0;
         float need = 0;
@@ -230,20 +230,20 @@ public final class EditorChrome {
         ImGui.pushStyleVar(ImGuiStyleVar.WindowBorderSize, 1f);
         ImGui.pushStyleVar(ImGuiStyleVar.ItemSpacing, 4 * sc, 0);
         ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 8 * sc, 4.5f * sc);
-        ImGui.pushStyleColor(ImGuiCol.WindowBg, Theme.u32(Theme.PANEL, 0.95f));
-        ImGui.pushStyleColor(ImGuiCol.Border, Theme.u32(Theme.BORDER_HI));
+        ImGui.pushStyleColor(ImGuiCol.WindowBg, MubTheme.u32(MubTheme.PANEL, 0.95f));
+        ImGui.pushStyleColor(ImGuiCol.Border, MubTheme.u32(MubTheme.BORDER_HI));
         if (ImGui.begin("##la_toolbar", FIXED | ImGuiWindowFlags.NoFocusOnAppearing | ImGuiWindowFlags.NoNav)) {
             ImDrawList dl = ImGui.getWindowDrawList();
             float x = ImGui.getCursorScreenPosX(), y = ImGui.getCursorScreenPosY();
             // 1. mode chip
             boolean clicked = ImGui.invisibleButton("##chip", chipW, h);
             boolean hot = ImGui.isItemHovered();
-            dl.addRectFilled(x, y, x + chipW, y + h, Theme.u32(Theme.SEL, hot ? 1f : 0.92f), 0f);
-            dl.addRect(x, y, x + chipW, y + h, Theme.u32(Theme.ACCENT), 0f);
-            Theme.push(UiHost.theme().small());
-            dl.addText(x + 8 * sc, y + (h - ImGui.getFontSize()) * 0.5f, Theme.u32(Theme.ACCENT), label);
+            dl.addRectFilled(x, y, x + chipW, y + h, MubTheme.u32(MubTheme.SEL, hot ? 1f : 0.92f), 0f);
+            dl.addRect(x, y, x + chipW, y + h, MubTheme.u32(MubTheme.ACCENT), 0f);
+            MubTheme.push(MubTheme.small());
+            dl.addText(x + 8 * sc, y + (h - ImGui.getFontSize()) * 0.5f, MubTheme.u32(MubTheme.ACCENT), label);
             ImGui.popFont();
-            Ui.keyCap(dl, x + 8 * sc + labelW + 6 * sc, y + (h - 17 * sc) * 0.5f, "F6", Theme.ACCENT);
+            Ui.keyCap(dl, x + 8 * sc + labelW + 6 * sc, y + (h - 17 * sc) * 0.5f, "F6", MubTheme.ACCENT);
             if (hot) ImGui.setTooltip("Leave the editor (F6)");
             if (clicked) EditorMode.exit(Minecraft.getInstance(), true);
 
@@ -344,11 +344,10 @@ public final class EditorChrome {
             if (s.showChat) s.showChat = false;
             else ChatWindow.open(s, false);
         }
-        if (ImGui.menuItem("History", "", s.showHistory)) s.showHistory = !s.showHistory;
         ImGui.separator();
         if (ImGui.beginMenu("Theme")) {
-            Theme.Preset current = UiHost.themePreset();
-            for (Theme.Preset p : Theme.Preset.values()) {
+            MubTheme.Preset current = LiskovUiHost.themePreset();
+            for (MubTheme.Preset p : MubTheme.Preset.values()) {
                 if (ImGui.menuItem(p.displayName + "  (" + p.subtitle + ")", "", p == current)) {
                     s.setThemePreset(p);
                 }
@@ -417,7 +416,7 @@ public final class EditorChrome {
                     {"F", "frame selection"}, {"F2", "rename"}, {"X / Delete", "delete"}, {"PgUp PgDn", "front order"},
                     {"Ctrl Z / Ctrl Shift Z", "undo / redo"}, {"Ctrl S", "save all projects"}, {"Tab", "hide windows"}};
             for (String[] k : keys) {
-                ImGui.pushStyleColor(ImGuiCol.Text, Ui.c(Theme.ACCENT));
+                ImGui.pushStyleColor(ImGuiCol.Text, Ui.c(MubTheme.ACCENT));
                 ImGui.text(k[0]);
                 ImGui.popStyleColor();
                 ImGui.sameLine(190 * sc);
@@ -439,19 +438,19 @@ public final class EditorChrome {
         ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, 10 * sc, 0f);
         ImGui.pushStyleVar(ImGuiStyleVar.WindowRounding, 0f);
         ImGui.pushStyleVar(ImGuiStyleVar.WindowBorderSize, 0f);
-        ImGui.pushStyleColor(ImGuiCol.WindowBg, Theme.u32(Theme.BG));
+        ImGui.pushStyleColor(ImGuiCol.WindowBg, MubTheme.u32(MubTheme.BG));
         if (ImGui.begin("##la_status", FIXED | ImGuiWindowFlags.NoBringToFrontOnFocus | ImGuiWindowFlags.NoFocusOnAppearing
                 | ImGuiWindowFlags.NoNav | ImGuiWindowFlags.NoInputs)) {
             ImDrawList dl = ImGui.getWindowDrawList();
             float x0 = ImGui.getWindowPosX(), y0 = ImGui.getWindowPosY(), w = ImGui.getWindowWidth();
-            dl.addLine(x0, y0 + 0.5f, x0 + w, y0 + 0.5f, Theme.u32(Theme.BORDER_HI), 1f);
+            dl.addLine(x0, y0 + 0.5f, x0 + w, y0 + 0.5f, MubTheme.u32(MubTheme.BORDER_HI), 1f);
 
-            Theme.push(UiHost.theme().small());
+            MubTheme.push(MubTheme.small());
             String summary = summary(s);
             float fh = ImGui.getFontSize();
             float sumW = Math.min(ImGui.calcTextSizeX(summary), w * 0.45f);
             String shown = ImGui.calcTextSizeX(summary) > sumW ? Ui.fitEnd(summary, sumW) : summary;
-            dl.addText(x0 + w - 10 * sc - ImGui.calcTextSizeX(shown), y0 + (h - fh) * 0.5f, Theme.u32(Theme.FG), shown);
+            dl.addText(x0 + w - 10 * sc - ImGui.calcTextSizeX(shown), y0 + (h - fh) * 0.5f, MubTheme.u32(MubTheme.FG), shown);
 
             float limit = x0 + w - 10 * sc - sumW - 14 * sc;
             var derived = dev.vitruvius.editor.mc.DerivedFiles.shared();
@@ -461,30 +460,30 @@ public final class EditorChrome {
                         : "Rebuilding " + work + " derived file" + (work == 1 ? "" : "s") + "…";
                 float tw = ImGui.calcTextSizeX(dt);
                 float dx = limit - tw - 14 * sc;
-                int col = bad > 0 ? Theme.ERR : Theme.WARN;
+                int col = bad > 0 ? MubTheme.ERR : MubTheme.WARN;
                 if (dx > x0 + 220 * sc) {
-                    dl.addRectFilled(dx, y0 + h * 0.5f - 3 * sc, dx + 6 * sc, y0 + h * 0.5f + 3 * sc, Theme.u32(col), 0f);
-                    dl.addText(dx + 11 * sc, y0 + (h - fh) * 0.5f, Theme.u32(col), dt);
+                    dl.addRectFilled(dx, y0 + h * 0.5f - 3 * sc, dx + 6 * sc, y0 + h * 0.5f + 3 * sc, MubTheme.u32(col), 0f);
+                    dl.addText(dx + 11 * sc, y0 + (h - fh) * 0.5f, MubTheme.u32(col), dt);
                     limit = dx - 10 * sc;
                 }
             }
-            // derived files over the cap (some copies keep the original file), then Syncmatica
+            // derived files over the cap (some copies keep the original file), then sharing
             List<String[]> notes = new ArrayList<>();
             String capWarn = derived.capWarning();
-            if (capWarn != null) notes.add(new String[] {capWarn, String.valueOf(Theme.WARN)});
-            var sync = dev.vitruvius.editor.sync.SyncService.get();
+            if (capWarn != null) notes.add(new String[] {capWarn, String.valueOf(MubTheme.WARN)});
+            var sync = dev.vitruvius.editor.sync.LiskovShare.get();
             if (sync.installed() && sync.sharedProjects() > 0) {
                 int pend = sync.pending();
-                notes.add(pend == 0 ? new String[] {"Syncmatica up to date", String.valueOf(Theme.OK)}
-                        : new String[] {pend + " change" + (pend == 1 ? "" : "s") + " not pushed", String.valueOf(Theme.WARN)});
+                notes.add(pend == 0 ? new String[] {"Shared projects up to date", String.valueOf(MubTheme.OK)}
+                        : new String[] {pend + " change" + (pend == 1 ? "" : "s") + " not pushed", String.valueOf(MubTheme.WARN)});
             }
             for (String[] note : notes) {
                 float tw = ImGui.calcTextSizeX(note[0]);
                 float dx = limit - tw - 14 * sc;
                 int col = Integer.parseInt(note[1]);
                 if (dx > x0 + 220 * sc) {
-                    dl.addRectFilled(dx, y0 + h * 0.5f - 3 * sc, dx + 6 * sc, y0 + h * 0.5f + 3 * sc, Theme.u32(col), 0f);
-                    dl.addText(dx + 11 * sc, y0 + (h - fh) * 0.5f, Theme.u32(col), note[0]);
+                    dl.addRectFilled(dx, y0 + h * 0.5f - 3 * sc, dx + 6 * sc, y0 + h * 0.5f + 3 * sc, MubTheme.u32(col), 0f);
+                    dl.addText(dx + 11 * sc, y0 + (h - fh) * 0.5f, MubTheme.u32(col), note[0]);
                     limit = dx - 10 * sc;
                 }
             }
@@ -567,11 +566,11 @@ public final class EditorChrome {
     private static float drawHint(ImDrawList dl, Hint hint, float x, float y0, float h, float s) {
         float capH = 18 * s;
         for (String cap : hint.caps()) {
-            x = Ui.keyCap(dl, x, y0 + (h - capH) * 0.5f, cap, Theme.DIM) + 3 * s;
+            x = Ui.keyCap(dl, x, y0 + (h - capH) * 0.5f, cap, MubTheme.DIM) + 3 * s;
         }
         x += 3 * s;
         float fh = ImGui.getFontSize();
-        dl.addText(x, y0 + (h - fh) * 0.5f, Theme.u32(Theme.DIM), hint.verb());
+        dl.addText(x, y0 + (h - fh) * 0.5f, MubTheme.u32(MubTheme.DIM), hint.verb());
         return x + ImGui.calcTextSizeX(hint.verb());
     }
 
@@ -586,7 +585,7 @@ public final class EditorChrome {
         String speed = String.format(Locale.ROOT, "%.1f×", cam.speed());
         String tail = loading ? "loading chunks…" : SpectatorFollow.catchingUp(mc, cam) ? "player catching up…" : null;
 
-        Theme.push(UiHost.theme().mono());
+        MubTheme.push(MubTheme.mono());
         float fh = ImGui.getFontSize();
         float flyW = ImGui.calcTextSizeX("Fly"), speedW = ImGui.calcTextSizeX(speed);
         float tailW = tail == null ? 0 : ImGui.calcTextSizeX(tail) + 10 * s;
@@ -595,10 +594,10 @@ public final class EditorChrome {
         float x = vp.getPosX() + (vp.getSizeX() - w) * 0.5f, y = toolbarBottom + 10 * s;
 
         ImDrawList dl = ImGui.getForegroundDrawList();
-        dl.addRectFilled(x, y, x + w, y + h, Theme.u32(Theme.BG, 0.94f), 0f);
-        dl.addRect(x, y, x + w, y + h, Theme.u32(Theme.BORDER_HI), 0f);
+        dl.addRectFilled(x, y, x + w, y + h, MubTheme.u32(MubTheme.BG, 0.94f), 0f);
+        dl.addRect(x, y, x + w, y + h, MubTheme.u32(MubTheme.BORDER_HI), 0f);
         float tx = x + padX, ty = y + (h - fh) * 0.5f;
-        dl.addText(tx, ty, Theme.u32(Theme.FG), "FLY");
+        dl.addText(tx, ty, MubTheme.u32(MubTheme.FG), "FLY");
         tx += flyW + gap;
         float by = y + (h - 8 * s) * 0.5f;
         double t = Math.log(cam.speed() / EditorCamera.SPEED_MIN) / Math.log(EditorCamera.SPEED_MAX / EditorCamera.SPEED_MIN);
@@ -607,11 +606,11 @@ public final class EditorChrome {
         float segGap = 2 * s, segW = (barW - segGap * (segs - 1)) / segs;
         for (int i = 0; i < segs; i++) {
             float sx0 = tx + i * (segW + segGap);
-            dl.addRectFilled(sx0, by, sx0 + segW, by + 8 * s, Theme.u32(i < filled ? Theme.ACCENT : Theme.LINE), 0f);
+            dl.addRectFilled(sx0, by, sx0 + segW, by + 8 * s, MubTheme.u32(i < filled ? MubTheme.ACCENT : MubTheme.LINE), 0f);
         }
         tx += barW + gap;
-        dl.addText(tx, ty, Theme.u32(Theme.ACCENT), speed);
-        if (tail != null) dl.addText(tx + speedW + 10 * s, ty, Theme.u32(Theme.DIM), tail);
+        dl.addText(tx, ty, MubTheme.u32(MubTheme.ACCENT), speed);
+        if (tail != null) dl.addText(tx + speedW + 10 * s, ty, MubTheme.u32(MubTheme.DIM), tail);
         ImGui.popFont();
     }
 }

@@ -1,6 +1,6 @@
 package dev.vitruvius.editor.view;
 
-import dev.cg.uihost.Theme;
+import dev.liskov.ui.theme.MubTheme;
 import dev.vitruvius.editor.EditorSession;
 import dev.vitruvius.editor.core.Node;
 import dev.vitruvius.editor.core.ObjectNode;
@@ -434,7 +434,7 @@ public final class ShapeWindow {
         if (out == null || out.usesSchematicFolder()) drawFolder(sc);
         if (out != null && out.usesListFolders()) drawListFolder(sc);
         boolean busy = PreviewWorker.busy();
-        if (error != null) Ui.colored(Theme.ERR, error);
+        if (error != null) Ui.colored(MubTheme.ERR, error);
         else if (busy) Ui.smallDim("Generating…");
         else if (out != null && outputStatus != null) Ui.smallDim(outputStatus);
         else if (result != null && o != null) Ui.smallDim(result.blockCount() + " blocks, " + result.sizeX() + " x " + result.sizeY() + " x " + result.sizeZ());

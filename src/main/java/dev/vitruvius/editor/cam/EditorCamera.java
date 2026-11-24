@@ -1,6 +1,6 @@
 package dev.vitruvius.editor.cam;
 
-import dev.cg.uihost.UiHost;
+import dev.liskov.ui.host.LiskovUiHost;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -200,7 +200,7 @@ public final class EditorCamera {
     public void onMouseMove(Minecraft mc, double x, double y) {
         if (gesture == Gesture.FLY_PENDING) {
             if (Math.hypot(x - rmbX, y - rmbY) >= CLICK_MAX_MOVE_PX) startFly();
-        } else if (gesture != Gesture.NONE && UiHost.isCursorCaptured()) {
+        } else if (gesture != Gesture.NONE && LiskovUiHost.isCursorCaptured()) {
             if (baselineValid) {
                 accDx += x - lastMx;
                 accDy += y - lastMy;
@@ -227,13 +227,13 @@ public final class EditorCamera {
     }
 
     private void beginCapture() {
-        UiHost.captureCursor(true);
+        LiskovUiHost.captureCursor(true);
         baselineValid = false;
         accDx = accDy = 0;
     }
 
     private void endGesture() {
-        UiHost.captureCursor(false);
+        LiskovUiHost.captureCursor(false);
         gesture = Gesture.NONE;
         baselineValid = false;
         accDx = accDy = 0;
@@ -341,11 +341,11 @@ public final class EditorCamera {
     }
 
     private static boolean key(long win, int key) {
-        return UiHost.isKeyDown(key);
+        return LiskovUiHost.isKeyDown(key);
     }
 
     private static double[] cursor(long win) {
-        return new double[]{UiHost.cursorX(), UiHost.cursorY()};
+        return new double[]{LiskovUiHost.cursorX(), LiskovUiHost.cursorY()};
     }
 
     /** Degrees per pixel, vanilla's formula so the camera feels like the player's mouse look. */

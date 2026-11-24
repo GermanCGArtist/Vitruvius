@@ -43,7 +43,7 @@ class ProjectManagerTest {
         env = new ProjectManager.Env() {
             @Override
             public Path configDir() {
-                return config;
+                return config.resolve("vitruvius");
             }
 
             @Override
@@ -233,5 +233,85 @@ class ProjectManagerTest {
         pm.newProject("A");
         Map<?, ?> parsed = new com.google.gson.Gson().fromJson(Files.readString(config.resolve("vitruvius").resolve("editor-session.json")), Map.class);
         assertNotNull(parsed.get("worlds"));
+    }
+
+    @Test
+    void anOldProjectJsonIsReadAndSavedAsVproj() throws IOException {
+        ProjectManager pm = manager("sp:w");
+        ProjectNode made = pm.newProject("Old");
+        Path dir = Path.of(made.path());
+        pm.close(made.id());
+        // as an older Vitruvius left it: only project.json
+        Files.move(dir.resolve("project.vproj"), dir.resolve("project.json"));
+
+        ProjectNode p = pm.open(dir);
+        assertEquals("Old", p.name());
+        p.addChild(new FolderNode("f"));
+        pm.saveAll();
+        assertTrue(Files.isRegularFile(dir.resolve("project.vproj")), "saved under the new name");
+        assertFalse(Files.exists(dir.resolve("project.json")), "the stale old file is gone from the folder");
+        assertTrue(Files.isRegularFile(dir.resolve(".trash").resolve("project.json")), "and kept in .trash");
+        assertTrue(Files.readString(dir.resolve("project.vproj")).contains("\"f\""));
+    }
+
+    @Test
+    void reopenedProjectsGoThroughTheEnvRemap() throws IOException {
+        ProjectManager pm = manager("sp:w");
+        ProjectNode p = pm.newProject("Moved");
+        Path real = Path.of(p.path());
+        pm.leaveWorld();
+        // the session remembers an old location; the env knows where it went
+        Path old = root.resolve("old-schematics").resolve("Projects").resolve("Moved");
+        Path session = config.resolve("vitruvius").resolve("editor-session.json");
+        Files.writeString(session, Files.readString(session).replace(
+                real.toString().replace("\\", "\\\\"), old.toString().replace("\\", "\\\\")));
+        ProjectManager.Env moved = new ProjectManager.Env() {
+            @Override public Path configDir() { return config.resolve("vitruvius"); }
+            @Override public Path schematicsDir() { return schematics; }
+            @Override public Path remap(Path path) { return path.equals(old) ? real : path; }
+        };
+        ProjectManager again = new ProjectManager(moved);
+        again.enterWorld("sp:w", "minecraft:overworld", List.of(), id -> null);
+        assertEquals(1, again.projects().size());
+        assertEquals(real.toString(), again.projects().get(0).path());
+        assertSame(again.projects().get(0), again.scene().activeProject());
+    }
+
+    @Test
+    void theHistoryHookHearsAutosavesAndNamedSavesButNotQuickSaves() throws IOException {
+        ProjectManager pm = manager("sp:w");
+        List<String> heard = new ArrayList<>();
+        pm.setHistoryHook((p, dir, explicit) -> heard.add(p.name() + (explicit ? ":named" : ":auto")));
+        ProjectNode p = pm.newProject("A");
+        p.addChild(new FolderNode("f"));
+        pm.saveChanged();
+        assertEquals(List.of(), heard, "the save a second after an edit records nothing");
+        p.addChild(new FolderNode("g"));
+        for (int i = 0; i < ProjectManager.AUTOSAVE_TICKS; i++) pm.tick();
+        assertEquals(List.of("A:auto"), heard);
+        pm.checkpoint();
+        assertEquals(List.of("A:auto", "A:named"), heard);
+        pm.close(p.id());
+        assertEquals(List.of("A:auto", "A:named", "A:auto"), heard);
+    }
+
+    @Test
+    void revertToDiskDropsUnsavedStateAndReadsTheFileAgain() throws IOException {
+        ProjectManager pm = manager("sp:w");
+        ProjectNode p = pm.newProject("A");
+        p.addChild(new FolderNode("kept"));
+        pm.saveAll();
+        p.addChild(new FolderNode("unsaved"));
+        Path file = ProjectLayout.projectFile(Path.of(p.path()));
+        String onDisk = Files.readString(file);
+
+        ProjectNode fresh = pm.revertToDisk(p.id());
+        assertNotNull(fresh);
+        assertEquals(p.id(), fresh.id());
+        assertEquals(List.of("kept"), fresh.children().stream().map(n -> n.name()).toList());
+        assertSame(fresh, pm.scene().activeProject(), "stays active");
+        assertEquals(1, pm.projects().size());
+        assertFalse(pm.isDirty(p.id()));
+        assertEquals(onDisk, Files.readString(file), "nothing was written over the file");
     }
 }

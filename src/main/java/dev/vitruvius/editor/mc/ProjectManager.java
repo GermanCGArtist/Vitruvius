@@ -35,9 +35,9 @@ import java.util.function.Function;
  *   <li>{@link #newProject}, {@link #open}, {@link #close}, {@link #save}, {@link #saveAll}, {@link #setActive}.
  *   <li>Autosave: {@link #tick} saves the projects (and Loose) that changed every {@link #AUTOSAVE_TICKS} ticks (30 s);
  *       "changed" means the saved text differs from what is on disk, so no command has to flag anything.
- *   <li>The open projects are remembered per world in {@code config/vitruvius/editor-session.json} and opened again
- *       by {@link #enterWorld}.
- *   <li>Loose is not part of a project: it is kept per world in {@code config/vitruvius/editor-loose/<world>.lasm}.
+ *   <li>The open projects are remembered per world in {@code <config>/editor-session.json} and opened again
+ *       by {@link #enterWorld} ({@code <config>} is {@link Env#configDir()}: Liskov's {@code liskov/local/vitruvius/config}).
+ *   <li>Loose is not part of a project: it is kept per world in {@code <config>/editor-loose/<world>.lasm}.
  *       The first time a world is entered, it is built from folders.json and the live placements
  *       ({@link Migration1x}); the file is left as it is.
  * </ul>
@@ -47,11 +47,19 @@ public final class ProjectManager {
     public static final int AUTOSAVE_TICKS = 600;
 
     public interface Env {
-        /** The game's config folder (the files go to {@code vitruvius/} in it). */
+        /** Vitruvius's own config folder (editor-session.json, editor-loose/, folders.json). */
         Path configDir();
 
-        /** Litematica's schematics folder (projects live in {@code Projects/} in it). */
+        /** The schematics folder (projects live in {@code Projects/} in it). */
         Path schematicsDir();
+
+        /**
+         * Maps a remembered path that may point into the folders used before Liskov (the old {@code schematics/})
+         * to where that project is now. Default: unchanged.
+         */
+        default Path remap(Path path) {
+            return path;
+        }
 
         /** Where new projects are anchored: the player's block position. */
         default Vec3i playerPos() {
@@ -67,6 +75,7 @@ public final class ProjectManager {
     private String savedLoose;
     private Consumer<ProjectNode> closeHook = p -> {};
     private Consumer<ProjectNode> saveHook = p -> {};
+    private HistoryHook historyHook = (p, dir, explicit) -> {};
     private int ticks;
 
     public ProjectManager(Env env) {
@@ -99,6 +108,19 @@ public final class ProjectManager {
         this.saveHook = hook == null ? p -> {} : hook;
     }
 
+    /**
+     * Told after a project was written, for version history: {@code explicit} for a save the player asked for
+     * ({@link #checkpoint}), false for autosave, close and world changes. The quick saves a second after each edit
+     * ({@link #saveChanged}) are not reported.
+     */
+    public interface HistoryHook {
+        void saved(ProjectNode project, Path projectDir, boolean explicit);
+    }
+
+    public void setHistoryHook(HistoryHook hook) {
+        this.historyHook = hook == null ? (p, dir, explicit) -> {} : hook;
+    }
+
     /** Called with a project just before it is closed (the reconciler removes its placements). */
     public void setCloseHook(Consumer<ProjectNode> hook) {
         this.closeHook = hook == null ? p -> {} : hook;
@@ -128,7 +150,7 @@ public final class ProjectManager {
             for (JsonElement e : w.getAsJsonArray("open")) {
                 if (!e.isJsonPrimitive()) continue;
                 try {
-                    openInternal(Path.of(e.getAsString()), false);
+                    openInternal(env.remap(Path.of(e.getAsString())), false);
                 } catch (IOException | RuntimeException ex) {
                     System.out.println("[Vitruvius] cannot reopen project " + e + ": " + ex.getMessage());
                 }
@@ -136,7 +158,7 @@ public final class ProjectManager {
             String active = w.has("active") && w.get("active").isJsonPrimitive() ? w.get("active").getAsString() : null;
             if (active != null) {
                 for (ProjectNode p : scene.projects()) {
-                    if (samePath(Path.of(p.path()), Path.of(active))) scene.setActiveProject(p);
+                    if (samePath(Path.of(p.path()), env.remap(Path.of(active)))) scene.setActiveProject(p);
                 }
             }
         }
@@ -170,7 +192,7 @@ public final class ProjectManager {
         p.setOrigin(origin);
         try {
             Files.createDirectories(ProjectLayout.filesDir(dir));
-            ProjectIo.write(p, ProjectLayout.projectFile(dir));
+            ProjectIo.write(p, ProjectLayout.saveFile(dir));
         } catch (IOException e) {
             throw new IllegalStateException("cannot create project " + dir + ": " + e.getMessage(), e);
         }
@@ -181,7 +203,7 @@ public final class ProjectManager {
     }
 
     /**
-     * Opens a project from its folder or its project.json. Opening one that is open already returns it. A project
+     * Opens a project from its folder or its project file (project.vproj, or an old project.json). Opening one that is open already returns it. A project
      * that belongs to no world yet is bound to the current one.
      */
     public ProjectNode open(Path path) throws IOException {
@@ -190,7 +212,7 @@ public final class ProjectManager {
     }
 
     private ProjectNode openInternal(Path path, boolean remember) throws IOException {
-        Path file = Files.isDirectory(path) ? ProjectLayout.projectFile(path) : path;
+        Path file = Files.isDirectory(path) ? ProjectLayout.projectFile(path) : ProjectLayout.existingProjectFile(path);
         ProjectNode p = ProjectIo.read(file);
         for (ProjectNode o : scene.projects()) if (o.id().equals(p.id())) return o;
         String text = ProjectIo.toJson(p);
@@ -208,7 +230,7 @@ public final class ProjectManager {
     public boolean close(UUID id) {
         ProjectNode p = find(id);
         if (p == null) return false;
-        save(p);
+        save(p, Snap.AUTO);
         closeHook.accept(p);
         scene.closeProject(p);
         saved.remove(id);
@@ -218,18 +240,47 @@ public final class ProjectManager {
 
     public boolean save(UUID id) {
         ProjectNode p = find(id);
-        return p != null && save(p);
+        return p != null && save(p, Snap.NONE);
     }
 
-    private boolean save(ProjectNode p) {
+    /** What a save tells the {@link HistoryHook}. */
+    private enum Snap { NONE, AUTO, EXPLICIT }
+
+    /**
+     * Once a project is saved as project.vproj, an old project.json next to it is stale: it is moved to the project's
+     * .trash (not deleted), so only one project file is left and the explorer shows one project.
+     */
+    private static void retireLegacyFile(Path dir) {
+        Path legacy = dir.resolve(ProjectLayout.LEGACY_PROJECT_FILE);
+        if (!Files.isRegularFile(legacy) || !Files.isRegularFile(dir.resolve(ProjectLayout.PROJECT_FILE))) return;
+        try {
+            Path trash = ProjectLayout.trashDir(dir);
+            Files.createDirectories(trash);
+            String name = ProjectLayout.uniqueName(ProjectLayout.LEGACY_PROJECT_FILE, n -> Files.exists(trash.resolve(n)));
+            Files.move(legacy, trash.resolve(name));
+        } catch (IOException e) {
+            System.out.println("[Vitruvius] cannot move the old " + legacy + " to .trash: " + e.getMessage());
+        }
+    }
+
+    private boolean save(ProjectNode p, Snap snap) {
         if (p.path().isEmpty()) return false;
         try {
-            ProjectIo.write(p, ProjectLayout.projectFile(dirOf(p)));
+            Path dir = dirOf(p);
+            ProjectIo.write(p, ProjectLayout.saveFile(dir));
+            retireLegacyFile(dir);
             saved.put(p.id(), ProjectIo.toJson(p));
             try {
                 saveHook.accept(p);
             } catch (RuntimeException e) {
                 System.out.println("[Vitruvius] derived cache cleanup failed: " + e);
+            }
+            if (snap != Snap.NONE) {
+                try {
+                    historyHook.saved(p, dir, snap == Snap.EXPLICIT);
+                } catch (RuntimeException e) {
+                    System.out.println("[Vitruvius] version snapshot failed: " + e);
+                }
             }
             return true;
         } catch (IOException | RuntimeException e) {
@@ -240,14 +291,24 @@ public final class ProjectManager {
 
     /** Saves every open project and the Loose node, changed or not. */
     public void saveAll() {
-        for (ProjectNode p : scene.projects()) save(p);
+        for (ProjectNode p : scene.projects()) save(p, Snap.AUTO);
+        if (world != null) saveLoose();
+    }
+
+    /** Saves everything, as {@link #saveAll}, and records a named version of each open project (Ctrl S). */
+    public void checkpoint() {
+        for (ProjectNode p : scene.projects()) save(p, Snap.EXPLICIT);
         if (world != null) saveLoose();
     }
 
     /** Saves only what changed since it was last written. */
     public void saveChanged() {
+        saveChanged(Snap.NONE);
+    }
+
+    private void saveChanged(Snap snap) {
         for (ProjectNode p : scene.projects()) {
-            if (!ProjectIo.toJson(p).equals(saved.get(p.id()))) save(p);
+            if (!ProjectIo.toJson(p).equals(saved.get(p.id()))) save(p, snap);
         }
         if (world != null && !looseText(scene.loose()).equals(savedLoose)) saveLoose();
     }
@@ -263,7 +324,7 @@ public final class ProjectManager {
         if (world == null) return;
         if (++ticks >= AUTOSAVE_TICKS) {
             ticks = 0;
-            saveChanged();
+            saveChanged(Snap.AUTO);
         }
     }
 
@@ -275,7 +336,44 @@ public final class ProjectManager {
         return true;
     }
 
-/** The folder of a project: its path, made absolute against Litematica's schematics folder when it is relative. */    private Path dirOf(ProjectNode p) {        Path x = Path.of(p.path());        return x.isAbsolute() ? x : env.schematicsDir().resolve(x).toAbsolutePath().normalize();    }
+    /** The folder of a project: its path, made absolute against the schematics folder when it is relative. */
+    private Path dirOf(ProjectNode p) {
+        Path x = Path.of(p.path());
+        return x.isAbsolute() ? x : env.schematicsDir().resolve(x).toAbsolutePath().normalize();
+    }
+
+    /**
+     * Throws away the open project's state and reads it again from its folder, without saving first: for when its
+     * file was replaced on disk (a version restored in Liskov's explorer). The project stays active if it
+     * was (it moves to the end of the list). Returns the new node, or null when it is not open or cannot be read (then nothing changes).
+     */
+    public ProjectNode revertToDisk(UUID id) {
+        ProjectNode old = find(id);
+        if (old == null || old.path().isEmpty()) return null;
+        Path dir = dirOf(old);
+        ProjectNode fresh;
+        try {
+            fresh = ProjectIo.read(ProjectLayout.projectFile(dir));
+        } catch (IOException | RuntimeException e) {
+            System.out.println("[Vitruvius] cannot read " + dir + " again: " + e.getMessage());
+            return null;
+        }
+        boolean wasActive = scene.activeProject() == old;
+        closeHook.accept(old);
+        scene.closeProject(old);
+        saved.remove(id);
+        saved.put(fresh.id(), ProjectIo.toJson(fresh));
+        scene.openProject(fresh);
+        if (wasActive) scene.setActiveProject(fresh);
+        remember();
+        return fresh;
+    }
+
+    /** The folder of an open project (absolute). */
+    public Path projectDir(ProjectNode p) {
+        return dirOf(p);
+    }
+
     public ProjectNode find(UUID id) {
         for (ProjectNode p : scene.projects()) if (p.id().equals(id)) return p;
         return null;
@@ -302,7 +400,7 @@ public final class ProjectManager {
             }
             return loose;
         }
-        Path cfg = env.configDir().resolve("vitruvius");
+        Path cfg = env.configDir();
         try {
             Migration1x.Result r = Migration1x.migrate(cfg.resolve("folders.json"), existingIds, lookup);
             LooseNode loose = r.loose();
@@ -324,7 +422,7 @@ public final class ProjectManager {
 
     private Path looseFile() {
         String key = world == null ? "" : world;
-        return env.configDir().resolve("vitruvius").resolve("editor-loose")
+        return env.configDir().resolve("editor-loose")
                 .resolve(ProjectLayout.safeName(key) + "-" + Integer.toHexString(key.hashCode()) + ".lasm");
     }
 
@@ -349,7 +447,7 @@ public final class ProjectManager {
     // ------------------------------------------------------------------------------------------ session file
 
     private Path sessionFile() {
-        return env.configDir().resolve("vitruvius").resolve("editor-session.json");
+        return env.configDir().resolve("editor-session.json");
     }
 
     private JsonObject readSession() {
