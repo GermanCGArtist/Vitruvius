@@ -113,6 +113,11 @@ public final class ChatWindow {
         ImGui.getWindowDrawList().addText(ix + 7 * sc, iy + (ih - ImGui.getFontSize()) * 0.5f, Ui.c(dev.liskov.ui.theme.MubTheme.ACCENT), ">");
         ImGui.popFont();
         boolean active = ImGui.isItemActive();
+        if (ImGui.isKeyPressed(ImGuiKey.Escape) && (active || ImGui.isWindowFocused())) {
+            s.showChat = false;
+            ImGui.setWindowFocus(null);
+            return;
+        }
         if (swallowFrames > 0) {
             swallowFrames--;
             String t = INPUT.get().toLowerCase(java.util.Locale.ROOT);

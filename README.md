@@ -8,7 +8,7 @@ whole projects on a server (through Liskov), and generate shapes from blocks, al
 > `vitruvius` and the Java package `dev.vitruvius`. The mod id is kept on purpose so that mods built against it
 > (Heavymatica) keep working.
 >
-> **Status.** This is the **2.0 line, currently alpha** (`2.0.0-alpha.34`, Minecraft 26.3).
+> **Status.** This is the **2.0 line, currently alpha** (`2.0.0-alpha.46+`, Minecraft 26.3, powered by [Liskov](https://github.com/GermanCGArtist/Liskov)).
 
 ## What it does
 
@@ -31,7 +31,7 @@ rendering, printing, the verifier and the material list work as usual.
 - Minecraft **26.3** (this branch; see [Branches](#branches)), Java **25**
 - [Fabric Loader](https://fabricmc.net/) 0.19.3 or newer and Fabric API
 - [Litematica](https://modrinth.com/mod/litematica) 0.29.x and malilib 0.30.x
-- **Liskov** 0.2.0 or newer (the shared ImGui host and the Drives filesystem: `liskov-<version>+mc26.3.jar`)
+- **Liskov** 0.2.3+mc26.3 or newer (the shared ImGui host and the Drives filesystem: `liskov-<version>+mc26.3.jar`)
 
 The mod is client-side only.
 

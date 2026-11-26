@@ -4,13 +4,16 @@ Everything here applies in **editor mode** (F6) unless noted. Shortcuts do not f
 menu is open, or while you fly (right mouse held). `Ctrl` also means `Cmd` on macOS. The editor toggle can be rebound
 under *Controls → Key Binds → Vitruvius*; the other keys are fixed.
 
-## Mode
+## Mode & Suite Integration
 
 | Key | Action |
 |---|---|
 | `F6` | Enter or leave editor mode. |
 | `Tab` | Hide or show all editor windows. |
-| `Esc` | Nothing (it never opens the pause menu in editor mode). Cancels a running gesture. |
+| `T` / `/` | Open the in-editor Chat window (typing `/` starts a command). Press `Esc` inside Chat to close it and return to editor shortcuts. |
+| `Esc` | Closes Chat window or cancels a running gesture (never opens the pause menu in editor mode). |
+| `F8` | Toggle [Liskov](https://github.com/GermanCGArtist/Liskov) File Explorer. |
+| `Ctrl+P` | Open the unified Liskov Command Palette (`Up`/`Down`, `Enter`, `Esc`). |
 
 ## Camera
 
